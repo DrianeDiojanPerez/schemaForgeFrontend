@@ -20,6 +20,14 @@ export type TableColumn = {
   isUnique: boolean
   isIdentity: boolean
   isForeignKey?: boolean
+  // Carried so a column survives a round trip through the backend, which
+  // models these separately from the type name.
+  length?: number
+  precision?: number
+  scale?: number
+  defaultValue?: string
+  /** Becomes COMMENT ON COLUMN. */
+  description?: string
 }
 
 export type TableNodeData = {
@@ -30,6 +38,8 @@ export type TableNodeData = {
   isForeign?: boolean
   columns: TableColumn[]
   indexes?: ColumnIndex[]
+  /** Becomes COMMENT ON TABLE. */
+  description?: string
 }
 
 export type SchemaNodeData = {
