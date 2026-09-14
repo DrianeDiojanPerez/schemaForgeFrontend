@@ -1,19 +1,21 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { Button } from "@/components/ui/button"
+import { ClientOnly, createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute("/")({ component: App })
+import { Skeleton } from "@/components/ui/skeleton"
+import { ErdCanvas } from "@/features/erd/components/erd-canvas"
+import { exampleSchema1 } from "@/features/erd/data/examples"
 
-function App() {
+export const Route = createFileRoute("/")({ component: SchemaBuilderPage })
+
+function SchemaBuilderPage() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-      </div>
-    </div>
+    <main className="h-svh w-full">
+      {/* React Flow measures the DOM to lay the graph out, so there is
+          nothing useful it can render on the server. */}
+      <ClientOnly
+        fallback={<Skeleton className="h-full w-full rounded-none" />}
+      >
+        <ErdCanvas diagram={exampleSchema1} />
+      </ClientOnly>
+    </main>
   )
 }
