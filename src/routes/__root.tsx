@@ -40,8 +40,8 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  // Toasts are drawn as filled SVG rather than themed CSS, so the colour has
-  // to be handed in rather than inherited.
+  // The toaster marks itself with this, and `styles.css` hangs the toast text
+  // colour off that mark.
   const theme = useTheme()
   const toastPosition = useToastPosition()
 

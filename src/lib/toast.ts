@@ -43,6 +43,29 @@ export function useToastPosition(): ScreenPosition {
   )
 }
 
+const STATE_COLOURS = {
+  loading: "--muted-foreground",
+  success: "--primary",
+  warning: "--warning",
+  info: "--chart-3",
+  error: "--destructive",
+} as const
+
+/**
+ * Sileo paints the toast body as an SVG rect, and a presentation attribute
+ * cannot read a CSS variable, so the colour is looked up instead of inherited.
+ * Reading it per call is also what keeps it in step with the theme toggle.
+ */
+function fillFor(state: keyof typeof STATE_COLOURS): string | undefined {
+  if (typeof document === "undefined") return undefined
+
+  return (
+    getComputedStyle(document.documentElement)
+      .getPropertyValue(STATE_COLOURS[state])
+      .trim() || undefined
+  )
+}
+
 /**
  * Raise toasts through here rather than through sileo.
  *
@@ -55,9 +78,19 @@ export function useToastPosition(): ScreenPosition {
  */
 export const notify = {
   waiting: (options: SileoOptions) =>
-    sileo.show({ ...options, type: "loading", duration: null, position }),
-  success: (options: SileoOptions) => sileo.success({ ...options, position }),
-  warning: (options: SileoOptions) => sileo.warning({ ...options, position }),
-  info: (options: SileoOptions) => sileo.info({ ...options, position }),
-  error: (options: SileoOptions) => sileo.error({ ...options, position }),
+    sileo.show({
+      ...options,
+      type: "loading",
+      duration: null,
+      position,
+      fill: fillFor("loading"),
+    }),
+  success: (options: SileoOptions) =>
+    sileo.success({ ...options, position, fill: fillFor("success") }),
+  warning: (options: SileoOptions) =>
+    sileo.warning({ ...options, position, fill: fillFor("warning") }),
+  info: (options: SileoOptions) =>
+    sileo.info({ ...options, position, fill: fillFor("info") }),
+  error: (options: SileoOptions) =>
+    sileo.error({ ...options, position, fill: fillFor("error") }),
 }

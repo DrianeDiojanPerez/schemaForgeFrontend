@@ -26,6 +26,7 @@
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
+    --color-warning: var(--warning);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -65,6 +66,7 @@
     --accent: oklch(0.967 0.001 286.375);
     --accent-foreground: oklch(0.21 0.006 285.885);
     --destructive: oklch(0.577 0.245 27.325);
+    --warning: oklch(0.68 0.16 70);
     --border: oklch(0.92 0.004 286.32);
     --input: oklch(0.92 0.004 286.32);
     --ring: oklch(0.705 0.015 286.067);
@@ -100,6 +102,7 @@
     --accent: oklch(0.274 0.006 286.033);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
+    --warning: oklch(0.80 0.17 78);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.552 0.016 285.938);
@@ -116,6 +119,31 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.552 0.016 285.938);
+}
+
+/* Sileo injects its stylesheet at runtime, so it lands after this file and wins
+   any tie. The `html` prefix is what outranks it.
+
+   Its own look is an inverted slab carrying one accent colour on the icon and
+   title. The fill moves to the state colour instead, so everything sitting on
+   top of it reads against that rather than against black or white. */
+html [data-sileo-viewport] {
+    /* Sileo and the dialog both sit at 50, and the dialog portal mounts second,
+       so a tie puts the toast behind it. Anything above 50 clears it. The
+       settings dialog is where the backend check and the auto-validate switch
+       are worked, and both answer with a toast. */
+    z-index: 60;
+
+    --sileo-state-success: var(--primary-foreground);
+    --sileo-state-loading: var(--primary-foreground);
+    --sileo-state-error: var(--primary-foreground);
+    --sileo-state-warning: var(--primary-foreground);
+    --sileo-state-info: var(--primary-foreground);
+    --sileo-state-action: var(--primary-foreground);
+}
+
+html [data-sileo-viewport][data-theme] [data-sileo-description] {
+    color: color-mix(in oklch, var(--primary-foreground) 75%, transparent);
 }
 
 @layer base {
