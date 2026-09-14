@@ -176,13 +176,36 @@ export const generateDdl = createServerFn({ method: "POST" })
     }
   )
 
+/**
+ * The health call carries no token, so on its own it reports that the process
+ * is up and nothing about whether this one may talk to it. Bad credentials
+ * would read as a healthy backend right up until the first save. The cheapest
+ * authenticated call answers that second question.
+ */
 export const checkBackend = createServerFn({ method: "GET" }).handler(
-  async () => {
+  async (): Promise<{
+    status: string
+    version: string
+    signedIn: boolean
+    reason?: string
+  }> => {
     const response = await callHealth<Wire, Wire>("check", {})
+
+    try {
+      await callSchema<Wire, Wire>("listSchemas", { page: 1, perPage: 1 })
+    } catch (error) {
+      return {
+        status: String(response.status ?? ""),
+        version: String(response.version ?? ""),
+        signedIn: false,
+        reason: error instanceof Error ? error.message : "Could not sign in",
+      }
+    }
 
     return {
       status: String(response.status ?? ""),
       version: String(response.version ?? ""),
+      signedIn: true,
     }
   }
 )
