@@ -13,6 +13,8 @@ import {
   MousePointer2Icon,
   PaletteIcon,
   PlusIcon,
+  RefreshCwIcon,
+  ServerIcon,
   SettingsIcon,
   SunIcon,
 } from "lucide-react"
@@ -31,6 +33,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CONNECTOR_ARROWS } from "@/features/erd/lib/connector-arrows"
+import type { ConnectorArrow } from "@/features/erd/lib/connector-arrows"
+import {
+  probeBackend,
+  useBackendStatus,
+} from "@/features/schema/hooks/use-backend-status"
+import type { BackendState } from "@/features/schema/hooks/use-backend-status"
 import { setTheme, useTheme } from "@/lib/theme"
 import type { Theme } from "@/lib/theme"
 import {
@@ -47,6 +56,7 @@ const TABS = [
   { id: "appearance", label: "Appearance", icon: PaletteIcon },
   { id: "canvas", label: "Canvas", icon: GridIcon },
   { id: "interaction", label: "Interaction", icon: MousePointer2Icon },
+  { id: "backend", label: "Backend", icon: ServerIcon },
 ] as const
 
 type TabId = (typeof TABS)[number]["id"]
@@ -103,6 +113,12 @@ export type CanvasSettingsProps = {
   onBackgroundChange: (background: BackgroundStyle) => void
   snapToGrid: boolean
   onSnapToGridChange: (snap: boolean) => void
+  autoSave: boolean
+  onAutoSaveChange: (autoSave: boolean) => void
+  autoValidate: boolean
+  onAutoValidateChange: (autoValidate: boolean) => void
+  connectorArrow: ConnectorArrow
+  onConnectorArrowChange: (arrow: ConnectorArrow) => void
 }
 
 // Mirrors what React Flow's own Background draws, so the swatch is the
@@ -319,6 +335,96 @@ function ToastPositionRow({
   )
 }
 
+/**
+ * The preview is the thing itself rather than a name for it: a stand-in column
+ * with the pair of arrows drawn where they sit on a real one.
+ */
+function ConnectorArrowRow({
+  value,
+  onValueChange,
+}: {
+  value: ConnectorArrow
+  onValueChange: (arrow: ConnectorArrow) => void
+}) {
+  return (
+    <Row
+      stacked
+      label="Connector arrows"
+      hint="Appear on a column you hover, to drag a relationship from"
+    >
+      <RadioGroup
+        aria-label="Connector arrows"
+        value={value}
+        onValueChange={(next) => onValueChange(next as ConnectorArrow)}
+        className="grid-cols-3"
+      >
+        {CONNECTOR_ARROWS.map((arrow) => (
+          <Label
+            key={arrow.id}
+            htmlFor={`connector-${arrow.id}`}
+            className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
+          >
+            <span className="flex h-[52px] items-center justify-center gap-1 rounded-md border border-border bg-background text-primary">
+              <arrow.left
+                className="size-3.5"
+                fill={arrow.filled ? "currentColor" : "none"}
+              />
+              <span
+                aria-hidden
+                className="h-6 w-10 rounded-xs border border-border bg-card"
+              />
+              <arrow.right
+                className="size-3.5"
+                fill={arrow.filled ? "currentColor" : "none"}
+              />
+            </span>
+            <span className="flex items-center gap-2 px-0.5">
+              <RadioGroupItem id={`connector-${arrow.id}`} value={arrow.id} />
+              {arrow.label}
+            </span>
+          </Label>
+        ))}
+      </RadioGroup>
+    </Row>
+  )
+}
+
+const CONNECTION: Record<BackendState, { label: string; dot: string }> = {
+  checking: { label: "Checking", dot: "animate-pulse bg-muted-foreground" },
+  online: { label: "Connected", dot: "bg-primary" },
+  unauthorised: { label: "Refused sign-in", dot: "bg-warning" },
+  offline: { label: "No answer", dot: "bg-destructive" },
+}
+
+function ConnectionRow() {
+  const status = useBackendStatus()
+  const view = CONNECTION[status.state]
+
+  return (
+    <Row
+      label="Connection"
+      hint={status.detail || "The backend behind saving and validation"}
+    >
+      <span className="flex items-center gap-2 text-sm">
+        <span className={cn("size-2 rounded-full", view.dot)} aria-hidden />
+        {view.label}
+        {status.version && (
+          <span className="text-muted-foreground">v{status.version}</span>
+        )}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={status.state === "checking"}
+        onClick={() => void probeBackend()}
+      >
+        <RefreshCwIcon />
+        Check
+      </Button>
+    </Row>
+  )
+}
+
 export function CanvasSettings({
   showMiniMap,
   onShowMiniMapChange,
@@ -328,6 +434,12 @@ export function CanvasSettings({
   onBackgroundChange,
   snapToGrid,
   onSnapToGridChange,
+  autoSave,
+  onAutoSaveChange,
+  autoValidate,
+  onAutoValidateChange,
+  connectorArrow,
+  onConnectorArrowChange,
 }: CanvasSettingsProps) {
   const { zoomIn, zoomOut, zoomTo, fitView } = useReactFlow()
   const store = useStoreApi()
@@ -546,6 +658,30 @@ export function CanvasSettings({
                   checked={snapToGrid}
                   onCheckedChange={onSnapToGridChange}
                 />
+                <ConnectorArrowRow
+                  value={connectorArrow}
+                  onValueChange={onConnectorArrowChange}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="backend">
+              <div className="flex flex-col divide-y divide-border">
+                <SwitchRow
+                  id="setting-auto-save"
+                  label="Auto-save"
+                  hint="Store changes shortly after you stop making them"
+                  checked={autoSave}
+                  onCheckedChange={onAutoSaveChange}
+                />
+                <SwitchRow
+                  id="setting-auto-validate"
+                  label="Auto-validate"
+                  hint="Mark the tables with defects as you work"
+                  checked={autoValidate}
+                  onCheckedChange={onAutoValidateChange}
+                />
+                <ConnectionRow />
               </div>
             </TabsContent>
           </div>
