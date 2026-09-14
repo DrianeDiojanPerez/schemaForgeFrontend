@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react"
+import { NodeResizer, useReactFlow } from "@xyflow/react"
+import type { NodeProps } from "@xyflow/react"
 import { Layers } from "lucide-react"
 
 import {

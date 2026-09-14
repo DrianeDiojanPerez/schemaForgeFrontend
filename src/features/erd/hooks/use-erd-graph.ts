@@ -1,10 +1,6 @@
 import { useCallback } from "react"
-import {
-  addEdge,
-  useEdgesState,
-  useNodesState,
-  type Connection,
-} from "@xyflow/react"
+import { addEdge, useEdgesState, useNodesState } from "@xyflow/react"
+import type { Connection } from "@xyflow/react"
 
 import { isTableNode } from "../lib/node-guards"
 import type { ErdDiagram, ErdEdge, ErdNode } from "../types/erd"

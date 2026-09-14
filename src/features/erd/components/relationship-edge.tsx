@@ -5,8 +5,8 @@ import {
   getSmoothStepPath,
   useReactFlow,
   useStore,
-  type EdgeProps,
 } from "@xyflow/react"
+import type { EdgeProps } from "@xyflow/react"
 
 import {
   DropdownMenu,
