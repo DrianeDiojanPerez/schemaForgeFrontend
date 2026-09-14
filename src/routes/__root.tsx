@@ -1,9 +1,11 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
+import { Toaster } from "sileo"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { themeScript } from "@/lib/theme"
+import { themeScript, useTheme } from "@/lib/theme"
+import { useToastPosition } from "@/lib/toast"
 
 import appCss from "../styles.css?url"
 
@@ -38,6 +40,11 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // Toasts are drawn as filled SVG rather than themed CSS, so the colour has
+  // to be handed in rather than inherited.
+  const theme = useTheme()
+  const toastPosition = useToastPosition()
+
   return (
     // The pre-paint script adds the theme class before React hydrates, which
     // is a mismatch by definition.
@@ -48,6 +55,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <TooltipProvider>{children}</TooltipProvider>
+        <Toaster position={toastPosition} theme={theme} />
         <TanStackDevtools
           config={{
             position: "bottom-right",
