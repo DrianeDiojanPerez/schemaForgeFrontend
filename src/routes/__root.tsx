@@ -3,6 +3,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { themeScript } from "@/lib/theme"
 
 import appCss from "../styles.css?url"
 
@@ -38,9 +39,12 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // The pre-paint script adds the theme class before React hydrates, which
+    // is a mismatch by definition.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
         <TooltipProvider>{children}</TooltipProvider>
