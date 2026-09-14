@@ -1,7 +1,8 @@
 import { useCallback } from "react"
 import { addEdge, useEdgesState, useNodesState } from "@xyflow/react"
-import type { Connection } from "@xyflow/react"
+import type { Connection, XYPosition } from "@xyflow/react"
 
+import { newColumn, newTable } from "../lib/new-nodes"
 import { isTableNode } from "../lib/node-guards"
 import type { ErdDiagram, ErdEdge, ErdNode } from "../types/erd"
 
@@ -52,6 +53,79 @@ export function useErdGraph(diagram: ErdDiagram) {
     [setEdges, setNodes]
   )
 
+  const addTable = useCallback(
+    (position: XYPosition) => {
+      setNodes((current) => [...current, newTable(position, current)])
+    },
+    [setNodes]
+  )
+
+  const addColumn = useCallback(
+    (nodeId: string) => {
+      setNodes((current) =>
+        current.map((node) => {
+          if (node.id !== nodeId || !isTableNode(node)) return node
+
+          const taken = new Set(node.data.columns.map((col) => col.name))
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              columns: [...node.data.columns, newColumn(taken)],
+            },
+          }
+        })
+      )
+    },
+    [setNodes]
+  )
+
+  const removeTable = useCallback(
+    (nodeId: string) => {
+      setNodes((current) => current.filter((node) => node.id !== nodeId))
+      setEdges((current) =>
+        current.filter(
+          (edge) => edge.source !== nodeId && edge.target !== nodeId
+        )
+      )
+    },
+    [setEdges, setNodes]
+  )
+
+  // Edges hang off a column, so dropping one without its edges would leave
+  // relationships pointing at a handle that is no longer rendered.
+  const removeColumn = useCallback(
+    (nodeId: string, columnId: string) => {
+      setNodes((current) =>
+        current.map((node) => {
+          if (node.id !== nodeId || !isTableNode(node)) return node
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              columns: node.data.columns.filter((col) => col.id !== columnId),
+            },
+          }
+        })
+      )
+
+      setEdges((current) =>
+        current.filter(
+          (edge) =>
+            !(
+              (edge.source === nodeId &&
+                stripHandleSide(edge.sourceHandle ?? "") === columnId) ||
+              (edge.target === nodeId &&
+                stripHandleSide(edge.targetHandle ?? "") === columnId)
+            )
+        )
+      )
+    },
+    [setEdges, setNodes]
+  )
+
   return {
     nodes,
     edges,
@@ -60,5 +134,9 @@ export function useErdGraph(diagram: ErdDiagram) {
     onNodesChange,
     onEdgesChange,
     onConnect,
+    addTable,
+    addColumn,
+    removeTable,
+    removeColumn,
   }
 }
