@@ -33,6 +33,12 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { setTheme, useTheme } from "@/lib/theme"
 import type { Theme } from "@/lib/theme"
+import {
+  SCREEN_POSITIONS,
+  setToastPosition,
+  useToastPosition,
+} from "@/lib/toast"
+import type { ScreenPosition } from "@/lib/toast"
 
 const ZOOM_DURATION = 150
 const FIT_DURATION = 300
@@ -254,6 +260,65 @@ function SwitchRow({
   )
 }
 
+const POSITION_LABELS: Record<ScreenPosition, string> = {
+  "top-left": "Top left",
+  "top-center": "Top centre",
+  "top-right": "Top right",
+  "bottom-left": "Bottom left",
+  "bottom-center": "Bottom centre",
+  "bottom-right": "Bottom right",
+}
+
+/**
+ * A small canvas with the six placements marked on it. Picking one is pointing
+ * at the spot rather than matching a name to a corner in your head.
+ */
+function ToastPositionRow({
+  value,
+  onValueChange,
+}: {
+  value: ScreenPosition
+  onValueChange: (position: ScreenPosition) => void
+}) {
+  return (
+    <Row label="Notifications" hint="Where saving and validation report back">
+      <div className="flex flex-col items-end gap-1.5">
+        <RadioGroup
+          aria-label="Notifications"
+          value={value}
+          onValueChange={(next) => onValueChange(next as ScreenPosition)}
+          className="grid w-44 grid-cols-3 grid-rows-2 gap-1 rounded-md border border-border bg-background bg-[radial-gradient(var(--border)_0.5px,transparent_0.5px)] bg-[length:6px_6px] p-1.5"
+        >
+          {SCREEN_POSITIONS.map((position) => (
+            <Label
+              key={position}
+              htmlFor={`setting-toast-${position}`}
+              title={POSITION_LABELS[position]}
+              className="flex h-8 cursor-pointer items-center justify-center rounded-sm text-muted-foreground/30 transition hover:bg-muted hover:text-muted-foreground/70 has-focus-visible:ring-2 has-focus-visible:ring-ring has-data-checked:bg-primary/10 has-data-checked:text-primary"
+            >
+              {/* The cell is the target, so the control itself only has to
+                  stay reachable by keyboard. */}
+              <RadioGroupItem
+                id={`setting-toast-${position}`}
+                value={position}
+                aria-label={POSITION_LABELS[position]}
+                className="sr-only"
+              />
+              <span
+                aria-hidden
+                className="block h-2.5 w-6 rounded-full bg-current"
+              />
+            </Label>
+          ))}
+        </RadioGroup>
+        <span className="text-xs text-muted-foreground">
+          {POSITION_LABELS[value]}
+        </span>
+      </div>
+    </Row>
+  )
+}
+
 export function CanvasSettings({
   showMiniMap,
   onShowMiniMapChange,
@@ -267,6 +332,7 @@ export function CanvasSettings({
   const { zoomIn, zoomOut, zoomTo, fitView } = useReactFlow()
   const store = useStoreApi()
   const theme = useTheme()
+  const toastPosition = useToastPosition()
   const [tab, setTab] = useState<TabId>("appearance")
 
   const zoom = useStore((state) => state.transform[2])
@@ -456,6 +522,10 @@ export function CanvasSettings({
                   hint="Zoom buttons on the canvas itself"
                   checked={showControls}
                   onCheckedChange={onShowControlsChange}
+                />
+                <ToastPositionRow
+                  value={toastPosition}
+                  onValueChange={setToastPosition}
                 />
               </div>
             </TabsContent>
