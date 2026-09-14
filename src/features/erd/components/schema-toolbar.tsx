@@ -1,4 +1,4 @@
-import { FileCodeIcon, SaveIcon, ShieldCheckIcon } from "lucide-react"
+import { FileCodeIcon, TablePropertiesIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,8 +8,7 @@ export type SchemaToolbarProps = {
   name: string
   onNameChange: (name: string) => void
   busy: boolean
-  onSave: () => void
-  onValidate: () => void
+  onAddTable: () => void
   onGenerate: () => void
 }
 
@@ -17,8 +16,7 @@ export function SchemaToolbar({
   name,
   onNameChange,
   busy,
-  onSave,
-  onValidate,
+  onAddTable,
   onGenerate,
 }: SchemaToolbarProps) {
   return (
@@ -32,19 +30,16 @@ export function SchemaToolbar({
 
       <Separator orientation="vertical" className="h-6" />
 
-      <Button variant="ghost" size="sm" disabled={busy} onClick={onValidate}>
-        <ShieldCheckIcon />
-        Validate
+      <Button variant="ghost" size="sm" onClick={onAddTable}>
+        <TablePropertiesIcon />
+        New table
       </Button>
+
+      <Separator orientation="vertical" className="h-6" />
 
       <Button variant="ghost" size="sm" disabled={busy} onClick={onGenerate}>
         <FileCodeIcon />
         SQL
-      </Button>
-
-      <Button size="sm" disabled={busy} onClick={onSave}>
-        <SaveIcon />
-        Save
       </Button>
     </div>
   )

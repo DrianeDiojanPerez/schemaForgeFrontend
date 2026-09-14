@@ -10,7 +10,6 @@ import { getSchema, listSchemas } from "@/server/rpc/schema"
 type LoaderData = {
   diagram: ErdDiagram
   schema: { id: string; name: string }
-  offline?: string
 }
 
 export const Route = createFileRoute("/")({
@@ -21,8 +20,8 @@ export const Route = createFileRoute("/")({
    * rather than flashing an empty canvas while a client fetch resolves.
    *
    * A backend that is down falls back to the example rather than an error
-   * page, so the canvas stays usable offline. Saving will still fail, and say
-   * so, which is the honest place for the failure to appear.
+   * page, so the canvas stays usable offline. The connection is reported by
+   * the startup check and in the settings, so nothing is said about it here.
    */
   loader: async (): Promise<LoaderData> => {
     const example = {
@@ -42,29 +41,18 @@ export const Route = createFileRoute("/")({
         diagram: toDiagram(schema),
         schema: { id: schema.id, name: schema.name },
       }
-    } catch (error) {
-      return {
-        ...example,
-        offline: error instanceof Error ? error.message : "Backend unreachable",
-      }
+    } catch {
+      return example
     }
   },
   component: SchemaBuilderPage,
 })
 
 function SchemaBuilderPage() {
-  const { diagram, schema, offline } = Route.useLoaderData()
+  const { diagram, schema } = Route.useLoaderData()
 
   return (
     <main className="h-svh w-full">
-      {offline && (
-        <p
-          role="status"
-          className="absolute inset-x-0 top-0 z-10 bg-destructive/10 px-3 py-1 text-center text-xs text-destructive"
-        >
-          Not connected to the backend, showing an example. {offline}
-        </p>
-      )}
       {/* React Flow measures the DOM to lay the graph out, so there is
           nothing useful it can render on the server. */}
       <ClientOnly
