@@ -158,7 +158,6 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
                   strokeWidth: 2,
                 }}
                 connectionRadius={40}
-                proOptions={{ hideAttribution: true }}
                 className="bg-background"
               >
                 {background !== "none" && (
