@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react"
+import { Handle, Position, useReactFlow } from "@xyflow/react"
+import type { NodeProps } from "@xyflow/react"
 import {
+  AlertTriangle,
   ChevronDownIcon,
   Circle,
   CircleSlash2,
@@ -10,8 +12,8 @@ import {
   Key,
   Link2,
   Table2,
-  type LucideIcon,
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -38,6 +40,7 @@ import { cn } from "@/lib/utils"
 import { postgresTypeGroups } from "../lib/postgres-types"
 import { TABLE_NODE_WIDTH } from "../lib/node-dimensions"
 import type { ErdTableNode, TableColumn } from "../types/erd"
+import { useNodeProblems } from "./problems-context"
 
 const HIDDEN_CONNECTOR =
   "h-px! w-px! min-w-0! min-h-0! cursor-grab! border-0! opacity-0!"
@@ -213,6 +216,7 @@ const columnFlags = (
 
 export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
   const { updateNodeData } = useReactFlow<ErdTableNode>()
+  const problems = useNodeProblems(id)
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [editingTableName, setEditingTableName] = useState(false)
@@ -346,6 +350,26 @@ export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
             )}
           </div>
         </div>
+
+        {problems.length > 0 && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span className="ml-auto flex items-center gap-0.5 pl-1 text-destructive">
+                  <AlertTriangle strokeWidth={1.5} size={10} />
+                  {problems.length}
+                </span>
+              }
+            />
+            <TooltipContent>
+              <ul className="list-inside list-disc">
+                {problems.map((problem) => (
+                  <li key={problem}>{problem}</li>
+                ))}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </header>
 
       {data.columns.map((column) => (
