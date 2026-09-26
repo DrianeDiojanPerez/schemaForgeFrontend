@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useState } from "react"
 import { CheckIcon, CopyIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,10 @@ export type GeneratedSqlDialogProps = {
   onClose: () => void
 }
 
-export function GeneratedSqlDialog({ ddl, onClose }: GeneratedSqlDialogProps) {
+export const GeneratedSqlDialog = memo(function GeneratedSqlDialog({
+  ddl,
+  onClose,
+}: GeneratedSqlDialogProps) {
   const [copied, setCopied] = useState(false)
 
   const copy = async () => {
@@ -51,4 +54,4 @@ export function GeneratedSqlDialog({ ddl, onClose }: GeneratedSqlDialogProps) {
       </DialogContent>
     </Dialog>
   )
-}
+})
