@@ -43,12 +43,19 @@ export type TableNodeData = {
 }
 
 export type SchemaNodeData = {
+  /** The schema the tables carry, which renaming one has to match on. */
   name: string
+  /** The name shown on the tab, which for `public` is the diagram's own. */
+  label?: string
   accent?: SchemaAccent
+  /** How many tables the box was drawn around, for the tooltip to report. */
+  tables?: number
 }
 
 export type RelationshipEdgeData = {
   relationshipType: RelationshipType
+  name?: string
+  description?: string
 }
 
 export type ErdTableNode = Node<TableNodeData, "table">
