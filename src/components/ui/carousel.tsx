@@ -1,8 +1,7 @@
 import * as React from "react"
 import { cn } from "cn"
-import useEmblaCarousel, {
-  type UseEmblaCarouselType,
-} from "embla-carousel-react"
+import useEmblaCarousel from "embla-carousel-react"
+import type { UseEmblaCarouselType } from "embla-carousel-react"
 
 import { Button } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
@@ -59,10 +58,10 @@ function Carousel({
   const [canScrollPrev, setCanScrollPrev] = React.useState(false)
   const [canScrollNext, setCanScrollNext] = React.useState(false)
 
-  const onSelect = React.useCallback((api: CarouselApi) => {
-    if (!api) return
-    setCanScrollPrev(api.canScrollPrev())
-    setCanScrollNext(api.canScrollNext())
+  const onSelect = React.useCallback((selected: CarouselApi) => {
+    if (!selected) return
+    setCanScrollPrev(selected.canScrollPrev())
+    setCanScrollNext(selected.canScrollNext())
   }, [])
 
   const scrollPrev = React.useCallback(() => {
@@ -98,7 +97,7 @@ function Carousel({
     api.on("select", onSelect)
 
     return () => {
-      api?.off("select", onSelect)
+      api.off("select", onSelect)
     }
   }, [api, onSelect])
 
@@ -108,8 +107,7 @@ function Carousel({
         carouselRef,
         api: api,
         opts,
-        orientation:
-          orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
+        orientation,
         scrollPrev,
         scrollNext,
         canScrollPrev,
