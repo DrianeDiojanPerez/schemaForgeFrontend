@@ -1,4 +1,12 @@
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
+import { formDevtoolsPlugin } from "@tanstack/react-form-devtools"
+import { hotkeysDevtoolsPlugin } from "@tanstack/react-hotkeys-devtools"
+import type { QueryClient } from "@tanstack/react-query"
+import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools"
+import {
+  HeadContent,
+  Scripts,
+  createRootRouteWithContext,
+} from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import { Toaster } from "sileo"
@@ -9,7 +17,9 @@ import { useToastPosition } from "@/lib/toast"
 
 import appCss from "../styles.css?url"
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient
+}>()({
   head: () => ({
     meta: [
       {
@@ -56,17 +66,25 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster position={toastPosition} theme={theme} />
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {import.meta.env.DEV && (
+          <TanStackDevtools
+            config={{
+              position: "bottom-right",
+            }}
+            plugins={[
+              {
+                name: "Tanstack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+              {
+                name: "Tanstack Query",
+                render: <ReactQueryDevtoolsPanel />,
+              },
+              formDevtoolsPlugin(),
+              hotkeysDevtoolsPlugin(),
+            ]}
+          />
+        )}
         <Scripts />
       </body>
     </html>
