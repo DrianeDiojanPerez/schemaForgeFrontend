@@ -1,110 +1,76 @@
-import { useSyncExternalStore } from "react"
+import { useEffect, useRef } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { notify } from "@/lib/toast"
-import { checkBackend } from "@/server/rpc/schema"
+
+import { CHECKING, backendQueries } from "../api/queries"
+import type { BackendStatus } from "../api/queries"
+
+export type { BackendState, BackendStatus } from "../api/queries"
+
+let announced = false
 
 /**
- * `unauthorised` is the case worth keeping apart from the other two: the
- * backend is up and answering, and every save will still fail.
+ * Watches the connection for the canvas. A working backend is what the app
+ * is supposed to have, so it passes without comment and only trouble
+ * interrupts: the first bad answer of the session is reported once, the
+ * retries after it are silent, and the answer that ends them says so while
+ * the caller reloads.
  */
-export type BackendState = "checking" | "online" | "unauthorised" | "offline"
+export function useBackendWatch(onReconnect: () => Promise<void> | void) {
+  const { data } = useQuery(backendQueries.status())
+  const before = useRef(data?.state)
 
-export type BackendStatus = {
-  state: BackendState
-  version: string
-  /** What the backend reported, or why the call never got there. */
-  detail: string
-}
+  useEffect(() => {
+    if (!data) return
 
-const CHECKING: BackendStatus = { state: "checking", version: "", detail: "" }
+    const was = before.current
+    before.current = data.state
 
-// The settings dialog and the startup announcement read the same result, and
-// neither of them owns it, so it sits beside them rather than in either.
-let status: BackendStatus = CHECKING
+    if (data.state === "checking" || data.state === was) return
 
-const listeners = new Set<() => void>()
+    if (data.state !== "online") {
+      if (announced) return
+      announced = true
 
-function publish(next: BackendStatus) {
-  status = next
-  listeners.forEach((listener) => listener())
-}
+      // Up and answering, and every save will still fail. That is a warning
+      // rather than an error: nothing is broken, the credentials are wrong.
+      if (data.state === "unauthorised") {
+        notify.warning({
+          title: "Backend refused sign-in",
+          description: data.detail,
+        })
+        return
+      }
 
-async function run(): Promise<BackendStatus> {
-  publish(CHECKING)
+      notify.error({ title: "Backend unreachable", description: data.detail })
+      return
+    }
 
-  try {
-    const result = await checkBackend()
+    // Online from nothing is the ordinary start, so nothing is said. Online
+    // after a bad answer is the wait ending.
+    if (was === undefined) return
 
-    publish(
-      result.signedIn
-        ? { state: "online", version: result.version, detail: result.status }
-        : {
-            state: "unauthorised",
-            version: result.version,
-            detail: result.reason ?? "The backend refused the sign-in",
-          }
+    notify.waiting({ title: "Reconnecting" })
+
+    void Promise.resolve(onReconnect()).then(() =>
+      notify.success({
+        title: "Connected",
+        description: data.version ? `Backend v${data.version}` : undefined,
+      })
     )
-  } catch (error) {
-    publish({
-      state: "offline",
-      version: "",
-      detail: error instanceof Error ? error.message : "No answer",
-    })
+  }, [data, onReconnect])
+}
+
+export function useBackendStatus(): {
+  status: BackendStatus
+  check: () => void
+} {
+  const queryClient = useQueryClient()
+  const query = useQuery(backendQueries.status())
+
+  return {
+    status: query.isFetching ? CHECKING : (query.data ?? CHECKING),
+    check: () => void queryClient.refetchQueries(backendQueries.status()),
   }
-
-  return status
-}
-
-let inFlight: Promise<BackendStatus> | undefined
-
-/**
- * Concurrent callers share one probe, so opening the settings while the
- * startup check is still running does not start a second.
- */
-export function probeBackend(): Promise<BackendStatus> {
-  inFlight ??= run().finally(() => {
-    inFlight = undefined
-  })
-
-  return inFlight
-}
-
-let reported = false
-
-/**
- * A working backend is what the app is supposed to have, so it passes without
- * comment and only trouble interrupts. The settings tab is where the healthy
- * case can be read. Only the first probe of the session speaks; later ones are
- * asked for from the settings, which show the answer themselves.
- */
-export async function reportBackendTrouble(): Promise<void> {
-  const result = await probeBackend()
-
-  if (reported || result.state === "online") return
-  reported = true
-
-  // Up and answering, and every save will still fail. That is a warning rather
-  // than an error: nothing is broken, the credentials are wrong.
-  if (result.state === "unauthorised") {
-    notify.warning({
-      title: "Backend refused sign-in",
-      description: result.detail,
-    })
-    return
-  }
-
-  notify.error({ title: "Backend unreachable", description: result.detail })
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-export function useBackendStatus(): BackendStatus {
-  return useSyncExternalStore(
-    subscribe,
-    () => status,
-    () => CHECKING
-  )
 }
