@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { Handle, Position, useReactFlow } from "@xyflow/react"
+import { AnimatePresence, motion } from "motion/react"
 import type { NodeProps } from "@xyflow/react"
 import {
   AlertTriangle,
+  BugIcon,
   ChevronDownIcon,
   Circle,
+  CircleAlert,
   CircleSlash2,
+  CopyIcon,
   Database,
+  FileTextIcon,
   Fingerprint,
   Hash,
   Key,
@@ -30,6 +35,7 @@ import {
 } from "@/components/ui/command"
 import {
   ContextMenu,
+  ContextMenuCheckboxItem,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
@@ -47,11 +53,15 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
+import { useReveal } from "../hooks/use-reveal"
 import { postgresTypeGroups } from "../lib/postgres-types"
 import { TABLE_NODE_WIDTH } from "../lib/node-dimensions"
+import { typeLabel } from "../lib/type-parameters"
 import type { ErdTableNode, TableColumn } from "../types/erd"
 import { useConnectorArrows } from "./connector-arrow-context"
+import { ColumnDetailsDialog, DescriptionDialog } from "./details-dialogs"
 import { useGraphActions } from "./graph-actions-context"
+import { ProblemMark, ProblemMessage, problemTitle } from "./problem-text"
 import { useNodeProblems } from "./problems-context"
 
 const HIDDEN_CONNECTOR =
@@ -77,8 +87,6 @@ const CONNECTOR_OFFSET: Partial<Record<(typeof SIDES)[number], string>> = {
   left: "-left-[6px]!",
   right: "-right-[6px]!",
 }
-const READABLE_ZOOM = 1.4
-const ZOOM_DURATION = 250
 
 const HANDLE_POSITION = {
   left: Position.Left,
@@ -99,13 +107,15 @@ const HANDLE_OFFSET = {
 function ColumnTypeCombobox({
   nodeId,
   value,
+  label,
   onValueChange,
 }: {
   nodeId: string
   value: string
+  label: string
   onValueChange: (value: string) => void
 }) {
-  const { fitView, getZoom } = useReactFlow()
+  const { bringCloser } = useReveal()
   const [open, setOpen] = useState(false)
 
   // A column imported from SQL can carry a type the picker does not list. It
@@ -121,15 +131,10 @@ function ColumnTypeCombobox({
   // table up to size first, then open, since the popup would not follow its
   // trigger through the camera animation.
   const openAtReadableZoom = () => {
-    if (getZoom() >= READABLE_ZOOM) {
-      setOpen(true)
-      return
-    }
-    void fitView({
-      nodes: [{ id: nodeId }],
-      padding: 0.3,
-      duration: ZOOM_DURATION,
-    }).then(() => setOpen(true))
+    const coming = bringCloser(nodeId)
+
+    if (coming) void coming.then(() => setOpen(true))
+    else setOpen(true)
   }
 
   return (
@@ -140,7 +145,7 @@ function ColumnTypeCombobox({
       {/* Closing with Escape hands focus back to the trigger, and the browser
           ring is far too heavy at this size. The text stands in for it. */}
       <PopoverTrigger className="nodrag nopan flex h-4 items-center gap-0.5 rounded-sm px-1 text-[8px] text-muted-foreground transition hover:text-foreground focus-visible:text-foreground focus-visible:outline-none">
-        {value}
+        {label}
         <ChevronDownIcon className="size-2" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-48 gap-0 p-0">
@@ -245,15 +250,19 @@ const columnFlags = (
   return flags
 }
 
-export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
+function Table({ id, data }: NodeProps<ErdTableNode>) {
   const { updateNodeData } = useReactFlow<ErdTableNode>()
-  const { addColumn, removeTable, removeColumn } = useGraphActions()
+  const { addColumn, copyTable, removeTable, removeColumn } = useGraphActions()
   const problems = useNodeProblems(id)
+  const failing = problems.some((problem) => problem.severity === "ERROR")
   const arrows = useConnectorArrows()
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [editingTableName, setEditingTableName] = useState(false)
   const [tableNameValue, setTableNameValue] = useState("")
+  const [editingDetails, setEditingDetails] = useState<
+    { kind: "table" } | { kind: "column"; columnId: string } | null
+  >(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const tableNameInputRef = useRef<HTMLInputElement>(null)
 
@@ -279,34 +288,38 @@ export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
     setEditingTableName(false)
   }
 
+  const updateColumn = (columnId: string, patch: Partial<TableColumn>) => {
+    updateNodeData(id, (node) => ({
+      columns: node.data.columns.map((col) =>
+        col.id === columnId ? { ...col, ...patch } : col
+      ),
+    }))
+  }
+
   const saveColumnName = (columnId: string) => {
     const next = editValue.trim()
     const current = data.columns.find((c) => c.id === columnId)?.name
     if (next && next !== current) {
-      updateNodeData(id, (node) => ({
-        columns: node.data.columns.map((col) =>
-          col.id === columnId ? { ...col, name: next } : col
-        ),
-      }))
+      updateColumn(columnId, { name: next })
     }
     setEditingColumnId(null)
   }
 
-  const toggleColumnNullable = (columnId: string) => {
-    updateNodeData(id, (node) => ({
-      columns: node.data.columns.map((col) =>
-        col.id === columnId ? { ...col, isNullable: !col.isNullable } : col
-      ),
-    }))
+  // A primary key can never be null, the same rule the backend model holds,
+  // so turning the key on also turns nullable off.
+  const togglePrimaryKey = (column: TableColumn) => {
+    updateColumn(
+      column.id,
+      column.isPrimary
+        ? { isPrimary: false }
+        : { isPrimary: true, isNullable: false }
+    )
   }
 
-  const saveColumnFormat = (columnId: string, format: string) => {
-    updateNodeData(id, (node) => ({
-      columns: node.data.columns.map((col) =>
-        col.id === columnId ? { ...col, format } : col
-      ),
-    }))
-  }
+  const detailsColumn =
+    editingDetails?.kind === "column"
+      ? data.columns.find((col) => col.id === editingDetails.columnId)
+      : undefined
 
   if (data.isForeign) {
     return (
@@ -372,49 +385,100 @@ export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
                     else if (e.key === "Escape") setEditingTableName(false)
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 leading-5 font-medium text-foreground caret-primary outline-none focus:ring-0"
+                  // The pixel of padding is what keeps the name still as the
+                  // label gives way to the input. An input centres its text in
+                  // its own box and pays no attention to line height, so it
+                  // lands a pixel below the label it stands in for.
+                  className="absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 pb-px leading-5 font-medium text-foreground caret-primary outline-none focus:ring-0"
                   style={{ fontSize: "0.55rem" }}
                 />
               ) : (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <span
-                        className="absolute inset-y-0 left-0 cursor-pointer whitespace-pre transition hover:text-primary"
-                        onDoubleClick={() => {
-                          setTableNameValue(data.name)
-                          setEditingTableName(true)
-                        }}
-                      />
-                    }
-                  >
-                    {data.name}
-                  </TooltipTrigger>
-                  <TooltipContent>Double-click to rename</TooltipContent>
-                </Tooltip>
+                <span
+                  className="absolute inset-y-0 left-0 cursor-pointer whitespace-pre transition hover:text-primary"
+                  onDoubleClick={() => {
+                    setTableNameValue(data.name)
+                    setEditingTableName(true)
+                  }}
+                >
+                  {data.name}
+                </span>
               )}
             </div>
           </div>
 
-          {problems.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <span className="ml-auto flex items-center gap-0.5 pl-1 text-destructive">
-                    <AlertTriangle strokeWidth={1.5} size={10} />
+          {/* Comes into focus the way the tour's icon does, and blurs away
+              again once the table is clean. */}
+          <AnimatePresence>
+            {problems.length > 0 && (
+              <motion.div
+                key="problems"
+                initial={{ opacity: 0, scale: 0.7, filter: "blur(4px)" }}
+                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                exit={{ opacity: 0, scale: 0.7, filter: "blur(4px)" }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="ml-auto flex shrink-0 origin-right"
+              >
+                <Popover>
+                  {/* Hover to glance, click to hold it open while working. The
+                  click stays here, or the canvas would zoom in on the table. */}
+                  <PopoverTrigger
+                    openOnHover
+                    delay={150}
+                    onClick={(event) => event.stopPropagation()}
+                    aria-label={`${problems.length} ${problems.length === 1 ? "problem" : "problems"}`}
+                    className={cn(
+                      "nodrag flex h-4 shrink-0 items-center gap-0.5 rounded-full pr-1.5 pl-1 tabular-nums transition-colors",
+                      failing
+                        ? "text-destructive hover:bg-destructive/10 data-popup-open:bg-destructive/10"
+                        : "text-warning hover:bg-warning/10 data-popup-open:bg-warning/10"
+                    )}
+                  >
+                    {failing ? (
+                      <CircleAlert strokeWidth={2} size={10} />
+                    ) : (
+                      <AlertTriangle strokeWidth={2} size={10} />
+                    )}
                     {problems.length}
-                  </span>
-                }
-              />
-              <TooltipContent>
-                <ul className="list-inside list-disc">
-                  {problems.map((problem) => (
-                    <li key={problem}>{problem}</li>
-                  ))}
-                </ul>
-              </TooltipContent>
-            </Tooltip>
-          )}
+                  </PopoverTrigger>
+
+                  <PopoverContent
+                    align="end"
+                    sideOffset={6}
+                    className="w-80 gap-0 p-0"
+                  >
+                    <header className="flex items-center gap-2 border-b border-border px-3 py-2">
+                      <span className="flex items-center gap-1.5 text-sm font-medium">
+                        <BugIcon className="size-3.5" />
+                        Diagnostics
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {problems.length}{" "}
+                        {problems.length === 1 ? "problem" : "problems"}
+                      </span>
+                    </header>
+                    <ul className="flex flex-col gap-0.5 p-1">
+                      {problems.map((problem) => (
+                        <li
+                          key={problem.code + problem.message}
+                          className="flex items-start gap-3 rounded-sm px-2.5 py-2.5"
+                        >
+                          <ProblemMark severity={problem.severity} />
+                          <span className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="text-[13px] font-medium">
+                              {problemTitle(problem.code)}
+                            </span>
+                            <span className="text-xs leading-relaxed text-muted-foreground">
+                              <ProblemMessage text={problem.message} />
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </PopoverContent>
+                </Popover>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </header>
 
         {data.columns.map((column) => (
@@ -433,34 +497,34 @@ export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
               }
             >
               <div className="mx-2 flex min-w-[40px] items-center justify-start gap-[0.24rem] align-middle">
-                {columnFlags(column, () => toggleColumnNullable(column.id)).map(
-                  (flag) => (
-                    <Tooltip key={flag.key}>
-                      <TooltipTrigger
-                        render={
-                          flag.onClick ? (
-                            <button
-                              type="button"
-                              aria-label={flag.label}
-                              className="nodrag nopan flex shrink-0 cursor-pointer items-center transition hover:opacity-60"
-                              onClick={flag.onClick}
-                            />
-                          ) : (
-                            <span className="flex shrink-0 items-center" />
-                          )
-                        }
-                      >
-                        <flag.icon
-                          size={8}
-                          strokeWidth={1.5}
-                          fill={flag.filled ? "currentColor" : "none"}
-                          className={flag.className}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent>{flag.label}</TooltipContent>
-                    </Tooltip>
-                  )
-                )}
+                {columnFlags(column, () =>
+                  updateColumn(column.id, { isNullable: !column.isNullable })
+                ).map((flag) => (
+                  <Tooltip key={flag.key}>
+                    <TooltipTrigger
+                      render={
+                        flag.onClick ? (
+                          <button
+                            type="button"
+                            aria-label={flag.label}
+                            className="nodrag nopan flex shrink-0 cursor-pointer items-center transition hover:opacity-60"
+                            onClick={flag.onClick}
+                          />
+                        ) : (
+                          <span className="flex shrink-0 items-center" />
+                        )
+                      }
+                    >
+                      <flag.icon
+                        size={8}
+                        strokeWidth={1.5}
+                        fill={flag.filled ? "currentColor" : "none"}
+                        className={flag.className}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>{flag.label}</TooltipContent>
+                  </Tooltip>
+                ))}
               </div>
 
               <div className="flex w-full items-center justify-between gap-3 pr-1">
@@ -491,30 +555,24 @@ export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
                       className="absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 text-[8px] leading-5 font-medium text-foreground caret-primary outline-none focus:ring-0"
                     />
                   ) : (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <span
-                            className="absolute inset-y-0 left-0 cursor-pointer whitespace-pre text-foreground transition hover:text-primary"
-                            onDoubleClick={() => {
-                              setEditingColumnId(column.id)
-                              setEditValue(column.name)
-                            }}
-                          />
-                        }
-                      >
-                        {column.name}
-                      </TooltipTrigger>
-                      <TooltipContent>Double-click to rename</TooltipContent>
-                    </Tooltip>
+                    <span
+                      className="absolute inset-y-0 left-0 cursor-pointer whitespace-pre text-foreground transition hover:text-primary"
+                      onDoubleClick={() => {
+                        setEditingColumnId(column.id)
+                        setEditValue(column.name)
+                      }}
+                    >
+                      {column.name}
+                    </span>
                   )}
                 </div>
 
                 <ColumnTypeCombobox
                   nodeId={id}
                   value={column.format}
+                  label={typeLabel(column)}
                   onValueChange={(format) =>
-                    saveColumnFormat(column.id, format)
+                    updateColumn(column.id, { format })
                   }
                 />
               </div>
@@ -571,6 +629,39 @@ export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
                 <PencilIcon />
                 Rename column
               </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() =>
+                  setEditingDetails({ kind: "column", columnId: column.id })
+                }
+              >
+                <FileTextIcon />
+                Edit details
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuCheckboxItem
+                checked={column.isPrimary}
+                onCheckedChange={() => togglePrimaryKey(column)}
+              >
+                Primary key
+              </ContextMenuCheckboxItem>
+              <ContextMenuCheckboxItem
+                checked={column.isUnique}
+                onCheckedChange={(checked) =>
+                  updateColumn(column.id, { isUnique: checked })
+                }
+              >
+                Unique
+              </ContextMenuCheckboxItem>
+              <ContextMenuCheckboxItem
+                checked={column.isNullable}
+                disabled={column.isPrimary}
+                onCheckedChange={(checked) =>
+                  updateColumn(column.id, { isNullable: checked })
+                }
+              >
+                Nullable
+              </ContextMenuCheckboxItem>
+              <ContextMenuSeparator />
               <ContextMenuItem onClick={() => addColumn(id)}>
                 <PlusIcon />
                 Add column
@@ -646,12 +737,51 @@ export const TableNode = ({ id, data }: NodeProps<ErdTableNode>) => {
           <PencilIcon />
           Rename table
         </ContextMenuItem>
+        <ContextMenuItem onClick={() => setEditingDetails({ kind: "table" })}>
+          <FileTextIcon />
+          Edit description
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => copyTable(data)}>
+          <CopyIcon />
+          Copy table
+        </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={() => removeTable(id)}>
           <Trash2Icon />
           Delete table
         </ContextMenuItem>
       </ContextMenuContent>
+
+      {editingDetails?.kind === "table" && (
+        <DescriptionDialog
+          title="Table description"
+          subject={data.name}
+          details={{ description: data.description }}
+          onSave={({ description }) => updateNodeData(id, { description })}
+          onClose={() => setEditingDetails(null)}
+        />
+      )}
+
+      {detailsColumn && (
+        <ColumnDetailsDialog
+          tableName={data.name}
+          column={detailsColumn}
+          onSave={(patch) => updateColumn(detailsColumn.id, patch)}
+          onClose={() => setEditingDetails(null)}
+        />
+      )}
     </ContextMenu>
   )
 }
+
+/**
+ * React Flow hands a node its position again on every frame of a drag, and
+ * nothing here draws it: the wrapper around this is what moves. Comparing only
+ * what this reads keeps the columns, their menus and their type pickers off
+ * the work list while a table is being moved.
+ */
+export const TableNode = memo(
+  Table,
+  (before, after) => before.id === after.id && before.data === after.data
+)
