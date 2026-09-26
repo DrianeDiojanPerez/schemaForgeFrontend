@@ -1,9 +1,13 @@
 import { createContext, use } from "react"
 
+import type { TableNodeData } from "../types/erd"
+
 export type GraphActions = {
   addColumn: (nodeId: string) => void
+  copyTable: (data: TableNodeData) => void
   removeTable: (nodeId: string) => void
   removeColumn: (nodeId: string, columnId: string) => void
+  renameSchema: (name: string) => void
 }
 
 /**
@@ -13,8 +17,10 @@ export type GraphActions = {
  */
 const GraphActionsContext = createContext<GraphActions>({
   addColumn: () => {},
+  copyTable: () => {},
   removeTable: () => {},
   removeColumn: () => {},
+  renameSchema: () => {},
 })
 
 export const GraphActionsProvider = GraphActionsContext.Provider

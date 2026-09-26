@@ -90,6 +90,60 @@ test("a new table lands where it was asked for, with a key", () => {
   })
 })
 
+test("pasting a copied table names it after the original", () => {
+  const { result } = graph()
+
+  act(() => {
+    result.current.copyTable(table.data)
+  })
+  act(() => {
+    result.current.pasteTable({ x: 300, y: 120 })
+  })
+  act(() => {
+    result.current.pasteTable({ x: 300, y: 260 })
+  })
+
+  const [first, second] = result.current.nodes.slice(1) as ErdTableNode[]
+  expect(first.data.name).toBe("users_copy")
+  expect(second.data.name).toBe("users_copy_2")
+  expect(first.position).toEqual({ x: 300, y: 120 })
+
+  // The edges still hang off the original, so the copies need ids of their own.
+  const ids = [table, first, second].flatMap((node) =>
+    node.data.columns.map((column) => column.id)
+  )
+  expect(new Set(ids).size).toBe(ids.length)
+})
+
+test("copying a selection brings the edges between its tables along", () => {
+  const { result } = graph()
+
+  act(() => {
+    result.current.setNodes((current) =>
+      current.map((node) => ({ ...node, selected: true }))
+    )
+  })
+  act(() => {
+    expect(result.current.copySelection()).toBe(1)
+  })
+  act(() => {
+    expect(result.current.pasteTable({ x: 400, y: 200 })).toBe(1)
+  })
+
+  const copy = result.current.nodes.find(
+    (node) => node.id !== table.id
+  ) as ErdTableNode
+  expect(copy.data.name).toBe("users_copy")
+  expect(copy.position).toEqual({ x: 400, y: 200 })
+  expect(copy.selected).toBe(true)
+
+  const added = result.current.edges.filter((edge) => edge.id !== "e1")
+  expect(added).toHaveLength(1)
+  expect(added[0].source).toBe(copy.id)
+  expect(added[0].sourceHandle).toBe(`${copy.data.columns[0].id}-right`)
+  expect(added[0].targetHandle).toBe(`${copy.data.columns[0].id}-left`)
+})
+
 test("a new column gets a name nothing else is using", () => {
   const { result } = graph()
 
@@ -137,7 +191,13 @@ test("the table shows an add column button that calls through", () => {
   render(
     <ReactFlowProvider>
       <GraphActionsProvider
-        value={{ addColumn, removeTable: () => {}, removeColumn: () => {} }}
+        value={{
+          addColumn,
+          copyTable: () => {},
+          removeTable: () => {},
+          removeColumn: () => {},
+          renameSchema: () => {},
+        }}
       >
         <TableNode {...nodeProps} />
       </GraphActionsProvider>
@@ -159,7 +219,13 @@ test("right-clicking the table offers its actions and nothing bubbles past", asy
     <ReactFlowProvider>
       <div onContextMenu={onOuterContextMenu}>
         <GraphActionsProvider
-          value={{ addColumn: () => {}, removeTable, removeColumn: () => {} }}
+          value={{
+            addColumn: () => {},
+            copyTable: () => {},
+            removeTable,
+            removeColumn: () => {},
+            renameSchema: () => {},
+          }}
         >
           <TableNode {...nodeProps} />
         </GraphActionsProvider>
