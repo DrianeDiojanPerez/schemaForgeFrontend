@@ -1,14 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 
-import { EMPTY_SCHEMA } from "@/features/schema/types/schema"
+import { useQueryClient } from "@tanstack/react-query"
+
+import { backendKeys } from "@/features/schema/api/keys"
+import {
+  useGenerateDdl,
+  useSaveSchema,
+  useValidateSchema,
+} from "@/features/schema/api/mutations"
 import type { Diagnostic } from "@/features/schema/types/schema"
 import { notify } from "@/lib/toast"
-import {
-  createSchema,
-  generateDdl,
-  updateSchema,
-  validateSchema,
-} from "@/server/rpc/schema"
 
 import { problemsByTable, toDraft } from "../lib/schema-adapter"
 import type { ErdEdge, ErdNode } from "../types/erd"
@@ -27,7 +34,18 @@ type Options = {
 
 // Long enough that dragging a table across the canvas is one round rather than
 // one per frame the pointer rested on.
-const AUTO_DELAY = 1500
+const AUTO_DELAY = 300
+
+// A pill that comes and goes inside a frame reads as a flicker rather than as
+// an answer, so "Saving" stays up this long even when the write beats it.
+const SAVING_SHOWN = 1000
+
+function heldFor(since: number): Promise<void> {
+  const left = SAVING_SHOWN - (Date.now() - since)
+
+  if (left <= 0) return Promise.resolve()
+  return new Promise((resolve) => setTimeout(resolve, left))
+}
 
 /** Empty when the diagram cannot be sent at all, which never matches a write. */
 function draftKey(name: string, nodes: ErdNode[], edges: ErdEdge[]): string {
@@ -36,12 +54,8 @@ function draftKey(name: string, nodes: ErdNode[], edges: ErdEdge[]): string {
   return result.ok ? JSON.stringify(result.draft) : ""
 }
 
-function failed(title: string, error: unknown) {
-  notify.error({
-    title,
-    description:
-      error instanceof Error ? error.message : "Something went wrong",
-  })
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : "Something went wrong"
 }
 
 /**
@@ -62,10 +76,43 @@ export function useSchemaSync({
   onSaved,
   onValidateUnavailable,
 }: Options) {
-  const [busy, setBusy] = useState(false)
+  const { mutateAsync: saveDraft, isPending: saving } = useSaveSchema()
+  const { mutateAsync: checkDraft, isPending: validating } = useValidateSchema()
+  const { mutateAsync: generateFromDraft, isPending: generating } =
+    useGenerateDdl()
+  const busy = saving || validating || generating
+
+  // A call that fails may have lost the backend, and the connection check
+  // only asks again once it has been told to. Asking here is what starts the
+  // retries that end in "Connected".
+  const queryClient = useQueryClient()
+
+  const failed = useCallback(
+    (title: string, error: unknown) => {
+      notify.error({ title, description: describe(error) })
+      void queryClient.invalidateQueries({ queryKey: backendKeys.status })
+    },
+    [queryClient]
+  )
+
+  // The mutations report `isPending` a render late, and the timer below
+  // checks between renders, so the calls out are also counted here as they go.
+  const inFlight = useRef(0)
+
+  const track = useCallback(<T>(call: Promise<T>): Promise<T> => {
+    inFlight.current++
+
+    return call.finally(() => {
+      inFlight.current--
+    })
+  }, [])
+
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([])
-  const [problems, setProblems] = useState<Map<string, string[]>>(new Map())
+  const [problems, setProblems] = useState<Map<string, Diagnostic[]>>(new Map())
   const [ddl, setDdl] = useState<string | null>(null)
+  // Whether an answer has come back yet, so "no problems" is not claimed
+  // before anything was asked.
+  const [answered, setAnswered] = useState(false)
 
   /**
    * Reports the columns the backend has no type for instead of translating
@@ -92,13 +139,15 @@ export function useSchemaSync({
   const sent = useRef<string | null>(null)
   sent.current ??= draftKey(name, nodes, edges)
 
+  const saves = useRef(0)
+
   /**
-   * `quiet` drops the progress and success toasts, which is what makes a save
-   * every time the canvas settles bearable. Failures still speak: silence
-   * there would read as work having been stored when it was not.
+   * Every save says so, automatic or asked for, since a write the user cannot
+   * see happening is a write they have to take on trust. `auto` only decides
+   * whether a diagram the server already holds is skipped.
    */
   const save = useCallback(
-    async (quiet = false) => {
+    async (auto = false) => {
       const draft = draftOrReport()
       if (!draft) return
 
@@ -106,26 +155,30 @@ export function useSchemaSync({
 
       // Selecting a table and measuring one both reach here as changes, so an
       // automatic save has to look at what it would send before it writes.
-      if (quiet && key === sent.current) return
+      if (auto && key === sent.current) return
 
-      setBusy(true)
-      if (!quiet) notify.waiting({ title: "Saving" })
+      notify.waiting({ title: "Saving" })
+
+      const shown = Date.now()
+      const run = ++saves.current
 
       try {
-        const saved = schemaId
-          ? await updateSchema({ data: { ...draft, id: schemaId } })
-          : await createSchema({ data: draft })
+        const saved = await track(saveDraft({ ...draft, id: schemaId }))
 
         sent.current = key
         onSaved(saved.id)
-        if (!quiet) notify.success({ title: "Saved", description: draft.name })
+
+        // Left to finish on its own. Holding the pill is for reading, and the
+        // caller has a validation to get on with. A newer save owns the pill by
+        // then, so finishing second does not make this the answer on screen.
+        void heldFor(shown).then(() => {
+          if (saves.current === run) notify.success({ title: "Saved" })
+        })
       } catch (error) {
         failed("Save failed", error)
-      } finally {
-        setBusy(false)
       }
     },
-    [draftOrReport, schemaId, onSaved]
+    [draftOrReport, track, saveDraft, schemaId, onSaved, failed]
   )
 
   /** The last diagram checked, so settling on one twice only asks once. */
@@ -147,13 +200,10 @@ export function useSchemaSync({
       const key = JSON.stringify(draft)
       if (quiet && key === checked.current) return
 
-      setBusy(true)
       if (!quiet) notify.waiting({ title: "Validating" })
 
       try {
-        const report = await validateSchema({
-          data: { draft: { ...EMPTY_SCHEMA, ...draft, id: schemaId } },
-        })
+        const report = await track(checkDraft({ draft, id: schemaId }))
 
         if (report.unavailable) {
           notify.info({
@@ -165,8 +215,13 @@ export function useSchemaSync({
         }
 
         checked.current = key
-        setDiagnostics(report.diagnostics)
-        setProblems(problemsByTable(draft, report.diagnostics))
+        // Marking the tables redraws every one of them, which in one go
+        // stalls whatever is moving on screen, like the list sliding open.
+        startTransition(() => {
+          setDiagnostics(report.diagnostics)
+          setProblems(problemsByTable(draft, report.diagnostics))
+          setAnswered(true)
+        })
         if (quiet) return
 
         if (report.valid) {
@@ -183,34 +238,42 @@ export function useSchemaSync({
       } catch (error) {
         failed("Could not validate", error)
         onValidateUnavailable()
-      } finally {
-        setBusy(false)
       }
     },
-    [draftOrReport, schemaId, onValidateUnavailable]
+    [draftOrReport, track, checkDraft, schemaId, onValidateUnavailable, failed]
   )
 
   // Both callbacks take a new identity whenever the diagram does, so the timer
   // reaches them through a ref. Keying the effect on them instead would mean
   // storing the id from one save scheduled the next.
-  const latest = useRef({ save, validate, busy })
+  const latest = useRef({ save, validate })
 
   useEffect(() => {
-    latest.current = { save, validate, busy }
+    latest.current = { save, validate }
   })
 
   // Saving first, so what the backend is asked about is what it was just told.
   useEffect(() => {
     if (!autoSave && !autoValidate) return
 
-    const timer = setTimeout(() => {
-      if (latest.current.busy) return
+    let timer: ReturnType<typeof setTimeout>
+
+    // A write already out is holding the diagram as it was a moment ago, so an
+    // edit that lands while it is in flight waits for its turn. Giving up here
+    // instead would leave that edit unwritten until the next one came along.
+    const run = () => {
+      if (inFlight.current > 0) {
+        timer = setTimeout(run, AUTO_DELAY)
+        return
+      }
 
       void (async () => {
         if (autoSave) await latest.current.save(true)
         if (autoValidate) await latest.current.validate(true)
       })()
-    }, AUTO_DELAY)
+    }
+
+    timer = setTimeout(run, AUTO_DELAY)
 
     return () => clearTimeout(timer)
   }, [autoSave, autoValidate, name, nodes, edges])
@@ -219,13 +282,10 @@ export function useSchemaSync({
     const draft = draftOrReport()
     if (!draft) return
 
-    setBusy(true)
     notify.waiting({ title: "Generating" })
 
     try {
-      const result = await generateDdl({
-        data: { draft: { ...EMPTY_SCHEMA, ...draft, id: schemaId } },
-      })
+      const result = await track(generateFromDraft({ draft, id: schemaId }))
 
       if (result.unavailable) {
         notify.info({ title: "Not built yet", description: result.unavailable })
@@ -238,22 +298,32 @@ export function useSchemaSync({
       notify.success({ title: "Generated" })
     } catch (error) {
       failed("Could not generate", error)
-    } finally {
-      setBusy(false)
     }
-  }, [draftOrReport, schemaId])
+  }, [draftOrReport, track, generateFromDraft, schemaId, failed])
+
+  const closeDdl = useCallback(() => setDdl(null), [])
 
   const dismissDiagnostics = useCallback(() => {
     setDiagnostics([])
     setProblems(new Map())
+    setAnswered(false)
   }, [])
+
+  /** Whether the diagram on screen differs from what the backend holds. */
+  const isDirty = useCallback(
+    () => draftKey(name, nodes, edges) !== sent.current,
+    [name, nodes, edges]
+  )
 
   return {
     busy,
+    generating,
+    isDirty,
     diagnostics,
+    checked: answered,
     problems,
     ddl,
-    closeDdl: () => setDdl(null),
+    closeDdl,
     dismissDiagnostics,
     save,
     validate,
