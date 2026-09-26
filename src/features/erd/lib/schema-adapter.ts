@@ -8,6 +8,7 @@ import type {
   SchemaDraft,
 } from "@/features/schema/types/schema"
 
+import { stripHandleSide } from "./foreign-keys"
 import { isTableNode } from "./node-guards"
 import type {
   ErdDiagram,
@@ -16,7 +17,6 @@ import type {
   ErdTableNode,
   RelationshipType,
   TableColumn,
-  TableNodeData,
 } from "../types/erd"
 
 /**
@@ -86,7 +86,7 @@ const TYPE_BY_CARDINALITY: Record<Cardinality, RelationshipType> = {
   MANY_TO_MANY: "many-to-many",
 }
 
-const DEFAULT_SCHEMA = "public"
+export const DEFAULT_SCHEMA = "public"
 
 export type Unsupported = {
   table: string
@@ -97,25 +97,15 @@ export type Unsupported = {
 export type ToDraftResult =
   { ok: true; draft: SchemaDraft } | { ok: false; unsupported: Unsupported[] }
 
-const stripHandleSide = (handle: string): string =>
-  handle.replace(/-(left|right|top|bottom)$/, "")
-
 /**
- * The backend has no notion of a namespace, so anything outside `public` is
- * folded into the entity name and split back out on the way in.
+ * A table is stored under its own name, since the schema it belongs to is the
+ * stored schema. Earlier saves wrote the schema into the name as `schema.table`
+ * and are read back without it, which the next save then drops for good.
  */
-function qualifiedName(data: TableNodeData): string {
-  return data.schema === DEFAULT_SCHEMA
-    ? data.name
-    : `${data.schema}.${data.name}`
-}
-
-function splitName(name: string): { schema: string; name: string } {
+function plainName(name: string): string {
   const dot = name.indexOf(".")
 
-  return dot === -1
-    ? { schema: DEFAULT_SCHEMA, name }
-    : { schema: name.slice(0, dot), name: name.slice(dot + 1) }
+  return dot === -1 ? name : name.slice(dot + 1)
 }
 
 function attributeOf(column: TableColumn): Attribute {
@@ -171,7 +161,7 @@ export function toDraft(
 
   const entities: Entity[] = tables.map((node) => ({
     id: node.id,
-    name: qualifiedName(node.data),
+    name: node.data.name,
     description: node.data.description ?? "",
     attributes: node.data.columns.map(attributeOf),
     position: { x: node.position.x, y: node.position.y },
@@ -202,8 +192,8 @@ export function toDraft(
 
     relationships.push({
       id: edge.id,
-      name: "",
-      description: "",
+      name: edge.data?.name ?? "",
+      description: edge.data?.description ?? "",
       fromEntityId: from.id,
       fromAttributeId,
       toEntityId: to.id,
@@ -244,7 +234,8 @@ export function toDiagram(schema: Schema): ErdDiagram {
     position: { x: entity.position.x, y: entity.position.y },
     data: {
       id: index + 1,
-      ...splitName(entity.name),
+      schema: DEFAULT_SCHEMA,
+      name: plainName(entity.name),
       description: entity.description || undefined,
       columns: entity.attributes.map(columnOf),
     },
@@ -258,17 +249,26 @@ export function toDiagram(schema: Schema): ErdDiagram {
     targetHandle: `${relationship.toAttributeId}-left`,
     type: "relationship",
     animated: true,
-    data: { relationshipType: TYPE_BY_CARDINALITY[relationship.cardinality] },
+    data: {
+      relationshipType: TYPE_BY_CARDINALITY[relationship.cardinality],
+      name: relationship.name || undefined,
+      description: relationship.description || undefined,
+    },
   }))
 
   return { nodes, edges, timestamp: schema.updatedAt || undefined }
 }
 
-/** Groups backend diagnostics by the table they blame, for inline display. */
-export function problemsByTable(
+/**
+ * Groups backend diagnostics by the table they blame, for inline display.
+ *
+ * One diagnostic often names a table and several of its columns at once, and
+ * that is still one thing to fix, so a table gets each diagnostic once.
+ */
+export function problemsByTable<T extends { elementIds: string[] }>(
   schema: SchemaDraft,
-  diagnostics: { message: string; elementIds: string[] }[]
-): Map<string, string[]> {
+  diagnostics: T[]
+): Map<string, T[]> {
   const owner = new Map<string, string>()
 
   for (const entity of schema.entities) {
@@ -277,17 +277,17 @@ export function problemsByTable(
     }
   }
 
-  const grouped = new Map<string, string[]>()
+  const grouped = new Map<string, T[]>()
 
   for (const diagnostic of diagnostics) {
     for (const elementId of diagnostic.elementIds) {
       const entityId = owner.get(elementId) ?? elementId
       const existing = grouped.get(entityId)
 
-      if (existing) {
-        existing.push(diagnostic.message)
-      } else {
-        grouped.set(entityId, [diagnostic.message])
+      if (!existing) {
+        grouped.set(entityId, [diagnostic])
+      } else if (!existing.includes(diagnostic)) {
+        existing.push(diagnostic)
       }
     }
   }
