@@ -18,6 +18,7 @@ import {
 } from "@/features/schema/lib/wire"
 
 import { callHealth, callSchema, isUnimplemented } from "./client"
+import type { GenerateDdlRequest } from "./generated/schemaforge/v1/GenerateDdlRequest"
 
 /**
  * The RPC boundary.
@@ -32,12 +33,10 @@ import { callHealth, callSchema, isUnimplemented } from "./client"
  * it belongs in the Rust core.
  */
 
-type Wire = Record<string, unknown>
-
 /** Either a stored schema by id, or the unsaved draft the canvas is holding. */
 export type Target = { id: string } | { draft: Schema }
 
-function targetOut(target: Target): Wire {
+function targetOut(target: Target): Pick<GenerateDdlRequest, "id" | "draft"> {
   return "id" in target ? { id: target.id } : { draft: schemaOut(target.draft) }
 }
 
@@ -61,16 +60,14 @@ export const listSchemas = createServerFn({ method: "GET" })
   .validator((input: { page?: number; perPage?: number }) => input)
   .handler(
     async ({ data }): Promise<{ schemas: SchemaSummary[]; total: number }> => {
-      const response = await callSchema<Wire, Wire>("listSchemas", {
+      const response = await callSchema("ListSchemas", {
         page: data.page ?? 1,
         perPage: data.perPage ?? 25,
       })
 
       return {
-        schemas: ((response.schemas as Wire[] | undefined) ?? []).map(
-          summaryIn
-        ),
-        total: Number(response.total ?? 0),
+        schemas: response.schemas.map(summaryIn),
+        total: response.total,
       }
     }
   )
@@ -78,28 +75,28 @@ export const listSchemas = createServerFn({ method: "GET" })
 export const getSchema = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<Schema> => {
-    const response = await callSchema<Wire, Wire>("getSchema", { id: data.id })
+    const response = await callSchema("GetSchema", { id: data.id })
 
-    return schemaIn(response.schema as Wire)
+    return schemaIn(stored(response.schema))
   })
 
 export const createSchema = createServerFn({ method: "POST" })
   .validator((input: SchemaDraft) => input)
   .handler(async ({ data }): Promise<Schema> => {
-    const response = await callSchema<Wire, Wire>("createSchema", {
+    const response = await callSchema("CreateSchema", {
       name: data.name,
       description: data.description,
       entities: data.entities.map(entityOut),
       relationships: data.relationships.map(relationshipOut),
     })
 
-    return schemaIn(response.schema as Wire)
+    return schemaIn(stored(response.schema))
   })
 
 export const updateSchema = createServerFn({ method: "POST" })
   .validator((input: SchemaDraft & { id: string }) => input)
   .handler(async ({ data }): Promise<Schema> => {
-    const response = await callSchema<Wire, Wire>("updateSchema", {
+    const response = await callSchema("UpdateSchema", {
       id: data.id,
       name: data.name,
       description: data.description,
@@ -107,13 +104,13 @@ export const updateSchema = createServerFn({ method: "POST" })
       relationships: data.relationships.map(relationshipOut),
     })
 
-    return schemaIn(response.schema as Wire)
+    return schemaIn(stored(response.schema))
   })
 
 export const deleteSchema = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    await callSchema<Wire, Wire>("deleteSchema", { id: data.id })
+    await callSchema("DeleteSchema", { id: data.id })
 
     return { id: data.id }
   })
@@ -127,16 +124,11 @@ export const validateSchema = createServerFn({ method: "POST" })
       { valid: boolean; diagnostics: Diagnostic[] } & Unavailable
     > => {
       try {
-        const response = await callSchema<Wire, Wire>(
-          "validateSchema",
-          targetOut(data)
-        )
+        const response = await callSchema("ValidateSchema", targetOut(data))
 
         return {
-          valid: Boolean(response.valid),
-          diagnostics: ((response.diagnostics as Wire[] | undefined) ?? []).map(
-            diagnosticIn
-          ),
+          valid: response.valid,
+          diagnostics: response.diagnostics.map(diagnosticIn),
         }
       } catch (error) {
         return { valid: false, diagnostics: [], ...unavailable(error) }
@@ -158,17 +150,15 @@ export const generateDdl = createServerFn({ method: "POST" })
       data,
     }): Promise<{ ddl: string; diagnostics: Diagnostic[] } & Unavailable> => {
       try {
-        const response = await callSchema<Wire, Wire>("generateDdl", {
+        const response = await callSchema("GenerateDdl", {
           ...targetOut(data),
           dialect: dialectOut(data.dialect ?? "POSTGRES"),
           includeComments: data.includeComments ?? true,
         })
 
         return {
-          ddl: String(response.ddl ?? ""),
-          diagnostics: ((response.diagnostics as Wire[] | undefined) ?? []).map(
-            diagnosticIn
-          ),
+          ddl: response.ddl,
+          diagnostics: response.diagnostics.map(diagnosticIn),
         }
       } catch (error) {
         return { ddl: "", diagnostics: [], ...unavailable(error) }
@@ -189,23 +179,31 @@ export const checkBackend = createServerFn({ method: "GET" }).handler(
     signedIn: boolean
     reason?: string
   }> => {
-    const response = await callHealth<Wire, Wire>("check", {})
+    const response = await callHealth("Check", {})
 
     try {
-      await callSchema<Wire, Wire>("listSchemas", { page: 1, perPage: 1 })
+      await callSchema("ListSchemas", { page: 1, perPage: 1 })
     } catch (error) {
       return {
-        status: String(response.status ?? ""),
-        version: String(response.version ?? ""),
+        status: response.status,
+        version: response.version,
         signedIn: false,
         reason: error instanceof Error ? error.message : "Could not sign in",
       }
     }
 
     return {
-      status: String(response.status ?? ""),
-      version: String(response.version ?? ""),
+      status: response.status,
+      version: response.version,
       signedIn: true,
     }
   }
 )
+
+// A response that answers with a schema always carries one; the field is
+// only nullable because every message field is in proto3.
+function stored<T>(schema: T | null): T {
+  if (!schema) throw new Error("The backend answered without a schema.")
+
+  return schema
+}

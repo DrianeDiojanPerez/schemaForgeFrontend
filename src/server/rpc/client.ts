@@ -1,17 +1,29 @@
-import { existsSync } from "node:fs"
-import { dirname, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
+import { readdirSync } from "node:fs"
+import { join } from "node:path"
 import {
   Metadata,
   credentials,
   loadPackageDefinition,
   status as grpcStatus,
 } from "@grpc/grpc-js"
-import type { ServiceError } from "@grpc/grpc-js"
+import type {
+  CallOptions,
+  Client,
+  ClientUnaryCall,
+  ServiceError,
+  requestCallback,
+} from "@grpc/grpc-js"
 import { loadSync } from "@grpc/proto-loader"
 
 import type { RpcError } from "@/features/schema/types/schema"
 import { env } from "../env"
+import type { ProtoGrpcType as AuthProto } from "./generated/auth"
+import type { ProtoGrpcType as HealthProto } from "./generated/health"
+import type { ProtoGrpcType as SchemaProto } from "./generated/schema"
+import type { AuthServiceClient } from "./generated/schemaforge/v1/AuthService"
+import type { HealthServiceClient } from "./generated/schemaforge/v1/HealthService"
+import type { SchemaServiceClient } from "./generated/schemaforge/v1/SchemaService"
+import { PROTO_OPTIONS } from "./proto-options"
 
 /**
  * The gRPC client the server functions call through.
@@ -24,66 +36,50 @@ import { env } from "../env"
  * there is one copy of the contract and no codegen step to fall out of date.
  */
 
-const HERE = dirname(fileURLToPath(import.meta.url))
-
-const PROTO_OPTIONS = {
-  // Field names arrive as `fromEntityId` rather than `from_entity_id`, which
-  // is what the browser types expect.
-  keepCase: false,
-  // Enum names rather than magic numbers.
-  enums: String,
-  longs: Number,
-  defaults: true,
-  // Off: proto3 optional fields are synthetic oneofs, and the markers they add
-  // (`_length` next to `length`) are noise. Outbound oneofs still encode.
-  oneofs: false,
-} as const
-
-/**
- * The backend is a sibling checkout rather than a directory inside this one, so
- * there is nothing to walk down to. The env var wins over the guesses, which is
- * what a checkout under a different name needs.
- */
-function protoRoot(): string {
-  const candidates = [
-    env.SCHEMAFORGE_PROTO_DIR,
-    resolve(process.cwd(), "../schemaForgeBackend/proto"),
-    resolve(process.cwd(), "../schemaforge/backend/proto"),
-    resolve(HERE, "../../../../schemaForgeBackend/proto"),
-  ].filter((candidate): candidate is string => Boolean(candidate))
-
-  const found = candidates.find((candidate) =>
-    existsSync(resolve(candidate, "schemaforge/v1/schema.proto"))
-  )
-
-  if (!found) {
-    throw new Error(
-      `Could not find the proto directory. Looked in:\n  ${candidates.join("\n  ")}\n` +
-        "Set SCHEMAFORGE_PROTO_DIR to the backend/proto path."
-    )
-  }
-
-  return found
-}
-
 function address(): string {
   return env.SCHEMAFORGE_GRPC_ADDRESS
 }
 
-type RpcClient = {
-  [method: string]: (
-    request: unknown,
-    metadata: Metadata,
-    options: { deadline: number },
-    callback: (error: ServiceError | null, response: unknown) => void
-  ) => void
-}
+/**
+ * The generated types for the three proto files, joined: the loader reads all
+ * of them into one package, and this is what that package looks like.
+ */
+type Proto = SchemaProto & HealthProto & AuthProto
 
-type Constructor = new (
-  address: string,
-  creds: ReturnType<typeof credentials.createInsecure>,
-  options: Record<string, number>
-) => RpcClient
+/**
+ * A unary call as the generated clients declare it. Each method has several
+ * overloads, and the last one, request and callback alone, is the one a
+ * conditional type sees, so that is the shape matched here.
+ */
+type Unary<
+  TClient extends Client,
+  TMethod extends keyof TClient,
+> = TClient[TMethod] extends (
+  argument: infer TRequest,
+  callback: requestCallback<infer TResponse>
+) => ClientUnaryCall
+  ? [TRequest, TResponse]
+  : never
+
+/** The names of a client's unary methods, as the proto spells them. */
+export type MethodOf<TClient extends Client> = {
+  [K in keyof TClient & string]: TClient[K] extends (
+    argument: never,
+    callback: never
+  ) => ClientUnaryCall
+    ? K
+    : never
+}[keyof TClient & string]
+
+export type RequestOf<
+  TClient extends Client,
+  TMethod extends keyof TClient,
+> = Unary<TClient, TMethod>[0]
+
+export type ResponseOf<
+  TClient extends Client,
+  TMethod extends keyof TClient,
+> = Unary<TClient, TMethod>[1]
 
 // Left to itself the channel backs off further after every failed dial, up
 // to two minutes, and a backend that has just come back would be reported
@@ -93,50 +89,48 @@ const CHANNEL_OPTIONS = {
   "grpc.max_reconnect_backoff_ms": 3000,
 }
 
-let cached:
-  { schema: RpcClient; health: RpcClient; auth: RpcClient } | undefined
-
-function serviceFrom(root: string, file: string, name: string): Constructor {
-  const definition = loadSync(file, { includeDirs: [root], ...PROTO_OPTIONS })
-  const namespace = loadPackageDefinition(definition) as unknown as Record<
-    string,
-    Record<string, Record<string, unknown>>
-  >
-
-  return namespace.schemaforge.v1[name] as Constructor
+type Clients = {
+  schema: SchemaServiceClient
+  health: HealthServiceClient
+  auth: AuthServiceClient
 }
 
+let cached: Clients | undefined
+
 /**
- * One client for the process. A gRPC channel multiplexes concurrent calls over
- * a single HTTP/2 connection, so building a client per request would throw away
- * the pooling that makes the extra hop cheap.
+ * One client per service for the process, built from every proto file in the
+ * directory. A gRPC channel multiplexes concurrent calls over a single HTTP/2
+ * connection, so building a client per request would throw away the pooling
+ * that makes the extra hop cheap.
  */
-function clients() {
+function clients(): Clients {
   if (cached) return cached
 
-  const root = protoRoot()
-  const SchemaService = serviceFrom(
-    root,
-    "schemaforge/v1/schema.proto",
-    "SchemaService"
-  )
-  const HealthService = serviceFrom(
-    root,
-    "schemaforge/v1/health.proto",
-    "HealthService"
-  )
-  const AuthService = serviceFrom(
-    root,
-    "schemaforge/v1/auth.proto",
-    "AuthService"
-  )
-
+  const dir = env.SCHEMAFORGE_PROTO_DIR
+  const files = readdirSync(dir)
+    .filter((file) => file.endsWith(".proto"))
+    .map((file) => join(dir, file))
+  const proto = loadPackageDefinition(
+    loadSync(files, PROTO_OPTIONS)
+  ) as unknown as Proto
   const insecure = credentials.createInsecure()
 
   cached = {
-    schema: new SchemaService(address(), insecure, CHANNEL_OPTIONS),
-    health: new HealthService(address(), insecure, CHANNEL_OPTIONS),
-    auth: new AuthService(address(), insecure, CHANNEL_OPTIONS),
+    schema: new proto.schemaforge.v1.SchemaService(
+      address(),
+      insecure,
+      CHANNEL_OPTIONS
+    ),
+    health: new proto.schemaforge.v1.HealthService(
+      address(),
+      insecure,
+      CHANNEL_OPTIONS
+    ),
+    auth: new proto.schemaforge.v1.AuthService(
+      address(),
+      insecure,
+      CHANNEL_OPTIONS
+    ),
   }
 
   return cached
@@ -151,9 +145,7 @@ function clients() {
 function dropClients() {
   if (!cached) return
 
-  for (const client of Object.values(cached)) {
-    ;(client as unknown as { close: () => void }).close()
-  }
+  for (const client of Object.values(cached)) client.close()
 
   cached = undefined
 }
@@ -243,22 +235,16 @@ async function obtain(): Promise<Tokens> {
 
   if (current) {
     try {
-      return await invoke<{ refreshToken: string }, Tokens>(
-        clients().auth,
-        "RefreshToken",
-        { refreshToken: current.refreshToken }
-      )
+      return await invoke(clients().auth, "RefreshToken", {
+        refreshToken: current.refreshToken,
+      })
     } catch {
       // A refresh token the backend has stopped honouring is not a failure
       // worth surfacing while the credentials are still good.
     }
   }
 
-  return invoke<{ email: string; password: string }, Tokens>(
-    clients().auth,
-    "Login",
-    loginRequest()
-  )
+  return invoke(clients().auth, "Login", loginRequest())
 }
 
 /**
@@ -302,13 +288,13 @@ function isExpired(error: unknown): boolean {
   )
 }
 
-export async function callSchema<TRequest, TResponse>(
-  method: string,
-  request: TRequest,
+export async function callSchema<TMethod extends MethodOf<SchemaServiceClient>>(
+  method: TMethod,
+  request: RequestOf<SchemaServiceClient, TMethod>,
   requestId?: string
-): Promise<TResponse> {
+): Promise<ResponseOf<SchemaServiceClient, TMethod>> {
   try {
-    return await invoke<TRequest, TResponse>(
+    return await invoke(
       clients().schema,
       method,
       request,
@@ -323,7 +309,7 @@ export async function callSchema<TRequest, TResponse>(
     // call instead of an error the user has to do something about.
     const renewed = await renew()
 
-    return invoke<TRequest, TResponse>(
+    return invoke(
       clients().schema,
       method,
       request,
@@ -333,20 +319,20 @@ export async function callSchema<TRequest, TResponse>(
   }
 }
 
-export async function callHealth<TRequest, TResponse>(
-  method: string,
-  request: TRequest
-): Promise<TResponse> {
-  return invoke<TRequest, TResponse>(clients().health, method, request)
+export async function callHealth<TMethod extends MethodOf<HealthServiceClient>>(
+  method: TMethod,
+  request: RequestOf<HealthServiceClient, TMethod>
+): Promise<ResponseOf<HealthServiceClient, TMethod>> {
+  return invoke(clients().health, method, request)
 }
 
-function invoke<TRequest, TResponse>(
-  client: RpcClient,
-  method: string,
-  request: TRequest,
+function invoke<TClient extends Client, TMethod extends MethodOf<TClient>>(
+  client: TClient,
+  method: TMethod,
+  request: RequestOf<TClient, TMethod>,
   requestId?: string,
   authorization?: string
-): Promise<TResponse> {
+): Promise<ResponseOf<TClient, TMethod>> {
   const metadata = new Metadata()
 
   // Passing the id through means one line in the backend's log and one in this
@@ -354,14 +340,16 @@ function invoke<TRequest, TResponse>(
   if (requestId) metadata.set("x-request-id", requestId)
   if (authorization) metadata.set("authorization", authorization)
 
+  // The overload with everything: the generated types declare it, and the
+  // conditional types above only ever looked at the shortest one.
+  const call = client[method] as unknown as (
+    argument: RequestOf<TClient, TMethod>,
+    metadata: Metadata,
+    options: CallOptions,
+    callback: requestCallback<ResponseOf<TClient, TMethod>>
+  ) => ClientUnaryCall
+
   return new Promise((settle, reject) => {
-    const call = client[method]
-
-    if (typeof call !== "function") {
-      reject(new Error(`the contract has no method named ${method}`))
-      return
-    }
-
     // Without a deadline a backend that accepts the connection and then
     // hangs would hold the page request open for as long as it liked.
     const options = { deadline: Date.now() + env.SCHEMAFORGE_RPC_TIMEOUT_MS }
@@ -373,7 +361,12 @@ function invoke<TRequest, TResponse>(
         return
       }
 
-      settle(response as TResponse)
+      if (response === undefined) {
+        reject(new Error(`the backend answered ${method} with nothing`))
+        return
+      }
+
+      settle(response)
     })
   })
 }

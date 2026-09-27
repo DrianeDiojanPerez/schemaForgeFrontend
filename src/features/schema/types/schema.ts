@@ -1,37 +1,36 @@
+import type { Cardinality__Output } from "@/server/rpc/generated/schemaforge/v1/Cardinality"
+import type { DataTypeKind__Output } from "@/server/rpc/generated/schemaforge/v1/DataTypeKind"
+import type { Dialect__Output } from "@/server/rpc/generated/schemaforge/v1/Dialect"
+import type { Severity__Output } from "@/server/rpc/generated/schemaforge/v1/Severity"
+
 /**
- * The canonical schema model, mirroring backend/proto/schemaforge/v1/schema.proto.
+ * The canonical schema model as the browser sees it.
  *
- * Hand-written rather than generated: the server functions speak gRPC and hand
- * plain JSON to the browser, so no protobuf runtime reaches the bundle.
- * `@grpc/proto-loader` checks every message against the real `.proto` at the
- * boundary, so drift here surfaces as a failed call rather than wrong data.
+ * The shapes are written by hand so the browser gets plain JSON with no
+ * protobuf runtime in the bundle. The enums come from the types generated
+ * from the proto files, minus the prefix each proto enum carries and the
+ * zero value proto3 makes every enum start with, so a value added to the
+ * contract shows up here on the next `npm run proto:types`.
  */
 
-export type DataTypeKind =
-  | "TEXT"
-  | "VARCHAR"
-  | "CHAR"
-  | "SMALL_INT"
-  | "INTEGER"
-  | "BIG_INT"
-  | "NUMERIC"
-  | "REAL"
-  | "DOUBLE_PRECISION"
-  | "BOOLEAN"
-  | "DATE"
-  | "TIME"
-  | "TIMESTAMP"
-  | "TIMESTAMPTZ"
-  | "UUID"
-  | "JSON"
-  | "JSONB"
-  | "BYTEA"
+/** `DATA_TYPE_KIND_VARCHAR` as the proto spells it, `VARCHAR` here. */
+export type Unprefixed<
+  TValue extends string,
+  TPrefix extends string,
+> = TValue extends `${TPrefix}${infer TRest}` ? TRest : never
 
-export type Cardinality = "ONE_TO_ONE" | "ONE_TO_MANY" | "MANY_TO_MANY"
+type Named<TValue extends string, TPrefix extends string> = Exclude<
+  Unprefixed<TValue, TPrefix>,
+  "UNSPECIFIED"
+>
 
-export type Severity = "WARNING" | "ERROR"
+export type DataTypeKind = Named<DataTypeKind__Output, "DATA_TYPE_KIND_">
 
-export type Dialect = "POSTGRES" | "MYSQL"
+export type Cardinality = Named<Cardinality__Output, "CARDINALITY_">
+
+export type Severity = Named<Severity__Output, "SEVERITY_">
+
+export type Dialect = Named<Dialect__Output, "DIALECT_">
 
 export type Position = {
   x: number

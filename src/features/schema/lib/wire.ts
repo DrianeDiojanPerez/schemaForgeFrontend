@@ -1,4 +1,28 @@
 import type {
+  Attribute as AttributeWire,
+  Attribute__Output,
+} from "@/server/rpc/generated/schemaforge/v1/Attribute"
+import type {
+  DataType as DataTypeWire,
+  DataType__Output,
+} from "@/server/rpc/generated/schemaforge/v1/DataType"
+import type { Dialect as DialectWire } from "@/server/rpc/generated/schemaforge/v1/Dialect"
+import type { Diagnostic__Output } from "@/server/rpc/generated/schemaforge/v1/Diagnostic"
+import type {
+  Entity as EntityWire,
+  Entity__Output,
+} from "@/server/rpc/generated/schemaforge/v1/Entity"
+import type {
+  Relationship as RelationshipWire,
+  Relationship__Output,
+} from "@/server/rpc/generated/schemaforge/v1/Relationship"
+import type {
+  Schema as SchemaWire,
+  Schema__Output,
+} from "@/server/rpc/generated/schemaforge/v1/Schema"
+import type { SchemaSummary__Output } from "@/server/rpc/generated/schemaforge/v1/SchemaSummary"
+
+import type {
   Attribute,
   Cardinality,
   DataType,
@@ -10,6 +34,7 @@ import type {
   Schema,
   SchemaSummary,
   Severity,
+  Unprefixed,
 } from "../types/schema"
 
 /**
@@ -29,125 +54,106 @@ const CARDINALITY_PREFIX = "CARDINALITY_"
 const SEVERITY_PREFIX = "SEVERITY_"
 const DIALECT_PREFIX = "DIALECT_"
 
-function strip(value: unknown, prefix: string): string {
-  const text = typeof value === "string" ? value : ""
+function unprefix<TValue extends string, TPrefix extends string>(
+  value: TValue,
+  prefix: TPrefix
+): Unprefixed<TValue, TPrefix> {
+  const rest = value.startsWith(prefix) ? value.slice(prefix.length) : value
 
-  return text.startsWith(prefix) ? text.slice(prefix.length) : text
+  return rest as Unprefixed<TValue, TPrefix>
 }
 
 // null is how proto-loader spells "unset" for an optional scalar.
-function optionalNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined
+function optional<T>(value: T | null | undefined): T | undefined {
+  return value ?? undefined
 }
 
-function optionalString(value: unknown): string | undefined {
-  return typeof value === "string" && value !== "" ? value : undefined
-}
-
-type Wire = Record<string, unknown>
-
-export function dataTypeIn(wire: Wire | null | undefined): DataType {
-  const source = wire ?? {}
-
+export function dataTypeIn(wire: DataType__Output | null): DataType {
   return {
-    kind: strip(source.kind, DATA_TYPE_PREFIX) as DataTypeKind,
-    length: optionalNumber(source.length),
-    precision: optionalNumber(source.precision),
-    scale: optionalNumber(source.scale),
+    // The zero value is not a type a column can have, and the backend never
+    // sends it back, so the one name outside the domain is dropped here.
+    kind: unprefix(wire?.kind ?? "", DATA_TYPE_PREFIX) as DataTypeKind,
+    length: optional(wire?.length),
+    precision: optional(wire?.precision),
+    scale: optional(wire?.scale),
   }
 }
 
-export function attributeIn(wire: Wire): Attribute {
-  const foreignKey = wire.foreignKey as Wire | null | undefined
-
+export function attributeIn(wire: Attribute__Output): Attribute {
   return {
-    id: String(wire.id ?? ""),
-    name: String(wire.name ?? ""),
-    description: String(wire.description ?? ""),
-    dataType: dataTypeIn(wire.dataType as Wire | null),
-    nullable: Boolean(wire.nullable),
-    primaryKey: Boolean(wire.primaryKey),
-    unique: Boolean(wire.unique),
-    foreignKey: foreignKey
+    id: wire.id,
+    name: wire.name,
+    description: wire.description,
+    dataType: dataTypeIn(wire.dataType),
+    nullable: wire.nullable,
+    primaryKey: wire.primaryKey,
+    unique: wire.unique,
+    foreignKey: wire.foreignKey
       ? {
-          entityId: String(foreignKey.entityId ?? ""),
-          attributeId: String(foreignKey.attributeId ?? ""),
+          entityId: wire.foreignKey.entityId,
+          attributeId: wire.foreignKey.attributeId,
         }
       : undefined,
-    defaultValue: optionalString(wire.defaultValue),
+    defaultValue: wire.defaultValue || undefined,
   }
 }
 
-export function entityIn(wire: Wire): Entity {
-  const position = (wire.position as Wire | null) ?? {}
-
+export function entityIn(wire: Entity__Output): Entity {
   return {
-    id: String(wire.id ?? ""),
-    name: String(wire.name ?? ""),
-    description: String(wire.description ?? ""),
-    attributes: ((wire.attributes as Wire[] | undefined) ?? []).map(
-      attributeIn
-    ),
-    position: {
-      x: typeof position.x === "number" ? position.x : 0,
-      y: typeof position.y === "number" ? position.y : 0,
-    },
+    id: wire.id,
+    name: wire.name,
+    description: wire.description,
+    attributes: wire.attributes.map(attributeIn),
+    position: { x: wire.position?.x ?? 0, y: wire.position?.y ?? 0 },
   }
 }
 
-export function relationshipIn(wire: Wire): Relationship {
+export function relationshipIn(wire: Relationship__Output): Relationship {
   return {
-    id: String(wire.id ?? ""),
-    name: String(wire.name ?? ""),
-    description: String(wire.description ?? ""),
-    fromEntityId: String(wire.fromEntityId ?? ""),
-    fromAttributeId: String(wire.fromAttributeId ?? ""),
-    toEntityId: String(wire.toEntityId ?? ""),
-    toAttributeId: String(wire.toAttributeId ?? ""),
-    cardinality: strip(wire.cardinality, CARDINALITY_PREFIX) as Cardinality,
+    id: wire.id,
+    name: wire.name,
+    description: wire.description,
+    fromEntityId: wire.fromEntityId,
+    fromAttributeId: wire.fromAttributeId,
+    toEntityId: wire.toEntityId,
+    toAttributeId: wire.toAttributeId,
+    cardinality: unprefix(wire.cardinality, CARDINALITY_PREFIX) as Cardinality,
   }
 }
 
-export function schemaIn(wire: Wire): Schema {
+export function schemaIn(wire: Schema__Output): Schema {
   return {
-    id: String(wire.id ?? ""),
-    name: String(wire.name ?? ""),
-    description: String(wire.description ?? ""),
-    entities: ((wire.entities as Wire[] | undefined) ?? []).map(entityIn),
-    relationships: ((wire.relationships as Wire[] | undefined) ?? []).map(
-      relationshipIn
-    ),
-    createdAt: String(wire.createdAt ?? ""),
-    updatedAt: String(wire.updatedAt ?? ""),
+    id: wire.id,
+    name: wire.name,
+    description: wire.description,
+    entities: wire.entities.map(entityIn),
+    relationships: wire.relationships.map(relationshipIn),
+    createdAt: wire.createdAt,
+    updatedAt: wire.updatedAt,
   }
 }
 
-export function summaryIn(wire: Wire): SchemaSummary {
+export function summaryIn(wire: SchemaSummary__Output): SchemaSummary {
   return {
-    id: String(wire.id ?? ""),
-    name: String(wire.name ?? ""),
-    description: String(wire.description ?? ""),
-    entityCount: Number(wire.entityCount ?? 0),
-    relationshipCount: Number(wire.relationshipCount ?? 0),
-    createdAt: String(wire.createdAt ?? ""),
-    updatedAt: String(wire.updatedAt ?? ""),
+    id: wire.id,
+    name: wire.name,
+    description: wire.description,
+    entityCount: wire.entityCount,
+    relationshipCount: wire.relationshipCount,
+    createdAt: wire.createdAt,
+    updatedAt: wire.updatedAt,
   }
 }
 
-export function diagnosticIn(wire: Wire): Diagnostic {
-  const location = wire.location as Wire | null | undefined
-
+export function diagnosticIn(wire: Diagnostic__Output): Diagnostic {
   return {
-    code: String(wire.code ?? ""),
-    severity: strip(wire.severity, SEVERITY_PREFIX) as Severity,
-    message: String(wire.message ?? ""),
-    elementIds: ((wire.elementIds as string[] | undefined) ?? []).map(String),
-    location:
-      location &&
-      typeof location.x === "number" &&
-      typeof location.y === "number"
-        ? { x: location.x, y: location.y }
-        : undefined,
+    code: wire.code,
+    severity: unprefix(wire.severity, SEVERITY_PREFIX) as Severity,
+    message: wire.message,
+    elementIds: wire.elementIds,
+    location: wire.location
+      ? { x: wire.location.x, y: wire.location.y }
+      : undefined,
   }
 }
 
@@ -155,8 +161,8 @@ export function diagnosticIn(wire: Wire): Diagnostic {
  * Outbound. Undefined optionals are omitted rather than sent as null, which is
  * what lets the backend tell "the user gave no length" from "the length is 0".
  */
-export function dataTypeOut(dataType: DataType): Wire {
-  const wire: Wire = { kind: `${DATA_TYPE_PREFIX}${dataType.kind}` }
+export function dataTypeOut(dataType: DataType): DataTypeWire {
+  const wire: DataTypeWire = { kind: `${DATA_TYPE_PREFIX}${dataType.kind}` }
 
   if (dataType.length !== undefined) wire.length = dataType.length
   if (dataType.precision !== undefined) wire.precision = dataType.precision
@@ -165,8 +171,8 @@ export function dataTypeOut(dataType: DataType): Wire {
   return wire
 }
 
-export function attributeOut(attribute: Attribute): Wire {
-  const wire: Wire = {
+export function attributeOut(attribute: Attribute): AttributeWire {
+  const wire: AttributeWire = {
     id: attribute.id,
     name: attribute.name,
     description: attribute.description,
@@ -184,7 +190,7 @@ export function attributeOut(attribute: Attribute): Wire {
   return wire
 }
 
-export function entityOut(entity: Entity): Wire {
+export function entityOut(entity: Entity): EntityWire {
   return {
     id: entity.id,
     name: entity.name,
@@ -194,7 +200,7 @@ export function entityOut(entity: Entity): Wire {
   }
 }
 
-export function relationshipOut(relationship: Relationship): Wire {
+export function relationshipOut(relationship: Relationship): RelationshipWire {
   return {
     id: relationship.id,
     name: relationship.name,
@@ -207,7 +213,7 @@ export function relationshipOut(relationship: Relationship): Wire {
   }
 }
 
-export function schemaOut(schema: Schema): Wire {
+export function schemaOut(schema: Schema): SchemaWire {
   return {
     id: schema.id,
     name: schema.name,
@@ -219,6 +225,6 @@ export function schemaOut(schema: Schema): Wire {
   }
 }
 
-export function dialectOut(dialect: Dialect): string {
+export function dialectOut(dialect: Dialect): DialectWire {
   return `${DIALECT_PREFIX}${dialect}`
 }
