@@ -79,8 +79,17 @@ type RpcClient = {
 
 type Constructor = new (
   address: string,
-  creds: ReturnType<typeof credentials.createInsecure>
+  creds: ReturnType<typeof credentials.createInsecure>,
+  options: Record<string, number>
 ) => RpcClient
+
+// Left to itself the channel backs off further after every failed dial, up
+// to two minutes, and a backend that has just come back would be reported
+// down until that ran out. The health check asks every three seconds.
+const CHANNEL_OPTIONS = {
+  "grpc.initial_reconnect_backoff_ms": 1000,
+  "grpc.max_reconnect_backoff_ms": 3000,
+}
 
 let cached:
   { schema: RpcClient; health: RpcClient; auth: RpcClient } | undefined
@@ -120,13 +129,31 @@ function clients() {
     "AuthService"
   )
 
+  const insecure = credentials.createInsecure()
+
   cached = {
-    schema: new SchemaService(address(), credentials.createInsecure()),
-    health: new HealthService(address(), credentials.createInsecure()),
-    auth: new AuthService(address(), credentials.createInsecure()),
+    schema: new SchemaService(address(), insecure, CHANNEL_OPTIONS),
+    health: new HealthService(address(), insecure, CHANNEL_OPTIONS),
+    auth: new AuthService(address(), insecure, CHANNEL_OPTIONS),
   }
 
   return cached
+}
+
+/**
+ * A channel that has lost the backend sits out its backoff before it dials
+ * again, and every call made meanwhile fails without trying. Throwing the
+ * clients away means the next call, which may be the check that asks whether
+ * the backend is back, dials straight away.
+ */
+function dropClients() {
+  if (!cached) return
+
+  for (const client of Object.values(cached)) {
+    ;(client as unknown as { close: () => void }).close()
+  }
+
+  cached = undefined
 }
 
 /**
@@ -326,6 +353,7 @@ function invoke<TRequest, TResponse>(
 
     call.call(client, request, metadata, (error, response) => {
       if (error) {
+        if (error.code === grpcStatus.UNAVAILABLE) dropClients()
         reject(new SchemaForgeRpcError(toRpcError(error)))
         return
       }
