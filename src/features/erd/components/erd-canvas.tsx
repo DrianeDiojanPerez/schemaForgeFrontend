@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
+  ConnectionMode,
   Background,
   MiniMap,
   ReactFlow,
@@ -490,6 +491,12 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
       defaultEdgeOptions={EDGE_DEFAULTS}
       connectionLineComponent={ConnectionLine}
       connectionRadius={40}
+      // The arrow a drag is aimed at is a source handle sitting just outside
+      // the row, and the target handle is on the row's edge behind it. A drop
+      // on the arrow finds the arrow closest, which strict mode refuses as
+      // source to source. Both carry the same id, so either makes the same
+      // edge.
+      connectionMode={ConnectionMode.Loose}
       proOptions={{ hideAttribution: true }}
       className="bg-background"
     >
