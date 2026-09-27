@@ -1,23 +1,28 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   EdgeLabelRenderer,
   Position,
-  getSmoothStepPath,
   useReactFlow,
   useStore,
 } from "@xyflow/react"
 import type { EdgeProps } from "@xyflow/react"
+import { FileTextIcon, Trash2Icon } from "lucide-react"
 
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
+import { edgeDash, linePath, nearestSides } from "../lib/edge-lines"
 import type { ErdEdge, RelationshipType } from "../types/erd"
+import { DescriptionDialog } from "./details-dialogs"
+import { useEdgeStyle } from "./edge-line-context"
 
 const FALLBACK_TABLE_WIDTH = 160
 
@@ -63,7 +68,8 @@ export const RelationshipEdge = ({
   data,
   selected,
 }: EdgeProps<ErdEdge>) => {
-  const { updateEdgeData } = useReactFlow()
+  const { updateEdgeData, deleteElements } = useReactFlow()
+  const [editingDetails, setEditingDetails] = useState(false)
   const relationshipType = data?.relationshipType ?? "one-to-many"
 
   const sourceNode = useStore(
@@ -89,8 +95,8 @@ export const RelationshipEdge = ({
     return 0
   }, [edges, id, source, target])
 
-  const sourceWidth = sourceNode?.measured?.width ?? FALLBACK_TABLE_WIDTH
-  const targetWidth = targetNode?.measured?.width ?? FALLBACK_TABLE_WIDTH
+  const sourceWidth = sourceNode?.measured.width ?? FALLBACK_TABLE_WIDTH
+  const targetWidth = targetNode?.measured.width ?? FALLBACK_TABLE_WIDTH
 
   // Anchor off the node origin, not the handle coordinates from props. The
   // handle x depends on which side the user dragged from, so it says nothing
@@ -103,44 +109,30 @@ export const RelationshipEdge = ({
   const targetLeftX = targetPosX
   const targetRightX = targetPosX + targetWidth
 
-  const { sourceSide, targetSide } = useMemo(() => {
-    const distances = {
-      leftToLeft: Math.abs(sourceLeftX - targetLeftX),
-      leftToRight: Math.abs(sourceLeftX - targetRightX),
-      rightToLeft: Math.abs(sourceRightX - targetLeftX),
-      rightToRight: Math.abs(sourceRightX - targetRightX),
-    }
+  const { sourceSide, targetSide } = useMemo(
+    () => nearestSides(sourceLeftX, sourceRightX, targetLeftX, targetRightX),
+    [sourceLeftX, sourceRightX, targetLeftX, targetRightX]
+  )
 
-    const closest = (
-      Object.keys(distances) as (keyof typeof distances)[]
-    ).reduce((best, key) => (distances[key] < distances[best] ? key : best))
+  const { line, dash, labels } = useEdgeStyle()
 
-    switch (closest) {
-      case "leftToRight":
-        return { sourceSide: "left" as const, targetSide: "right" as const }
-      case "rightToLeft":
-        return { sourceSide: "right" as const, targetSide: "left" as const }
-      case "rightToRight":
-        return { sourceSide: "right" as const, targetSide: "right" as const }
-      default:
-        return { sourceSide: "left" as const, targetSide: "left" as const }
-    }
-  }, [sourceLeftX, sourceRightX, targetLeftX, targetRightX])
-
-  // getSmoothStepPath hands back the label anchor along with the path, so the
-  // badge follows the line even when both ends leave from the same side.
+  // Each route hands back the label anchor along with the path, so the badge
+  // follows the line even when both ends leave from the same side.
   const [edgePath, labelX, labelY] = useMemo(() => {
-    return getSmoothStepPath({
-      sourceX: Math.round(sourceSide === "left" ? sourceLeftX : sourceRightX),
-      sourceY: Math.round(sourceY),
-      targetX: Math.round(targetSide === "left" ? targetLeftX : targetRightX),
-      targetY: Math.round(targetY),
-      borderRadius: 14,
-      sourcePosition: sourceSide === "left" ? Position.Left : Position.Right,
-      targetPosition: targetSide === "left" ? Position.Left : Position.Right,
-      offset: (edgeNumber + 1) * 14,
-    })
+    return linePath(
+      line,
+      {
+        sourceX: Math.round(sourceSide === "left" ? sourceLeftX : sourceRightX),
+        sourceY: Math.round(sourceY),
+        targetX: Math.round(targetSide === "left" ? targetLeftX : targetRightX),
+        targetY: Math.round(targetY),
+        sourcePosition: sourceSide === "left" ? Position.Left : Position.Right,
+        targetPosition: targetSide === "left" ? Position.Left : Position.Right,
+      },
+      edgeNumber
+    )
   }, [
+    line,
     sourceLeftX,
     sourceRightX,
     targetLeftX,
@@ -253,6 +245,7 @@ export const RelationshipEdge = ({
           ...style,
           strokeWidth: selected ? 1.4 : 1,
           stroke: relationship.stroke,
+          strokeDasharray: edgeDash(dash).dash,
           fill: "none",
         }}
         className="react-flow__edge-path"
@@ -269,50 +262,82 @@ export const RelationshipEdge = ({
       />
 
       <EdgeLabelRenderer>
-        <div
-          style={{
-            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-          }}
-          className="nodrag nopan pointer-events-auto absolute text-[8px]"
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              title="Change relationship type"
-              style={{ borderColor: relationship.stroke }}
-              className={cn(
-                "cursor-pointer rounded border bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
-                relationship.text,
-                selected && "ring-1 ring-primary ring-offset-1"
-              )}
-            >
-              {relationship.symbol}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="min-w-40">
-              <DropdownMenuRadioGroup
-                value={relationshipType}
-                onValueChange={(value) =>
-                  updateEdgeData(id, {
-                    relationshipType: value as RelationshipType,
-                  })
-                }
+        {/* The badge is also the way in to the menu that sets the kind of
+            relationship, so a hidden one comes back for the line you click. */}
+        {(labels || selected) && (
+          <div
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+            className="nodrag nopan pointer-events-auto absolute text-[8px]"
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                title="Relationship options"
+                style={{ borderColor: relationship.stroke }}
+                className={cn(
+                  "cursor-pointer rounded border bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
+                  relationship.text,
+                  selected && "ring-1 ring-primary ring-offset-1"
+                )}
               >
-                {RELATIONSHIP_ORDER.map((type) => {
-                  const option = RELATIONSHIPS[type]
-                  return (
-                    <DropdownMenuRadioItem key={type} value={type}>
-                      <span className={cn("font-bold", option.text)}>
-                        {option.symbol}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {option.label}
-                      </span>
-                    </DropdownMenuRadioItem>
-                  )
-                })}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                {relationship.symbol}
+                {data?.name && (
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    {data.name}
+                  </span>
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="min-w-40">
+                <DropdownMenuRadioGroup
+                  value={relationshipType}
+                  onValueChange={(value) =>
+                    updateEdgeData(id, {
+                      relationshipType: value as RelationshipType,
+                    })
+                  }
+                >
+                  {RELATIONSHIP_ORDER.map((type) => {
+                    const option = RELATIONSHIPS[type]
+                    return (
+                      <DropdownMenuRadioItem key={type} value={type}>
+                        <span className={cn("font-bold", option.text)}>
+                          {option.symbol}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {option.label}
+                        </span>
+                      </DropdownMenuRadioItem>
+                    )
+                  })}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setEditingDetails(true)}>
+                  <FileTextIcon />
+                  Edit details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => void deleteElements({ edges: [{ id }] })}
+                >
+                  <Trash2Icon />
+                  Delete relationship
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {editingDetails && (
+          <DescriptionDialog
+            title="Relationship details"
+            subject={`${relationship.label} relationship`}
+            withName
+            details={{ name: data?.name, description: data?.description }}
+            onSave={(details) => updateEdgeData(id, details)}
+            onClose={() => setEditingDetails(false)}
+          />
+        )}
       </EdgeLabelRenderer>
     </>
   )
