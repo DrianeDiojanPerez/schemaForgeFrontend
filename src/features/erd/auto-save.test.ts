@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { act, cleanup, renderHook } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { createElement } from "react"
+import type { ReactNode } from "react"
 
 import { useSchemaSync } from "@/features/erd/hooks/use-schema-sync"
 import type { ErdEdge, ErdNode, ErdTableNode } from "@/features/erd/types/erd"
@@ -75,8 +78,16 @@ function sync({
         onSaved: () => {},
         onValidateUnavailable: unavailable,
       }),
-    { initialProps: { nodes: [table] as ErdNode[] } }
+    { initialProps: { nodes: [table] as ErdNode[] }, wrapper }
   )
+}
+
+function wrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { mutations: { retry: false } },
+  })
+
+  return createElement(QueryClientProvider, { client }, children)
 }
 
 /** Past the debounce, plus the microtasks the save itself waits on. */
@@ -137,6 +148,34 @@ test("a run of edits is one save, not one per change", async () => {
   await settle()
 
   expect(updateSchema).toHaveBeenCalledTimes(1)
+})
+
+test("an edit made during a save is not lost", async () => {
+  let finish: (saved: { id: string }) => void = () => {}
+  updateSchema.mockImplementationOnce(
+    () => new Promise<{ id: string }>((resolve) => (finish = resolve))
+  )
+
+  const { rerender } = sync()
+
+  rerender({ nodes: [{ ...table, position: { x: 10, y: 0 } }] })
+  await act(async () => {
+    vi.advanceTimersByTime(300)
+  })
+  expect(updateSchema).toHaveBeenCalledTimes(1)
+
+  // The write is still out, so this one has nothing to do but wait for it.
+  rerender({ nodes: [{ ...table, position: { x: 20, y: 0 } }] })
+  await act(async () => {
+    vi.advanceTimersByTime(400)
+  })
+
+  await act(async () => {
+    finish({ id: "schema-1" })
+  })
+  await settle()
+
+  expect(updateSchema).toHaveBeenCalledTimes(2)
 })
 
 test("turning auto-save off stops the writing", async () => {
