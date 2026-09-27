@@ -20,40 +20,60 @@ export const DEFAULT_EDGE_LINE: EdgeLine = "rounded"
 
 export type Side = "left" | "right"
 
+export type Sides = { sourceSide: Side; targetSide: Side }
+
+// How much closer another pair of edges has to be before a line moves to it.
+// Without this a table dragged across the halfway point flips sides on
+// every pixel.
+const HOLD = 24
+
 /** How far back from the table the "one" bars sit along the line. */
 export const END_GAP = 4
 
+const PAIRS: Record<`${Side}To${Capitalize<Side>}`, Sides> = {
+  leftToLeft: { sourceSide: "left", targetSide: "left" },
+  leftToRight: { sourceSide: "left", targetSide: "right" },
+  rightToLeft: { sourceSide: "right", targetSide: "left" },
+  rightToRight: { sourceSide: "right", targetSide: "right" },
+}
+
+type Pair = keyof typeof PAIRS
+
 /**
  * Which side of each table a line runs between: the pair of edges that sit
- * closest together, so a line never crosses back over its own table.
+ * closest together, so a line never crosses back over its own table. The
+ * sides the line had are kept until another pair is closer by a clear
+ * margin.
  */
 export function nearestSides(
   sourceLeft: number,
   sourceRight: number,
   targetLeft: number,
-  targetRight: number
-): { sourceSide: Side; targetSide: Side } {
-  const distances = {
+  targetRight: number,
+  held?: Sides
+): Sides {
+  const distances: Record<Pair, number> = {
     leftToLeft: Math.abs(sourceLeft - targetLeft),
     leftToRight: Math.abs(sourceLeft - targetRight),
     rightToLeft: Math.abs(sourceRight - targetLeft),
     rightToRight: Math.abs(sourceRight - targetRight),
   }
 
-  const closest = (Object.keys(distances) as (keyof typeof distances)[]).reduce(
-    (best, key) => (distances[key] < distances[best] ? key : best)
+  const closest = (Object.keys(distances) as Pair[]).reduce((best, key) =>
+    distances[key] < distances[best] ? key : best
   )
 
-  switch (closest) {
-    case "leftToRight":
-      return { sourceSide: "left", targetSide: "right" }
-    case "rightToLeft":
-      return { sourceSide: "right", targetSide: "left" }
-    case "rightToRight":
-      return { sourceSide: "right", targetSide: "right" }
-    default:
-      return { sourceSide: "left", targetSide: "left" }
+  if (held) {
+    const kept: Pair = `${held.sourceSide}To${capitalize(held.targetSide)}`
+
+    if (distances[kept] <= distances[closest] + HOLD) return PAIRS[kept]
   }
+
+  return PAIRS[closest]
+}
+
+function capitalize(side: Side): Capitalize<Side> {
+  return side === "left" ? "Left" : "Right"
 }
 
 type Ends = {

@@ -1,7 +1,8 @@
 import { Position } from "@xyflow/react"
 import type { ConnectionLineComponentProps } from "@xyflow/react"
 
-import { edgeDash, linePath, nearestSides } from "../lib/edge-lines"
+import { useHeldSides } from "../hooks/use-held-sides"
+import { edgeDash, linePath } from "../lib/edge-lines"
 import { stripHandleSide } from "../lib/foreign-keys"
 import type { ErdNode } from "../types/erd"
 import { useEdgeStyle } from "./edge-line-context"
@@ -56,7 +57,7 @@ export function ConnectionLine({
     ? targetLeft + (toNode.measured.width ?? FALLBACK_TABLE_WIDTH)
     : toX
 
-  const { sourceSide, targetSide } = nearestSides(
+  const { sourceSide, targetSide } = useHeldSides(
     sourceLeft,
     sourceRight,
     targetLeft,

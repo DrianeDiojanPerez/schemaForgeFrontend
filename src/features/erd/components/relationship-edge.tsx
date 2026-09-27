@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
-import { edgeDash, linePath, nearestSides, END_GAP } from "../lib/edge-lines"
+import { useHeldSides } from "../hooks/use-held-sides"
+import { edgeDash, linePath, END_GAP } from "../lib/edge-lines"
 import type { ErdEdge, RelationshipType } from "../types/erd"
 import { DescriptionDialog } from "./details-dialogs"
 import { useEdgeStyle } from "./edge-line-context"
@@ -109,9 +110,11 @@ export const RelationshipEdge = ({
   const targetLeftX = targetPosX
   const targetRightX = targetPosX + targetWidth
 
-  const { sourceSide, targetSide } = useMemo(
-    () => nearestSides(sourceLeftX, sourceRightX, targetLeftX, targetRightX),
-    [sourceLeftX, sourceRightX, targetLeftX, targetRightX]
+  const { sourceSide, targetSide } = useHeldSides(
+    sourceLeftX,
+    sourceRightX,
+    targetLeftX,
+    targetRightX
   )
 
   const { line, dash, labels } = useEdgeStyle()
