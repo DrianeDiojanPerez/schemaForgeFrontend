@@ -1,12 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "react",
-    "import",
-    "unicorn",
-    "oxc"
-  ],
+  "plugins": ["typescript", "react", "import", "unicorn", "oxc"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -25,7 +19,8 @@
     "dist",
     ".output",
     ".tanstack",
-    "src/routeTree.gen.ts"
+    "src/routeTree.gen.ts",
+    "src/server/rpc/generated/**"
   ],
   "rules": {
     "react/react-in-jsx-scope": "off",
@@ -55,20 +50,14 @@
     "shadcn/no-unknown-classes": [
       "warn",
       {
-        "allow": [
-          "nodrag",
-          "nopan"
-        ]
+        "allow": ["nodrag", "nopan"]
       }
     ],
     "shadcn/require-static-classes": "warn"
   },
   "overrides": [
     {
-      "files": [
-        "src/components/ui/**",
-        "src/hooks/use-mobile.ts"
-      ],
+      "files": ["src/components/ui/**", "src/hooks/use-mobile.ts"],
       "rules": {
         "no-shadow": "off",
         "no-underscore-dangle": "off",
@@ -83,7 +72,5 @@
       }
     }
   ],
-  "jsPlugins": [
-    "@shadcn/lint"
-  ]
+  "jsPlugins": ["@shadcn/lint"]
 }
