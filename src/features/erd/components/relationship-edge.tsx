@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
-import { edgeDash, linePath, nearestSides } from "../lib/edge-lines"
+import { edgeDash, linePath, nearestSides, END_GAP } from "../lib/edge-lines"
 import type { ErdEdge, RelationshipType } from "../types/erd"
 import { DescriptionDialog } from "./details-dialogs"
 import { useEdgeStyle } from "./edge-line-context"
@@ -116,15 +116,29 @@ export const RelationshipEdge = ({
 
   const { line, dash, labels } = useEdgeStyle()
 
+  // A "one" end stops short of the table and its marker carries the line on,
+  // so the stretch past the bar is drawn once rather than twice. A crow's
+  // foot goes all the way, with its toes on the row.
+  const sourceGap = relationshipType !== "many-to-many" ? END_GAP : 0
+  const targetGap = relationshipType === "one-to-one" ? END_GAP : 0
+
   // Each route hands back the label anchor along with the path, so the badge
   // follows the line even when both ends leave from the same side.
   const [edgePath, labelX, labelY] = useMemo(() => {
     return linePath(
       line,
       {
-        sourceX: Math.round(sourceSide === "left" ? sourceLeftX : sourceRightX),
+        sourceX: Math.round(
+          sourceSide === "left"
+            ? sourceLeftX - sourceGap
+            : sourceRightX + sourceGap
+        ),
         sourceY: Math.round(sourceY),
-        targetX: Math.round(targetSide === "left" ? targetLeftX : targetRightX),
+        targetX: Math.round(
+          targetSide === "left"
+            ? targetLeftX - targetGap
+            : targetRightX + targetGap
+        ),
         targetY: Math.round(targetY),
         sourcePosition: sourceSide === "left" ? Position.Left : Position.Right,
         targetPosition: targetSide === "left" ? Position.Left : Position.Right,
@@ -141,6 +155,8 @@ export const RelationshipEdge = ({
     targetY,
     sourceSide,
     targetSide,
+    sourceGap,
+    targetGap,
     edgeNumber,
   ])
 
@@ -185,24 +201,24 @@ export const RelationshipEdge = ({
     )
   }
 
+  // The path ends at the bar; this is the solid run from it to the table.
   const singleBar = (
     <>
       <line
-        x1="7"
-        y1="3"
-        x2="7"
-        y2="13"
+        x1="8"
+        y1="8"
+        x2={9 + END_GAP}
+        y2="8"
         stroke={relationship.stroke}
-        strokeWidth="1.2"
-        strokeLinecap="round"
+        strokeWidth="1.5"
       />
       <line
-        x1="9"
-        y1="3"
-        x2="9"
-        y2="13"
+        x1="8"
+        y1="4.5"
+        x2="8"
+        y2="11.5"
         stroke={relationship.stroke}
-        strokeWidth="1.2"
+        strokeWidth="1.3"
         strokeLinecap="round"
       />
     </>

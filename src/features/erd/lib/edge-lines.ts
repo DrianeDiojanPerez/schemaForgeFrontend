@@ -20,6 +20,9 @@ export const DEFAULT_EDGE_LINE: EdgeLine = "rounded"
 
 export type Side = "left" | "right"
 
+/** How far back from the table the "one" bars sit along the line. */
+export const END_GAP = 4
+
 /**
  * Which side of each table a line runs between: the pair of edges that sit
  * closest together, so a line never crosses back over its own table.
