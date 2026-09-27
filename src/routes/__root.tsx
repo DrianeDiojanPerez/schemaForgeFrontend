@@ -11,6 +11,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import { Toaster } from "sileo"
 
+import { NotFound } from "@/components/not-found"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { themeScript, useTheme } from "@/lib/theme"
 import { useToastPosition } from "@/lib/toast"
@@ -30,7 +31,16 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "TanStack Start Starter",
+        title: "SchemaForge",
+      },
+      {
+        name: "description",
+        content:
+          "Draw a database schema as a diagram, check it, and turn it into SQL.",
+      },
+      {
+        name: "theme-color",
+        content: "#009869",
       },
     ],
     links: [
@@ -38,14 +48,13 @@ export const Route = createRootRouteWithContext<{
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.json" },
     ],
   }),
-  notFoundComponent: () => (
-    <main className="container mx-auto p-4 pt-16">
-      <h1>404</h1>
-      <p>The requested page could not be found.</p>
-    </main>
-  ),
+  notFoundComponent: NotFound,
   shellComponent: RootDocument,
 })
 
