@@ -11,6 +11,7 @@ import type { ServiceError } from "@grpc/grpc-js"
 import { loadSync } from "@grpc/proto-loader"
 
 import type { RpcError } from "@/features/schema/types/schema"
+import { env } from "../env"
 
 /**
  * The gRPC client the server functions call through.
@@ -45,7 +46,7 @@ const PROTO_OPTIONS = {
  */
 function protoRoot(): string {
   const candidates = [
-    process.env.SCHEMAFORGE_PROTO_DIR,
+    env.SCHEMAFORGE_PROTO_DIR,
     resolve(process.cwd(), "../schemaForgeBackend/proto"),
     resolve(process.cwd(), "../schemaforge/backend/proto"),
     resolve(HERE, "../../../../schemaForgeBackend/proto"),
@@ -66,13 +67,14 @@ function protoRoot(): string {
 }
 
 function address(): string {
-  return process.env.SCHEMAFORGE_GRPC_ADDRESS ?? "127.0.0.1:50051"
+  return env.SCHEMAFORGE_GRPC_ADDRESS
 }
 
 type RpcClient = {
   [method: string]: (
     request: unknown,
     metadata: Metadata,
+    options: { deadline: number },
     callback: (error: ServiceError | null, response: unknown) => void
   ) => void
 }
@@ -215,16 +217,7 @@ let tokens: Tokens | undefined
 let renewal: Promise<Tokens> | undefined
 
 function loginRequest(): { email: string; password: string } {
-  const email = process.env.SCHEMAFORGE_EMAIL
-  const password = process.env.SCHEMAFORGE_PASSWORD
-
-  if (!email || !password) {
-    throw new Error(
-      "Set SCHEMAFORGE_EMAIL and SCHEMAFORGE_PASSWORD so the server can sign in to the backend."
-    )
-  }
-
-  return { email, password }
+  return { email: env.SCHEMAFORGE_EMAIL, password: env.SCHEMAFORGE_PASSWORD }
 }
 
 async function obtain(): Promise<Tokens> {
@@ -351,7 +344,11 @@ function invoke<TRequest, TResponse>(
       return
     }
 
-    call.call(client, request, metadata, (error, response) => {
+    // Without a deadline a backend that accepts the connection and then
+    // hangs would hold the page request open for as long as it liked.
+    const options = { deadline: Date.now() + env.SCHEMAFORGE_RPC_TIMEOUT_MS }
+
+    call.call(client, request, metadata, options, (error, response) => {
       if (error) {
         if (error.code === grpcStatus.UNAVAILABLE) dropClients()
         reject(new SchemaForgeRpcError(toRpcError(error)))
