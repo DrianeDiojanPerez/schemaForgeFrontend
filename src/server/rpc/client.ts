@@ -186,8 +186,26 @@ function toRpcError(error: ServiceError): RpcError {
     appCode: Number(appCodeHeader ?? 0),
     // The code is a number on the wire; the name is what a caller can read.
     status: grpcStatus[error.code],
-    message: error.details || error.message,
+    message: plainMessage(error),
     violations,
+  }
+}
+
+// What reaches the toast. The transport's own wording, "No connection
+// established. Last error: connect ECONNREFUSED", is for the person running
+// the server, not the one drawing.
+function plainMessage(error: ServiceError): string {
+  switch (error.code) {
+    case grpcStatus.UNAVAILABLE:
+      return `Nothing is answering at ${address()}. Is the backend running?`
+    case grpcStatus.DEADLINE_EXCEEDED:
+      return `The backend took longer than ${env.SCHEMAFORGE_RPC_TIMEOUT_MS / 1000}s to answer.`
+    case grpcStatus.UNAUTHENTICATED:
+      return "The backend refused the sign-in. Check SCHEMAFORGE_EMAIL and SCHEMAFORGE_PASSWORD."
+    case grpcStatus.PERMISSION_DENIED:
+      return "The account the server signs in with is not allowed to do this."
+    default:
+      return error.details || error.message
   }
 }
 
