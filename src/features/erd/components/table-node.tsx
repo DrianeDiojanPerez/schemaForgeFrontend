@@ -23,8 +23,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import {
 	Command,
 	CommandEmpty,
@@ -132,7 +130,14 @@ function ColumnTypeCombobox({
 		<Popover open={open} onOpenChange={(next) => (next ? openAtReadableZoom() : setOpen(false))}>
 			{/* Closing with Escape hands focus back to the trigger, and the browser
           ring is far too heavy at this size. The text stands in for it. */}
-			<PopoverTrigger className="nodrag nopan flex h-4 items-center gap-0.5 rounded-sm px-1 text-4xs text-muted-foreground transition hover:text-foreground focus-visible:text-foreground focus-visible:outline-none">
+			<PopoverTrigger
+				render={
+					<button
+						type="button"
+						className="nodrag nopan flex h-4 items-center gap-0.5 rounded-sm px-1 text-4xs text-muted-foreground transition hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
+					/>
+				}
+			>
 				{label}
 				<ChevronDownIcon className="size-2" />
 			</PopoverTrigger>
@@ -304,7 +309,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 
 	if (data.isForeign) {
 		return (
-			<Badge variant="secondary" className="relative h-auto rounded-sm py-1 text-3xs">
+			<span className="relative inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border border-transparent bg-secondary px-2 py-1 text-3xs font-medium whitespace-nowrap text-secondary-foreground">
 				{data.name}
 				<Handle
 					type="target"
@@ -312,7 +317,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 					position={Position.Left}
 					className={HIDDEN_CONNECTOR}
 				/>
-			</Badge>
+			</span>
 		);
 	}
 
@@ -320,12 +325,11 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 		<ContextMenu>
 			<ContextMenuTrigger
 				render={
-					<Card
-						// Card clips by default, which would cut the column connectors off
-						// at the border they are meant to reach past. The corners the
-						// clipping was rounding are rounded by the header and the button
-						// that sit in them.
-						className="w-max gap-0 overflow-visible rounded-lg py-0 shadow-lg transition-all hover:shadow-xl"
+					// Not a Card: that clips its edges, which would cut the column
+					// connectors off at the border they are meant to reach past. The
+					// corners are rounded by the header and the button that sit in them.
+					<div
+						className="flex w-max flex-col rounded-lg bg-card text-sm text-card-foreground shadow-lg ring-1 ring-foreground/10 transition-all hover:shadow-xl"
 						style={{ minWidth: TABLE_NODE_WIDTH / 2 }}
 					/>
 				}
@@ -397,12 +401,17 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 										delay={150}
 										onClick={(event) => event.stopPropagation()}
 										aria-label={`${problems.length} ${problems.length === 1 ? "problem" : "problems"}`}
-										className={cn(
-											"nodrag flex h-4 shrink-0 items-center gap-0.5 rounded-full pr-1.5 pl-1 tabular-nums transition-colors",
-											failing
-												? "text-destructive hover:bg-destructive/10 data-popup-open:bg-destructive/10"
-												: "text-warning hover:bg-warning/10 data-popup-open:bg-warning/10",
-										)}
+										render={
+											<button
+												type="button"
+												className={cn(
+													"nodrag flex h-4 shrink-0 items-center gap-0.5 rounded-full pr-1.5 pl-1 tabular-nums transition-colors",
+													failing
+														? "text-destructive hover:bg-destructive/10 data-popup-open:bg-destructive/10"
+														: "text-warning hover:bg-warning/10 data-popup-open:bg-warning/10",
+												)}
+											/>
+										}
 									>
 										{failing ? (
 											<CircleAlert strokeWidth={2} size={10} />

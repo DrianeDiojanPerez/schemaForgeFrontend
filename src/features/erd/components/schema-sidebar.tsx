@@ -267,10 +267,15 @@ const SchemaList = memo(function SchemaList({
 				<Popover open={picking} onOpenChange={setPicking}>
 					<PopoverTrigger
 						id={TOUR.schemaPicker}
-						className={cn(
-							ROW,
-							"flex-1 border border-sidebar-border bg-background font-medium hover:bg-sidebar-accent",
-						)}
+						render={
+							<button
+								type="button"
+								className={cn(
+									ROW,
+									"flex-1 border border-sidebar-border bg-background font-medium hover:bg-sidebar-accent",
+								)}
+							/>
+						}
 					>
 						<DatabaseIcon className="size-4 shrink-0 text-primary" />
 						<span className="flex-1 truncate">{current ? schemaLabel(current, name) : name}</span>
@@ -358,7 +363,12 @@ const SchemaList = memo(function SchemaList({
 									<div className="sticky top-0 z-10 flex h-8 items-center rounded-md bg-sidebar pr-2 transition-colors hover:bg-sidebar-accent">
 										<CollapsibleTrigger
 											aria-label={unfolded ? `Hide ${label} tables` : `Show ${label} tables`}
-											className="group/schema flex h-full shrink-0 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+											render={
+												<button
+													type="button"
+													className="group/schema flex h-full shrink-0 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+												/>
+											}
 										>
 											<ChevronRightIcon
 												className={cn(CARET, "group-data-panel-open/schema:rotate-90")}
@@ -401,7 +411,12 @@ const SchemaList = memo(function SchemaList({
 																	? `Hide ${table.data.name} columns`
 																	: `Show ${table.data.name} columns`
 															}
-															className="group/table flex h-full shrink-0 items-center gap-2 rounded-md pl-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+															render={
+																<button
+																	type="button"
+																	className="group/table flex h-full shrink-0 items-center gap-2 rounded-md pl-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+																/>
+															}
 														>
 															<ChevronRightIcon
 																className={cn(CARET, "group-data-panel-open/table:rotate-90")}

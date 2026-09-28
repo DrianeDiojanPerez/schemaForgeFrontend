@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { EdgeLabelRenderer, Position, useReactFlow, useStore } from "@xyflow/react";
 import type { EdgeProps } from "@xyflow/react";
@@ -269,12 +270,17 @@ export const RelationshipEdge = ({
 						<DropdownMenu>
 							<DropdownMenuTrigger
 								title="Relationship options"
-								style={{ borderColor: relationship.stroke }}
-								className={cn(
-									"cursor-pointer rounded border bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
-									relationship.text,
-									selected && "ring-1 ring-primary ring-offset-1",
-								)}
+								render={
+									<button
+										type="button"
+										style={{ "--stroke": relationship.stroke } as React.CSSProperties}
+										className={cn(
+											"cursor-pointer rounded border border-(--stroke) bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
+											relationship.text,
+											selected && "ring-1 ring-primary ring-offset-1",
+										)}
+									/>
+								}
 							>
 								{relationship.symbol}
 								{data?.name && (
