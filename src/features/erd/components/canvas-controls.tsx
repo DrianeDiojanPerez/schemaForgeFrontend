@@ -25,12 +25,11 @@ function Control({
 			<TooltipTrigger
 				render={
 					<Button
-						variant="ghost"
+						variant="bar"
 						size="icon-sm"
 						aria-label={label}
 						disabled={disabled}
 						onClick={onClick}
-						className="rounded-none first:rounded-t-md last:rounded-b-md"
 					/>
 				}
 			>
@@ -60,7 +59,7 @@ export const CanvasControls = memo(function CanvasControls() {
 	};
 
 	return (
-		<div className="flex flex-col divide-y divide-border rounded-md border border-border bg-card shadow-sm">
+		<div className="flex flex-col divide-y divide-border overflow-hidden rounded-md border border-border bg-card shadow-sm">
 			<TooltipProvider delay={200}>
 				<Control
 					label="Zoom in"

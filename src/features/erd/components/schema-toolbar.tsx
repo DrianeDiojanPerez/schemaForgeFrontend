@@ -63,8 +63,7 @@ const BAR =
 // Astro's curve, which carries the bar a little past its mark and settles back.
 const SLIDE = "transition-transform duration-350 ease-back";
 
-const ITEM =
-	"h-full w-11 rounded-none transition-opacity duration-200 ease-out hover:bg-foreground/10";
+const ITEM = "h-full w-11";
 
 const FILES = [
 	{ id: "sql", label: "SQL", extension: ".sql", icon: FileCodeIcon },
@@ -178,15 +177,15 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 						<TooltipTrigger
 							render={
 								<Button
-									variant="ghost"
+									variant="bar"
 									size="icon"
 									aria-label="New table"
 									onClick={onAddTable}
-									className={cn(ITEM, "w-10.5 rounded-l-full pl-1", !up && "opacity-20")}
+									className={cn(ITEM, "w-10.5", !up && "opacity-20")}
 								/>
 							}
 						>
-							<TablePropertiesIcon className="size-5" />
+							<TablePropertiesIcon className="ml-1 size-5" />
 						</TooltipTrigger>
 						<TooltipContent>New table</TooltipContent>
 					</Tooltip>
@@ -195,7 +194,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 						<TooltipTrigger
 							render={
 								<Button
-									variant="ghost"
+									variant="bar"
 									size="icon"
 									aria-label="Generate SQL"
 									disabled={generating}
@@ -216,7 +215,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 									<DropdownMenuTrigger
 										render={
 											<Button
-												variant="ghost"
+												variant="bar"
 												size="icon"
 												aria-label="Export"
 												className={cn(ITEM, !up && "opacity-20")}
@@ -239,9 +238,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 									<DropdownMenuItem key={file.id} onClick={() => soon(file.extension)}>
 										<file.icon />
 										{file.label}
-										<DropdownMenuShortcut className="font-mono tracking-normal">
-											{file.extension}
-										</DropdownMenuShortcut>
+										<DropdownMenuShortcut>{file.extension}</DropdownMenuShortcut>
 									</DropdownMenuItem>
 								))}
 							</DropdownMenuGroup>
@@ -251,9 +248,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 							<DropdownMenuItem onClick={() => setMigrating(true)}>
 								<FileArchiveIcon />
 								Migration
-								<DropdownMenuShortcut className="font-mono tracking-normal">
-									.zip
-								</DropdownMenuShortcut>
+								<DropdownMenuShortcut>.zip</DropdownMenuShortcut>
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -282,13 +277,13 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 						)}
 					</AnimatePresence>
 
-					<Separator orientation="vertical" className="bg-border" />
+					<Separator orientation="vertical" />
 
 					<Tooltip>
 						<TooltipTrigger
 							render={
 								<Button
-									variant="ghost"
+									variant="bar"
 									size="icon"
 									aria-label="Canvas settings"
 									// A click carries the number of clicks behind it, so a zero
@@ -297,11 +292,11 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 										typed.current = event.detail === 0;
 										onSettingsOpenChange(true, typed.current);
 									}}
-									className={cn(ITEM, "w-10.5 rounded-r-full pr-1", !up && "opacity-20")}
+									className={cn(ITEM, "w-10.5", !up && "opacity-20")}
 								/>
 							}
 						>
-							<SettingsIcon className="size-5" />
+							<SettingsIcon className="mr-1 size-5" />
 						</TooltipTrigger>
 						<TooltipContent>Settings</TooltipContent>
 					</Tooltip>

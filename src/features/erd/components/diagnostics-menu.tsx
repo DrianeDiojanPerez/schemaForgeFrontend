@@ -7,7 +7,6 @@ import {
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
-	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -89,7 +88,7 @@ export function DiagnosticsMenu({
 				openOnHover
 				delay={100}
 				closeDelay={200}
-				render={<Button variant="ghost" size="icon" aria-label={label} className={className} />}
+				render={<Button variant="bar" size="icon" aria-label={label} className={className} />}
 			>
 				<BugIcon
 					className={cn(
@@ -113,7 +112,7 @@ export function DiagnosticsMenu({
 			>
 				<DropdownMenuGroup>
 					<div className="flex h-10 items-center justify-between gap-2 pr-1 pl-3">
-						<DropdownMenuLabel className="flex items-center gap-1.5 p-0 font-medium text-foreground">
+						<span className="flex items-center gap-1.5 text-xs font-medium">
 							<BugIcon className="size-3.5" />
 							Diagnostics
 							{diagnostics.length > 0 && (
@@ -121,14 +120,13 @@ export function DiagnosticsMenu({
 									{diagnostics.length}
 								</span>
 							)}
-						</DropdownMenuLabel>
+						</span>
 						{diagnostics.length > 0 && (
-							<DropdownMenuItem
-								onClick={onDismiss}
-								className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
-							>
-								<EraserIcon className="size-3.5" />
-								Clear
+							<DropdownMenuItem onClick={onDismiss} className="h-7 px-2">
+								<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+									<EraserIcon className="size-3.5" />
+									Clear
+								</span>
 							</DropdownMenuItem>
 						)}
 					</div>

@@ -166,10 +166,9 @@ export const SchemaNode = ({ data, width = 0, height = 0 }: NodeProps<ErdSchemaN
 							// A pixel of padding, so the name does not drop as the label
 							// gives way to the input. See the table's own name for why.
 							className={cn(
-								"absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 pb-px text-3xs leading-5 font-medium outline-none",
+								"absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 pb-px text-3xs leading-5 font-medium caret-current outline-none",
 								accent.text,
 							)}
-							style={{ caretColor: "currentColor" }}
 						/>
 					) : (
 						<Tooltip>

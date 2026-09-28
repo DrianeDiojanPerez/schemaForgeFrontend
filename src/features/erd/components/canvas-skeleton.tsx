@@ -53,9 +53,11 @@ export function CanvasSkeleton({
 						<DatabaseZapIcon />
 					</EmptyMedia>
 					<EmptyTitle>Laying out the diagram</EmptyTitle>
-					<EmptyDescription className="flex items-center gap-2">
-						<Spinner ref={keepTurning} />
-						Placing the tables and drawing their relationships
+					<EmptyDescription>
+						<span className="flex items-center gap-2">
+							<Spinner ref={keepTurning} />
+							Placing the tables and drawing their relationships
+						</span>
 					</EmptyDescription>
 				</EmptyHeader>
 			</Empty>

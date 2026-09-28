@@ -53,9 +53,6 @@ import type { SchemaGroup } from "../lib/schema-groups";
 import type { ErdNode, ErdTableNode, SchemaAccent } from "../types/erd";
 import { schemaAccentText } from "./schema-node";
 
-const FOLD =
-	"h-(--collapsible-panel-height) overflow-hidden transition-height duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0";
-
 const CARET = "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200";
 
 const ROW =
@@ -292,7 +289,7 @@ const SchemaList = memo(function SchemaList({
 							{/* A handful of schemas is read faster than it is searched. */}
 							{choices.length > 4 && <CommandInput placeholder="Search schemas" />}
 							<CommandList className={cn("max-h-55", choices.length > 4 && "mt-1")}>
-								<CommandEmpty className="py-4 text-sm">No schema found.</CommandEmpty>
+								<CommandEmpty className="py-4">No schema found.</CommandEmpty>
 
 								{choices.map((choice) => (
 									<CommandItem
@@ -300,9 +297,7 @@ const SchemaList = memo(function SchemaList({
 										value={choice.label}
 										data-checked={choice.schema === current}
 										onSelect={() => pick(choice.schema)}
-										// The active row repaints its icons, so the check needs
-										// the last word to keep the accent.
-										className="h-8 [&>svg:last-child]:text-primary!"
+										className="h-8"
 									>
 										<DatabaseIcon className={schemaAccentText(choice.accent)} />
 										<span className="flex-1 truncate">{choice.label}</span>
@@ -318,10 +313,7 @@ const SchemaList = memo(function SchemaList({
 			</header>
 
 			<div className="shrink-0 border-b border-sidebar-border p-2">
-				<InputGroup
-					id={TOUR.search}
-					className="h-8 rounded-md border-sidebar-border bg-background shadow-none transition-colors hover:border-input"
-				>
+				<InputGroup id={TOUR.search} variant="flat" className="h-8">
 					<InputGroupAddon>
 						<SearchIcon className="size-4" />
 					</InputGroupAddon>
@@ -389,7 +381,7 @@ const SchemaList = memo(function SchemaList({
 										</button>
 									</div>
 
-									<CollapsibleContent className={FOLD}>
+									<CollapsibleContent>
 										<div className="flex flex-col gap-0.5 pt-0.5">
 											{group.tables.map((table) => (
 												<Collapsible
@@ -437,7 +429,7 @@ const SchemaList = memo(function SchemaList({
 														</button>
 													</div>
 
-													<CollapsibleContent className={FOLD}>
+													<CollapsibleContent>
 														<Columns table={table} />
 													</CollapsibleContent>
 												</Collapsible>
@@ -450,15 +442,13 @@ const SchemaList = memo(function SchemaList({
 					})}
 
 					{found.length === 0 && (
-						<Empty className="gap-2 p-6">
-							<EmptyHeader className="gap-1">
+						<Empty size="sm">
+							<EmptyHeader>
 								<EmptyMedia variant="icon" className="mb-1 size-9">
 									{term ? <SearchIcon /> : <Table2Icon />}
 								</EmptyMedia>
-								<EmptyTitle className="text-sm">
-									{term ? "Nothing found" : "No tables yet"}
-								</EmptyTitle>
-								<EmptyDescription className="text-xs">
+								<EmptyTitle>{term ? "Nothing found" : "No tables yet"}</EmptyTitle>
+								<EmptyDescription>
 									{term
 										? `No table or column matches ${query.trim()}.`
 										: "Right-click the canvas to make one."}
@@ -625,10 +615,7 @@ export function SchemaSidebar({
 
 				<ResizableHandle
 					onPointerDown={() => setDragging(true)}
-					className={cn(
-						"z-10 cursor-col-resize bg-sidebar-border transition-colors delay-75 after:w-2 hover:bg-primary active:bg-primary",
-						!showing && "hidden",
-					)}
+					className={cn("z-10 cursor-col-resize after:w-2", !showing && "hidden")}
 				/>
 
 				<ResizablePanel className="h-full" style={CLIPPED}>

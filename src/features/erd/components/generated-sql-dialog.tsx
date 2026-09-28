@@ -41,9 +41,11 @@ export const GeneratedSqlDialog = memo(function GeneratedSqlDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<ScrollArea className="max-h-96 rounded-md border border-border bg-muted/40">
-					<pre className="p-3 font-mono text-xs whitespace-pre">{ddl}</pre>
-				</ScrollArea>
+				<div className="overflow-hidden rounded-md border border-border bg-muted/40">
+					<ScrollArea className="max-h-96">
+						<pre className="p-3 font-mono text-xs whitespace-pre">{ddl}</pre>
+					</ScrollArea>
+				</div>
 
 				<DialogFooter showCloseButton>
 					<Button variant="outline" onClick={() => void copy()}>

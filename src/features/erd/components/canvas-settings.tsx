@@ -347,31 +347,33 @@ function ToastPositionRow({
 	return (
 		<Row label="Notifications" hint="Where saving and validation report back">
 			<div className="flex flex-col items-end gap-1.5">
-				<RadioGroup
-					aria-label="Notifications"
-					value={value}
-					onValueChange={(next) => onValueChange(next as ScreenPosition)}
-					className="grid w-44 grid-cols-3 grid-rows-2 gap-1 rounded-md border border-border bg-background bg-dots p-1.5"
-				>
-					{SCREEN_POSITIONS.map((position) => (
-						<OptionTile
-							key={position}
-							variant="cell"
-							htmlFor={`setting-toast-${position}`}
-							title={POSITION_LABELS[position]}
-						>
-							{/* The cell is the target, so the control itself only has to
+				<div className="w-44 rounded-md border border-border bg-background bg-dots p-1.5">
+					<RadioGroup
+						aria-label="Notifications"
+						value={value}
+						onValueChange={(next) => onValueChange(next as ScreenPosition)}
+						className="grid grid-cols-3 grid-rows-2 gap-1"
+					>
+						{SCREEN_POSITIONS.map((position) => (
+							<OptionTile
+								key={position}
+								variant="cell"
+								htmlFor={`setting-toast-${position}`}
+								title={POSITION_LABELS[position]}
+							>
+								{/* The cell is the target, so the control itself only has to
                   stay reachable by keyboard. */}
-							<RadioGroupItem
-								id={`setting-toast-${position}`}
-								value={position}
-								aria-label={POSITION_LABELS[position]}
-								className="sr-only"
-							/>
-							<span aria-hidden className="block h-2.5 w-6 rounded-full bg-current" />
-						</OptionTile>
-					))}
-				</RadioGroup>
+								<RadioGroupItem
+									id={`setting-toast-${position}`}
+									value={position}
+									aria-label={POSITION_LABELS[position]}
+									className="sr-only"
+								/>
+								<span aria-hidden className="block h-2.5 w-6 rounded-full bg-current" />
+							</OptionTile>
+						))}
+					</RadioGroup>
+				</div>
 				<span className="text-xs text-muted-foreground">{POSITION_LABELS[value]}</span>
 			</div>
 		</Row>
@@ -614,13 +616,9 @@ export const CanvasSettings = memo(function CanvasSettings({
 						<span className="px-2.5 pt-1 pb-2 text-xs font-medium text-muted-foreground">
 							Settings
 						</span>
-						<TabsList className="w-full items-stretch gap-0.5 rounded-none bg-transparent p-0">
+						<TabsList variant="nav">
 							{TABS.map((item) => (
-								<TabsTrigger
-									key={item.id}
-									value={item.id}
-									className="h-auto flex-none gap-2.5 px-2.5 py-2 font-normal data-active:font-medium"
-								>
+								<TabsTrigger key={item.id} value={item.id}>
 									<item.icon />
 									{item.label}
 								</TabsTrigger>
