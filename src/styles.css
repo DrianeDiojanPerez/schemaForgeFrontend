@@ -76,6 +76,15 @@
 	background-size: 16px 16px;
 }
 
+/* The settings preview of a theme, dotted in that theme's own text colour. */
+@utility bg-dots-preview {
+	background-image: radial-gradient(
+		color-mix(in oklch, var(--preview-text) 40%, transparent) 0.5px,
+		transparent 0.5px
+	);
+	background-size: 6px 6px;
+}
+
 @utility transition-height {
 	transition-property: height;
 	transition-timing-function: var(--default-transition-timing-function);

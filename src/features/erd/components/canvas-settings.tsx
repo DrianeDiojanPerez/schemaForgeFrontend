@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { memo, useState } from "react";
 import { BackgroundVariant, useStore, useStoreApi, useReactFlow } from "@xyflow/react";
 import {
@@ -148,33 +149,33 @@ function BackgroundPreview({ variant }: { variant: BackgroundStyle }) {
 function ThemePreview({ theme }: { theme: (typeof THEMES)[number] }) {
 	return (
 		<span
-			className="flex h-18 items-center justify-center rounded-md border"
-			style={{
-				backgroundColor: theme.page,
-				backgroundImage: `radial-gradient(color-mix(in oklch, ${theme.text} 40%, transparent) 0.5px, transparent 0.5px)`,
-				backgroundSize: "6px 6px",
-				borderColor: theme.border,
-			}}
+			className="flex h-18 items-center justify-center rounded-md border border-(--preview-border) bg-(--preview-page) bg-dots-preview"
+			style={
+				{
+					"--preview-page": theme.page,
+					"--preview-text": theme.text,
+					"--preview-border": theme.border,
+					"--preview-accent": theme.accent,
+					"--preview-card": theme.card,
+				} as React.CSSProperties
+			}
 		>
-			<MiniTable theme={theme} />
-			<span className="h-px w-4 shrink-0" style={{ background: theme.accent }} aria-hidden />
-			<MiniTable theme={theme} />
+			<MiniTable />
+			<span className="h-px w-4 shrink-0 bg-(--preview-accent)" aria-hidden />
+			<MiniTable />
 		</span>
 	);
 }
 
-function MiniTable({ theme }: { theme: (typeof THEMES)[number] }) {
+function MiniTable() {
 	return (
-		<span
-			className="flex w-11 shrink-0 flex-col gap-0.75 rounded-sm border p-1.25"
-			style={{ background: theme.card, borderColor: theme.border }}
-		>
-			<span className="h-0.75 rounded-full" style={{ background: theme.accent }} />
+		<span className="flex w-11 shrink-0 flex-col gap-0.75 rounded-sm border border-(--preview-border) bg-(--preview-card) p-1.25">
+			<span className="h-0.75 rounded-full bg-(--preview-accent)" />
 			{[1, 0.75, 0.55].map((width) => (
 				<span
 					key={width}
-					className="h-0.75 rounded-full opacity-50"
-					style={{ background: theme.text, width: `${width * 100}%` }}
+					className="h-0.75 rounded-full bg-(--preview-text) opacity-50"
+					style={{ width: `${width * 100}%` }}
 				/>
 			))}
 		</span>
