@@ -3,7 +3,7 @@
 	"plugins": ["typescript", "react", "import", "unicorn", "oxc"],
 	"categories": {
 		"correctness": "error",
-		"suspicious": "warn"
+		"suspicious": "error"
 	},
 	"env": {
 		"browser": true,
@@ -24,13 +24,44 @@
 	],
 	"rules": {
 		"react/react-in-jsx-scope": "off",
-		"react/set-state-in-effect": "warn",
+		"react/set-state-in-effect": "error",
 		"unicorn/consistent-function-scoping": "off",
-		"shadcn/no-restyle": "warn",
-		"shadcn/no-raw-colors": "warn",
-		"shadcn/no-arbitrary-values": "warn",
+		"shadcn/no-restyle": [
+			"error",
+			{
+				"allow": ["layout"],
+				"contracts": [
+					{
+						"pattern": "^(DialogContent|PopoverContent|TooltipContent|DropdownMenuContent|DropdownMenuGroup|DropdownMenuItem|CommandEmpty|Tabs|RadioGroup)$",
+						"allow": ["layout", "spacing", "h-settings"]
+					},
+					{
+						"pattern": "^DialogTitle$",
+						"allow": ["layout", "spacing", "typography"]
+					},
+					{
+						"pattern": "^Button$",
+						"allow": ["layout", "effects"]
+					},
+					{
+						"pattern": "^AlertDialogMedia$",
+						"allow": ["layout", "color"]
+					},
+					{
+						"pattern": "^InputGroupInput$",
+						"allow": ["layout", "typography"]
+					},
+					{
+						"pattern": "^ResizablePanelGroup$",
+						"allow": ["layout", "panel-glide"]
+					}
+				]
+			}
+		],
+		"shadcn/no-raw-colors": "error",
+		"shadcn/no-arbitrary-values": "error",
 		"shadcn/no-inline-styles": [
-			"warn",
+			"error",
 			{
 				"allow": [
 					"width",
@@ -43,17 +74,19 @@
 					"strokeWidth",
 					"strokeDasharray",
 					"strokeOpacity",
-					"fill"
+					"fill",
+					"transformOrigin",
+					"overflow"
 				]
 			}
 		],
 		"shadcn/no-unknown-classes": [
-			"warn",
+			"error",
 			{
 				"allow": ["nodrag", "nopan"]
 			}
 		],
-		"shadcn/require-static-classes": "warn"
+		"shadcn/require-static-classes": "error"
 	},
 	"overrides": [
 		{
