@@ -20,6 +20,7 @@ import { useTour } from "@/components/tour";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { OptionTile } from "@/components/ui/option-tile";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
@@ -237,17 +238,13 @@ function SchemaGroupingRow({
 				className="grid-cols-2"
 			>
 				{SCHEMA_GROUPINGS.map((item) => (
-					<Label
-						key={item.id}
-						htmlFor={`schema-grouping-${item.id}`}
-						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-					>
+					<OptionTile key={item.id} htmlFor={`schema-grouping-${item.id}`}>
 						<SchemaGroupingPreview grouping={item.id} />
 						<span className="flex items-center gap-2 px-0.5">
 							<RadioGroupItem id={`schema-grouping-${item.id}`} value={item.id} />
 							{item.label}
 						</span>
-					</Label>
+					</OptionTile>
 				))}
 			</RadioGroup>
 		</Row>
@@ -357,11 +354,11 @@ function ToastPositionRow({
 					className="grid w-44 grid-cols-3 grid-rows-2 gap-1 rounded-md border border-border bg-background bg-dots p-1.5"
 				>
 					{SCREEN_POSITIONS.map((position) => (
-						<Label
+						<OptionTile
 							key={position}
+							variant="cell"
 							htmlFor={`setting-toast-${position}`}
 							title={POSITION_LABELS[position]}
-							className="flex h-8 cursor-pointer items-center justify-center rounded-sm text-muted-foreground/30 transition hover:bg-muted hover:text-muted-foreground/70 has-focus-visible:ring-2 has-focus-visible:ring-ring has-data-checked:bg-primary/10 has-data-checked:text-primary"
 						>
 							{/* The cell is the target, so the control itself only has to
                   stay reachable by keyboard. */}
@@ -372,7 +369,7 @@ function ToastPositionRow({
 								className="sr-only"
 							/>
 							<span aria-hidden className="block h-2.5 w-6 rounded-full bg-current" />
-						</Label>
+						</OptionTile>
 					))}
 				</RadioGroup>
 				<span className="text-xs text-muted-foreground">{POSITION_LABELS[value]}</span>
@@ -405,11 +402,7 @@ function ConnectorArrowRow({
 				className="grid-cols-3"
 			>
 				{CONNECTOR_ARROWS.map((arrow) => (
-					<Label
-						key={arrow.id}
-						htmlFor={`connector-${arrow.id}`}
-						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-					>
+					<OptionTile key={arrow.id} htmlFor={`connector-${arrow.id}`}>
 						<span className="flex h-13 items-center justify-center gap-1 rounded-md border border-border bg-background text-primary">
 							<arrow.left className="size-3.5" fill={arrow.filled ? "currentColor" : "none"} />
 							<span aria-hidden className="h-6 w-10 rounded-xs border border-border bg-card" />
@@ -419,7 +412,7 @@ function ConnectorArrowRow({
 							<RadioGroupItem id={`connector-${arrow.id}`} value={arrow.id} />
 							{arrow.label}
 						</span>
-					</Label>
+					</OptionTile>
 				))}
 			</RadioGroup>
 		</Row>
@@ -442,11 +435,7 @@ function EdgeLineRow({
 				className="grid-cols-2"
 			>
 				{EDGE_LINES.map((line) => (
-					<Label
-						key={line.id}
-						htmlFor={`edge-line-${line.id}`}
-						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-					>
+					<OptionTile key={line.id} htmlFor={`edge-line-${line.id}`}>
 						<svg
 							aria-hidden
 							viewBox="0 0 64 44"
@@ -458,7 +447,7 @@ function EdgeLineRow({
 							<RadioGroupItem id={`edge-line-${line.id}`} value={line.id} />
 							{line.label}
 						</span>
-					</Label>
+					</OptionTile>
 				))}
 			</RadioGroup>
 		</Row>
@@ -481,11 +470,7 @@ function EdgeDashRow({
 				className="grid-cols-2"
 			>
 				{EDGE_DASHES.map((item) => (
-					<Label
-						key={item.id}
-						htmlFor={`edge-dash-${item.id}`}
-						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-					>
+					<OptionTile key={item.id} htmlFor={`edge-dash-${item.id}`}>
 						<svg
 							aria-hidden
 							viewBox="0 0 64 20"
@@ -503,7 +488,7 @@ function EdgeDashRow({
 							<RadioGroupItem id={`edge-dash-${item.id}`} value={item.id} />
 							{item.label}
 						</span>
-					</Label>
+					</OptionTile>
 				))}
 			</RadioGroup>
 		</Row>
@@ -658,18 +643,14 @@ export const CanvasSettings = memo(function CanvasSettings({
 											className="grid-cols-2"
 										>
 											{THEMES.map((item) => (
-												<Label
-													key={item.value}
-													htmlFor={`theme-${item.value}`}
-													className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-												>
+												<OptionTile key={item.value} htmlFor={`theme-${item.value}`}>
 													<ThemePreview theme={item} />
 													<span className="flex items-center gap-2 px-0.5">
 														<RadioGroupItem id={`theme-${item.value}`} value={item.value} />
 														<item.icon className="size-3.5 text-muted-foreground" />
 														{item.label}
 													</span>
-												</Label>
+												</OptionTile>
 											))}
 										</RadioGroup>
 									</Row>
@@ -680,17 +661,13 @@ export const CanvasSettings = memo(function CanvasSettings({
 											className="grid-cols-2"
 										>
 											{BACKGROUNDS.map((item) => (
-												<Label
-													key={item.id}
-													htmlFor={`background-${item.id}`}
-													className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-												>
+												<OptionTile key={item.id} htmlFor={`background-${item.id}`}>
 													<BackgroundPreview variant={item.id} />
 													<span className="flex items-center gap-2 px-0.5">
 														<RadioGroupItem id={`background-${item.id}`} value={item.id} />
 														{item.label}
 													</span>
-												</Label>
+												</OptionTile>
 											))}
 										</RadioGroup>
 									</Row>

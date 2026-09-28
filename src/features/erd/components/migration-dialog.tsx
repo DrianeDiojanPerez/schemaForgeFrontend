@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OptionTile } from "@/components/ui/option-tile";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { notify } from "@/lib/toast";
@@ -43,9 +44,6 @@ const DIALECTS: { id: Dialect; label: string }[] = [
 	{ id: "POSTGRES", label: "PostgreSQL" },
 	{ id: "MYSQL", label: "MySQL" },
 ];
-
-const CARD =
-	"cursor-pointer rounded-lg border border-border p-2.5 text-sm font-normal transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary";
 
 function slug(name: string) {
 	return name.trim().toLowerCase().replace(/\s+/g, "_") || "create_schema";
@@ -117,10 +115,10 @@ export function MigrationDialog({ open, onOpenChange }: MigrationDialogProps) {
 							className="grid-cols-2"
 						>
 							{TOOLS.map((item) => (
-								<Label key={item.id} htmlFor={`migration-tool-${item.id}`} className={CARD}>
+								<OptionTile key={item.id} variant="row" htmlFor={`migration-tool-${item.id}`}>
 									<RadioGroupItem id={`migration-tool-${item.id}`} value={item.id} />
 									{item.label}
-								</Label>
+								</OptionTile>
 							))}
 						</RadioGroup>
 					</div>
@@ -134,10 +132,10 @@ export function MigrationDialog({ open, onOpenChange }: MigrationDialogProps) {
 							className="grid-cols-2"
 						>
 							{DIALECTS.map((item) => (
-								<Label key={item.id} htmlFor={`migration-dialect-${item.id}`} className={CARD}>
+								<OptionTile key={item.id} variant="row" htmlFor={`migration-dialect-${item.id}`}>
 									<RadioGroupItem id={`migration-dialect-${item.id}`} value={item.id} />
 									{item.label}
-								</Label>
+								</OptionTile>
 							))}
 						</RadioGroup>
 					</div>
