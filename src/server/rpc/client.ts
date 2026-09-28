@@ -307,76 +307,84 @@ function unary<TResponse>(
 	});
 }
 
-export const schemaService = {
-	listSchemas: (
-		request: ListSchemasRequest,
-		requestId?: string,
-	): Promise<ListSchemasResponse__Output> =>
-		authed(
-			(metadata, options, callback) =>
-				clients().schema.ListSchemas(request, metadata, options, callback),
-			requestId,
-		),
+/** The calls the `schemaforge.v1` package declares, wrapped for the server functions. */
+export const v1 = {
+	SchemaService: {
+		listSchemas: (
+			request: ListSchemasRequest,
+			requestId?: string,
+		): Promise<ListSchemasResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.ListSchemas(request, metadata, options, callback),
+				requestId,
+			),
 
-	getSchema: (request: GetSchemaRequest, requestId?: string): Promise<GetSchemaResponse__Output> =>
-		authed(
-			(metadata, options, callback) =>
-				clients().schema.GetSchema(request, metadata, options, callback),
-			requestId,
-		),
+		getSchema: (
+			request: GetSchemaRequest,
+			requestId?: string,
+		): Promise<GetSchemaResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.GetSchema(request, metadata, options, callback),
+				requestId,
+			),
 
-	createSchema: (
-		request: CreateSchemaRequest,
-		requestId?: string,
-	): Promise<CreateSchemaResponse__Output> =>
-		authed(
-			(metadata, options, callback) =>
-				clients().schema.CreateSchema(request, metadata, options, callback),
-			requestId,
-		),
+		createSchema: (
+			request: CreateSchemaRequest,
+			requestId?: string,
+		): Promise<CreateSchemaResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.CreateSchema(request, metadata, options, callback),
+				requestId,
+			),
 
-	updateSchema: (
-		request: UpdateSchemaRequest,
-		requestId?: string,
-	): Promise<UpdateSchemaResponse__Output> =>
-		authed(
-			(metadata, options, callback) =>
-				clients().schema.UpdateSchema(request, metadata, options, callback),
-			requestId,
-		),
+		updateSchema: (
+			request: UpdateSchemaRequest,
+			requestId?: string,
+		): Promise<UpdateSchemaResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.UpdateSchema(request, metadata, options, callback),
+				requestId,
+			),
 
-	deleteSchema: (
-		request: DeleteSchemaRequest,
-		requestId?: string,
-	): Promise<DeleteSchemaResponse__Output> =>
-		authed(
-			(metadata, options, callback) =>
-				clients().schema.DeleteSchema(request, metadata, options, callback),
-			requestId,
-		),
+		deleteSchema: (
+			request: DeleteSchemaRequest,
+			requestId?: string,
+		): Promise<DeleteSchemaResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.DeleteSchema(request, metadata, options, callback),
+				requestId,
+			),
 
-	validateSchema: (
-		request: ValidateSchemaRequest,
-		requestId?: string,
-	): Promise<ValidateSchemaResponse__Output> =>
-		authed(
-			(metadata, options, callback) =>
-				clients().schema.ValidateSchema(request, metadata, options, callback),
-			requestId,
-		),
+		validateSchema: (
+			request: ValidateSchemaRequest,
+			requestId?: string,
+		): Promise<ValidateSchemaResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.ValidateSchema(request, metadata, options, callback),
+				requestId,
+			),
 
-	generateDdl: (
-		request: GenerateDdlRequest,
-		requestId?: string,
-	): Promise<GenerateDdlResponse__Output> =>
-		authed(
-			(metadata, options, callback) =>
-				clients().schema.GenerateDdl(request, metadata, options, callback),
-			requestId,
-		),
-};
+		generateDdl: (
+			request: GenerateDdlRequest,
+			requestId?: string,
+		): Promise<GenerateDdlResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.GenerateDdl(request, metadata, options, callback),
+				requestId,
+			),
+	},
 
-export const healthService = {
-	check: (): Promise<CheckResponse__Output> =>
-		unary((metadata, options, callback) => clients().health.Check({}, metadata, options, callback)),
+	HealthService: {
+		check: (): Promise<CheckResponse__Output> =>
+			unary((metadata, options, callback) =>
+				clients().health.Check({}, metadata, options, callback),
+			),
+	},
 };
