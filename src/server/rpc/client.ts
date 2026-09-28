@@ -8,7 +8,6 @@ import {
 } from "@grpc/grpc-js"
 import type {
   CallOptions,
-  Client,
   ClientUnaryCall,
   ServiceError,
   requestCallback,
@@ -21,8 +20,23 @@ import type { ProtoGrpcType as AuthProto } from "./generated/auth"
 import type { ProtoGrpcType as HealthProto } from "./generated/health"
 import type { ProtoGrpcType as SchemaProto } from "./generated/schema"
 import type { AuthServiceClient } from "./generated/schemaforge/v1/AuthService"
+import type { CheckResponse__Output } from "./generated/schemaforge/v1/CheckResponse"
+import type { CreateSchemaRequest } from "./generated/schemaforge/v1/CreateSchemaRequest"
+import type { CreateSchemaResponse__Output } from "./generated/schemaforge/v1/CreateSchemaResponse"
+import type { DeleteSchemaRequest } from "./generated/schemaforge/v1/DeleteSchemaRequest"
+import type { DeleteSchemaResponse__Output } from "./generated/schemaforge/v1/DeleteSchemaResponse"
+import type { GenerateDdlRequest } from "./generated/schemaforge/v1/GenerateDdlRequest"
+import type { GenerateDdlResponse__Output } from "./generated/schemaforge/v1/GenerateDdlResponse"
+import type { GetSchemaRequest } from "./generated/schemaforge/v1/GetSchemaRequest"
+import type { GetSchemaResponse__Output } from "./generated/schemaforge/v1/GetSchemaResponse"
 import type { HealthServiceClient } from "./generated/schemaforge/v1/HealthService"
+import type { ListSchemasRequest } from "./generated/schemaforge/v1/ListSchemasRequest"
+import type { ListSchemasResponse__Output } from "./generated/schemaforge/v1/ListSchemasResponse"
 import type { SchemaServiceClient } from "./generated/schemaforge/v1/SchemaService"
+import type { UpdateSchemaRequest } from "./generated/schemaforge/v1/UpdateSchemaRequest"
+import type { UpdateSchemaResponse__Output } from "./generated/schemaforge/v1/UpdateSchemaResponse"
+import type { ValidateSchemaRequest } from "./generated/schemaforge/v1/ValidateSchemaRequest"
+import type { ValidateSchemaResponse__Output } from "./generated/schemaforge/v1/ValidateSchemaResponse"
 import { PROTO_OPTIONS } from "./proto-options"
 
 /**
@@ -32,8 +46,9 @@ import { PROTO_OPTIONS } from "./proto-options"
  * arrangement: Node speaks native gRPC over HTTP/2, so there is no gRPC-Web
  * bridge, no CORS, and no protobuf runtime in the client bundle.
  *
- * The `.proto` files are read at runtime from the backend's own directory, so
- * there is one copy of the contract and no codegen step to fall out of date.
+ * The `.proto` files are read at runtime from the backend's own directory, and
+ * the types under `generated/` are written from the same files, so a call that
+ * compiles is one the backend declares.
  */
 
 function address(): string {
@@ -45,41 +60,6 @@ function address(): string {
  * of them into one package, and this is what that package looks like.
  */
 type Proto = SchemaProto & HealthProto & AuthProto
-
-/**
- * A unary call as the generated clients declare it. Each method has several
- * overloads, and the last one, request and callback alone, is the one a
- * conditional type sees, so that is the shape matched here.
- */
-type Unary<
-  TClient extends Client,
-  TMethod extends keyof TClient,
-> = TClient[TMethod] extends (
-  argument: infer TRequest,
-  callback: requestCallback<infer TResponse>
-) => ClientUnaryCall
-  ? [TRequest, TResponse]
-  : never
-
-/** The names of a client's unary methods, as the proto spells them. */
-export type MethodOf<TClient extends Client> = {
-  [K in keyof TClient & string]: TClient[K] extends (
-    argument: never,
-    callback: never
-  ) => ClientUnaryCall
-    ? K
-    : never
-}[keyof TClient & string]
-
-export type RequestOf<
-  TClient extends Client,
-  TMethod extends keyof TClient,
-> = Unary<TClient, TMethod>[0]
-
-export type ResponseOf<
-  TClient extends Client,
-  TMethod extends keyof TClient,
-> = Unary<TClient, TMethod>[1]
 
 // Left to itself the channel backs off further after every failed dial, up
 // to two minutes, and a backend that has just come back would be reported
@@ -235,16 +215,23 @@ async function obtain(): Promise<Tokens> {
 
   if (current) {
     try {
-      return await invoke(clients().auth, "RefreshToken", {
-        refreshToken: current.refreshToken,
-      })
+      return await unary((metadata, options, callback) =>
+        clients().auth.RefreshToken(
+          { refreshToken: current.refreshToken },
+          metadata,
+          options,
+          callback
+        )
+      )
     } catch {
       // A refresh token the backend has stopped honouring is not a failure
       // worth surfacing while the credentials are still good.
     }
   }
 
-  return invoke(clients().auth, "Login", loginRequest())
+  return unary((metadata, options, callback) =>
+    clients().auth.Login(loginRequest(), metadata, options, callback)
+  )
 }
 
 /**
@@ -288,19 +275,19 @@ function isExpired(error: unknown): boolean {
   )
 }
 
-export async function callSchema<TMethod extends MethodOf<SchemaServiceClient>>(
-  method: TMethod,
-  request: RequestOf<SchemaServiceClient, TMethod>,
+/** One RPC with the metadata and options the wrapper fills in. */
+type Call<TResponse> = (
+  metadata: Metadata,
+  options: CallOptions,
+  callback: requestCallback<TResponse>
+) => ClientUnaryCall
+
+async function authed<TResponse>(
+  call: Call<TResponse>,
   requestId?: string
-): Promise<ResponseOf<SchemaServiceClient, TMethod>> {
+): Promise<TResponse> {
   try {
-    return await invoke(
-      clients().schema,
-      method,
-      request,
-      requestId,
-      await bearer()
-    )
+    return await unary(call, requestId, await bearer())
   } catch (error) {
     if (!isExpired(error)) throw error
 
@@ -309,30 +296,15 @@ export async function callSchema<TMethod extends MethodOf<SchemaServiceClient>>(
     // call instead of an error the user has to do something about.
     const renewed = await renew()
 
-    return invoke(
-      clients().schema,
-      method,
-      request,
-      requestId,
-      `Bearer ${renewed.token}`
-    )
+    return unary(call, requestId, `Bearer ${renewed.token}`)
   }
 }
 
-export async function callHealth<TMethod extends MethodOf<HealthServiceClient>>(
-  method: TMethod,
-  request: RequestOf<HealthServiceClient, TMethod>
-): Promise<ResponseOf<HealthServiceClient, TMethod>> {
-  return invoke(clients().health, method, request)
-}
-
-function invoke<TClient extends Client, TMethod extends MethodOf<TClient>>(
-  client: TClient,
-  method: TMethod,
-  request: RequestOf<TClient, TMethod>,
+function unary<TResponse>(
+  call: Call<TResponse>,
   requestId?: string,
   authorization?: string
-): Promise<ResponseOf<TClient, TMethod>> {
+): Promise<TResponse> {
   const metadata = new Metadata()
 
   // Passing the id through means one line in the backend's log and one in this
@@ -340,21 +312,12 @@ function invoke<TClient extends Client, TMethod extends MethodOf<TClient>>(
   if (requestId) metadata.set("x-request-id", requestId)
   if (authorization) metadata.set("authorization", authorization)
 
-  // The overload with everything: the generated types declare it, and the
-  // conditional types above only ever looked at the shortest one.
-  const call = client[method] as unknown as (
-    argument: RequestOf<TClient, TMethod>,
-    metadata: Metadata,
-    options: CallOptions,
-    callback: requestCallback<ResponseOf<TClient, TMethod>>
-  ) => ClientUnaryCall
-
   return new Promise((settle, reject) => {
     // Without a deadline a backend that accepts the connection and then
     // hangs would hold the page request open for as long as it liked.
     const options = { deadline: Date.now() + env.SCHEMAFORGE_RPC_TIMEOUT_MS }
 
-    call.call(client, request, metadata, options, (error, response) => {
+    call(metadata, options, (error, response) => {
       if (error) {
         if (error.code === grpcStatus.UNAVAILABLE) dropClients()
         reject(new SchemaForgeRpcError(toRpcError(error)))
@@ -362,11 +325,90 @@ function invoke<TClient extends Client, TMethod extends MethodOf<TClient>>(
       }
 
       if (response === undefined) {
-        reject(new Error(`the backend answered ${method} with nothing`))
+        reject(new Error("the backend answered with nothing"))
         return
       }
 
       settle(response)
     })
   })
+}
+
+export const schemaService = {
+  listSchemas: (
+    request: ListSchemasRequest,
+    requestId?: string
+  ): Promise<ListSchemasResponse__Output> =>
+    authed(
+      (metadata, options, callback) =>
+        clients().schema.ListSchemas(request, metadata, options, callback),
+      requestId
+    ),
+
+  getSchema: (
+    request: GetSchemaRequest,
+    requestId?: string
+  ): Promise<GetSchemaResponse__Output> =>
+    authed(
+      (metadata, options, callback) =>
+        clients().schema.GetSchema(request, metadata, options, callback),
+      requestId
+    ),
+
+  createSchema: (
+    request: CreateSchemaRequest,
+    requestId?: string
+  ): Promise<CreateSchemaResponse__Output> =>
+    authed(
+      (metadata, options, callback) =>
+        clients().schema.CreateSchema(request, metadata, options, callback),
+      requestId
+    ),
+
+  updateSchema: (
+    request: UpdateSchemaRequest,
+    requestId?: string
+  ): Promise<UpdateSchemaResponse__Output> =>
+    authed(
+      (metadata, options, callback) =>
+        clients().schema.UpdateSchema(request, metadata, options, callback),
+      requestId
+    ),
+
+  deleteSchema: (
+    request: DeleteSchemaRequest,
+    requestId?: string
+  ): Promise<DeleteSchemaResponse__Output> =>
+    authed(
+      (metadata, options, callback) =>
+        clients().schema.DeleteSchema(request, metadata, options, callback),
+      requestId
+    ),
+
+  validateSchema: (
+    request: ValidateSchemaRequest,
+    requestId?: string
+  ): Promise<ValidateSchemaResponse__Output> =>
+    authed(
+      (metadata, options, callback) =>
+        clients().schema.ValidateSchema(request, metadata, options, callback),
+      requestId
+    ),
+
+  generateDdl: (
+    request: GenerateDdlRequest,
+    requestId?: string
+  ): Promise<GenerateDdlResponse__Output> =>
+    authed(
+      (metadata, options, callback) =>
+        clients().schema.GenerateDdl(request, metadata, options, callback),
+      requestId
+    ),
+}
+
+export const healthService = {
+  check: (): Promise<CheckResponse__Output> =>
+    unary((metadata, options, callback) =>
+      clients().health.Check({}, metadata, options, callback)
+    ),
 }

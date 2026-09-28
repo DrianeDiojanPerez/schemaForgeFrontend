@@ -17,7 +17,7 @@ import {
   summaryIn,
 } from "@/features/schema/lib/wire"
 
-import { callHealth, callSchema, isUnimplemented } from "./client"
+import { healthService, isUnimplemented, schemaService } from "./client"
 import type { GenerateDdlRequest } from "./generated/schemaforge/v1/GenerateDdlRequest"
 
 /**
@@ -60,7 +60,7 @@ export const listSchemas = createServerFn({ method: "GET" })
   .validator((input: { page?: number; perPage?: number }) => input)
   .handler(
     async ({ data }): Promise<{ schemas: SchemaSummary[]; total: number }> => {
-      const response = await callSchema("ListSchemas", {
+      const response = await schemaService.listSchemas({
         page: data.page ?? 1,
         perPage: data.perPage ?? 25,
       })
@@ -75,7 +75,7 @@ export const listSchemas = createServerFn({ method: "GET" })
 export const getSchema = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<Schema> => {
-    const response = await callSchema("GetSchema", { id: data.id })
+    const response = await schemaService.getSchema({ id: data.id })
 
     return schemaIn(stored(response.schema))
   })
@@ -83,7 +83,7 @@ export const getSchema = createServerFn({ method: "GET" })
 export const createSchema = createServerFn({ method: "POST" })
   .validator((input: SchemaDraft) => input)
   .handler(async ({ data }): Promise<Schema> => {
-    const response = await callSchema("CreateSchema", {
+    const response = await schemaService.createSchema({
       name: data.name,
       description: data.description,
       entities: data.entities.map(entityOut),
@@ -96,7 +96,7 @@ export const createSchema = createServerFn({ method: "POST" })
 export const updateSchema = createServerFn({ method: "POST" })
   .validator((input: SchemaDraft & { id: string }) => input)
   .handler(async ({ data }): Promise<Schema> => {
-    const response = await callSchema("UpdateSchema", {
+    const response = await schemaService.updateSchema({
       id: data.id,
       name: data.name,
       description: data.description,
@@ -110,7 +110,7 @@ export const updateSchema = createServerFn({ method: "POST" })
 export const deleteSchema = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    await callSchema("DeleteSchema", { id: data.id })
+    await schemaService.deleteSchema({ id: data.id })
 
     return { id: data.id }
   })
@@ -124,7 +124,7 @@ export const validateSchema = createServerFn({ method: "POST" })
       { valid: boolean; diagnostics: Diagnostic[] } & Unavailable
     > => {
       try {
-        const response = await callSchema("ValidateSchema", targetOut(data))
+        const response = await schemaService.validateSchema(targetOut(data))
 
         return {
           valid: response.valid,
@@ -150,7 +150,7 @@ export const generateDdl = createServerFn({ method: "POST" })
       data,
     }): Promise<{ ddl: string; diagnostics: Diagnostic[] } & Unavailable> => {
       try {
-        const response = await callSchema("GenerateDdl", {
+        const response = await schemaService.generateDdl({
           ...targetOut(data),
           dialect: dialectOut(data.dialect ?? "POSTGRES"),
           includeComments: data.includeComments ?? true,
@@ -179,10 +179,10 @@ export const checkBackend = createServerFn({ method: "GET" }).handler(
     signedIn: boolean
     reason?: string
   }> => {
-    const response = await callHealth("Check", {})
+    const response = await healthService.check()
 
     try {
-      await callSchema("ListSchemas", { page: 1, perPage: 1 })
+      await schemaService.listSchemas({ page: 1, perPage: 1 })
     } catch (error) {
       return {
         status: response.status,
