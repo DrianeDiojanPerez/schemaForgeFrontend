@@ -16,6 +16,8 @@ export type BackendStatus = {
 
 const RETRY_EVERY = 3000;
 
+export type Latest = { schema: Schema | null; reachable: boolean };
+
 export const CHECKING: BackendStatus = {
 	state: "checking",
 	version: "",
@@ -40,10 +42,10 @@ export const schemaQueries = {
 		}),
 
 	/**
-	 * The most recently updated schema, or null when none is stored or the
-	 * backend cannot be reached. The two read the same to the canvas, which
-	 * opens on the example either way, and the connection is reported by the
-	 * status query rather than here.
+	 * The most recently updated schema, or null when the backend holds none.
+	 * `reachable` says whether the backend answered at all, so the canvas can
+	 * open on the example for a fresh backend and on nothing for one that is
+	 * away. The connection itself is reported by the status query.
 	 *
 	 * Never stale: the canvas takes the diagram once and owns it from there, so
 	 * a refetch would only rebuild something nobody reads.
@@ -51,14 +53,17 @@ export const schemaQueries = {
 	latest: () =>
 		queryOptions({
 			queryKey: schemaKeys.latest(),
-			queryFn: async (): Promise<Schema | null> => {
+			queryFn: async (): Promise<Latest> => {
 				try {
 					const listing = await listSchemas({ data: { page: 1, perPage: 1 } });
 					const first = listing.schemas.at(0);
 
-					return first ? await getSchema({ data: { id: first.id } }) : null;
+					return {
+						schema: first ? await getSchema({ data: { id: first.id } }) : null,
+						reachable: true,
+					};
 				} catch {
-					return null;
+					return { schema: null, reachable: false };
 				}
 			},
 			staleTime: Infinity,

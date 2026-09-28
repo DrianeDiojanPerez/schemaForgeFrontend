@@ -226,9 +226,9 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 
 	const queryClient = useQueryClient();
 
-	// Work done on the example while the backend was away is written up rather
-	// than thrown over for whatever the backend holds. An untouched example
-	// gives way to the stored schema.
+	// Work done while the backend was away is written up rather than thrown
+	// over for whatever the backend holds. An untouched canvas gives way to
+	// the stored schema.
 	const reconnected = useCallback(async () => {
 		const { isDirty, save } = latest.current;
 
