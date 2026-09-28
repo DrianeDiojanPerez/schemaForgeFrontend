@@ -150,7 +150,7 @@ export function MigrationDialog({ open, onOpenChange }: MigrationDialogProps) {
 							onChange={(event) => setName(event.target.value)}
 							placeholder="create_schema"
 						/>
-						<p className="font-mono text-[11px] text-muted-foreground">{first}</p>
+						<p className="font-mono text-2xs text-muted-foreground">{first}</p>
 					</div>
 
 					<div className="grid gap-4">

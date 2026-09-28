@@ -130,7 +130,7 @@ function BackgroundPreview({ variant }: { variant: BackgroundStyle }) {
 	return (
 		<svg
 			aria-hidden
-			className="h-[72px] w-full rounded-md border border-border bg-background text-muted-foreground"
+			className="h-18 w-full rounded-md border border-border bg-background text-muted-foreground"
 		>
 			{variant !== "none" && (
 				<>
@@ -147,7 +147,7 @@ function BackgroundPreview({ variant }: { variant: BackgroundStyle }) {
 function ThemePreview({ theme }: { theme: (typeof THEMES)[number] }) {
 	return (
 		<span
-			className="flex h-[72px] items-center justify-center rounded-md border"
+			className="flex h-18 items-center justify-center rounded-md border"
 			style={{
 				backgroundColor: theme.page,
 				backgroundImage: `radial-gradient(color-mix(in oklch, ${theme.text} 40%, transparent) 0.5px, transparent 0.5px)`,
@@ -165,14 +165,14 @@ function ThemePreview({ theme }: { theme: (typeof THEMES)[number] }) {
 function MiniTable({ theme }: { theme: (typeof THEMES)[number] }) {
 	return (
 		<span
-			className="flex w-11 shrink-0 flex-col gap-[3px] rounded-sm border p-[5px]"
+			className="flex w-11 shrink-0 flex-col gap-0.75 rounded-sm border p-1.25"
 			style={{ background: theme.card, borderColor: theme.border }}
 		>
-			<span className="h-[3px] rounded-full" style={{ background: theme.accent }} />
+			<span className="h-0.75 rounded-full" style={{ background: theme.accent }} />
 			{[1, 0.75, 0.55].map((width) => (
 				<span
 					key={width}
-					className="h-[3px] rounded-full opacity-50"
+					className="h-0.75 rounded-full opacity-50"
 					style={{ background: theme.text, width: `${width * 100}%` }}
 				/>
 			))}
@@ -272,7 +272,7 @@ function SchemaGroupingPreview({ grouping }: { grouping: SchemaGrouping }) {
 		<svg
 			aria-hidden
 			viewBox="0 0 64 44"
-			className="h-[52px] w-full rounded-md border border-border bg-background"
+			className="h-13 w-full rounded-md border border-border bg-background"
 		>
 			{grouping === "boxes" ? (
 				<>
@@ -354,7 +354,7 @@ function ToastPositionRow({
 					aria-label="Notifications"
 					value={value}
 					onValueChange={(next) => onValueChange(next as ScreenPosition)}
-					className="grid w-44 grid-cols-3 grid-rows-2 gap-1 rounded-md border border-border bg-background bg-[radial-gradient(var(--border)_0.5px,transparent_0.5px)] bg-[length:6px_6px] p-1.5"
+					className="grid w-44 grid-cols-3 grid-rows-2 gap-1 rounded-md border border-border bg-background bg-dots p-1.5"
 				>
 					{SCREEN_POSITIONS.map((position) => (
 						<Label
@@ -410,7 +410,7 @@ function ConnectorArrowRow({
 						htmlFor={`connector-${arrow.id}`}
 						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
 					>
-						<span className="flex h-[52px] items-center justify-center gap-1 rounded-md border border-border bg-background text-primary">
+						<span className="flex h-13 items-center justify-center gap-1 rounded-md border border-border bg-background text-primary">
 							<arrow.left className="size-3.5" fill={arrow.filled ? "currentColor" : "none"} />
 							<span aria-hidden className="h-6 w-10 rounded-xs border border-border bg-card" />
 							<arrow.right className="size-3.5" fill={arrow.filled ? "currentColor" : "none"} />
@@ -450,7 +450,7 @@ function EdgeLineRow({
 						<svg
 							aria-hidden
 							viewBox="0 0 64 44"
-							className="h-[52px] w-full rounded-md border border-border bg-background"
+							className="h-13 w-full rounded-md border border-border bg-background"
 						>
 							<path d={line.preview} fill="none" stroke="var(--primary)" strokeWidth={1.5} />
 						</svg>
@@ -617,7 +617,7 @@ export const CanvasSettings = memo(function CanvasSettings({
           inside it measures against the overflow rather than the dialog. */}
 			<DialogContent
 				finalFocus={returnFocus}
-				className="h-[600px] max-h-[85vh] grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-3xl"
+				className="h-settings grid-rows-1 gap-0 overflow-hidden p-0 sm:max-w-3xl"
 			>
 				<Tabs
 					orientation="vertical"

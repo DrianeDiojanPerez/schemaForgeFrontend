@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
  */
 export function SidebarButtonSkeleton() {
 	return (
-		<div aria-hidden className="pointer-events-none absolute top-[15px] left-[15px] z-30">
+		<div aria-hidden className="pointer-events-none absolute top-3.75 left-3.75 z-30">
 			<Button variant="ghost" size="icon-sm" tabIndex={-1}>
 				<PanelLeftCloseIcon />
 			</Button>

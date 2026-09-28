@@ -264,7 +264,7 @@ export const RelationshipEdge = ({
 						style={{
 							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
 						}}
-						className="nodrag nopan pointer-events-auto absolute text-[8px]"
+						className="nodrag nopan pointer-events-auto absolute text-4xs"
 					>
 						<DropdownMenu>
 							<DropdownMenuTrigger

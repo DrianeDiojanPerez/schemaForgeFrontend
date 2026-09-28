@@ -57,7 +57,7 @@ import { ProblemMark, ProblemMessage, problemTitle } from "./problem-text";
 import { useNodeProblems } from "./problems-context";
 
 const HIDDEN_CONNECTOR = "h-px! w-px! min-w-0! min-h-0! cursor-grab! border-0! opacity-0!";
-const ITEM_HEIGHT = "h-[22px]";
+const ITEM_HEIGHT = "h-5.5";
 const SIDES = ["left", "right", "top", "bottom"] as const;
 
 /**
@@ -70,7 +70,7 @@ const SIDES = ["left", "right", "top", "bottom"] as const;
  * once the pointer has left the row.
  */
 const COLUMN_CONNECTOR =
-	"flex! size-[9px]! min-w-0! min-h-0! items-center justify-center rounded-none! border-0! bg-transparent! text-primary opacity-0 transition-opacity duration-150 group-hover/column:opacity-40 hover:opacity-100! [&.connectingfrom]:opacity-100!";
+	"flex! size-2.25! min-w-0! min-h-0! items-center justify-center rounded-none! border-0! bg-transparent! text-primary opacity-0 transition-opacity duration-150 group-hover/column:opacity-40 hover:opacity-100! [&.connectingfrom]:opacity-100!";
 
 // Far enough out to clear the border the row draws, so the arrow reads as
 // leaving the table rather than sitting on its edge.
@@ -132,7 +132,7 @@ function ColumnTypeCombobox({
 		<Popover open={open} onOpenChange={(next) => (next ? openAtReadableZoom() : setOpen(false))}>
 			{/* Closing with Escape hands focus back to the trigger, and the browser
           ring is far too heavy at this size. The text stands in for it. */}
-			<PopoverTrigger className="nodrag nopan flex h-4 items-center gap-0.5 rounded-sm px-1 text-[8px] text-muted-foreground transition hover:text-foreground focus-visible:text-foreground focus-visible:outline-none">
+			<PopoverTrigger className="nodrag nopan flex h-4 items-center gap-0.5 rounded-sm px-1 text-4xs text-muted-foreground transition hover:text-foreground focus-visible:text-foreground focus-visible:outline-none">
 				{label}
 				<ChevronDownIcon className="size-2" />
 			</PopoverTrigger>
@@ -304,7 +304,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 
 	if (data.isForeign) {
 		return (
-			<Badge variant="secondary" className="relative h-auto rounded-[4px] py-1 text-[0.55rem]">
+			<Badge variant="secondary" className="relative h-auto rounded-sm py-1 text-3xs">
 				{data.name}
 				<Handle
 					type="target"
@@ -332,7 +332,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 			>
 				<header
 					className={cn(
-						"relative flex items-center rounded-t-lg bg-muted pr-1 pl-2 text-[0.55rem]",
+						"relative flex items-center rounded-t-lg bg-muted pr-1 pl-2 text-3xs",
 						ITEM_HEIGHT,
 					)}
 				>
@@ -341,10 +341,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 						{/* The invisible sizer span sets the wrapper width from the current
               text, so swapping between the label and the input does not move
               anything by a pixel. */}
-						<div
-							className="relative inline-block h-5 min-w-[2ch] pr-[3px] leading-5 font-medium text-foreground"
-							style={{ fontSize: "0.55rem" }}
-						>
+						<div className="relative inline-block h-5 min-w-2 pr-0.75 text-3xs leading-5 font-medium text-foreground">
 							<span aria-hidden="true" className="invisible block whitespace-pre">
 								{editingTableName ? tableNameValue || " " : data.name || " "}
 							</span>
@@ -364,8 +361,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 									// label gives way to the input. An input centres its text in
 									// its own box and pays no attention to line height, so it
 									// lands a pixel below the label it stands in for.
-									className="absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 pb-px leading-5 font-medium text-foreground caret-primary outline-none focus:ring-0"
-									style={{ fontSize: "0.55rem" }}
+									className="absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 pb-px text-3xs leading-5 font-medium text-foreground caret-primary outline-none focus:ring-0"
 								/>
 							) : (
 								<span
@@ -434,7 +430,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 												>
 													<ProblemMark severity={problem.severity} />
 													<span className="flex min-w-0 flex-1 flex-col gap-1">
-														<span className="text-[13px] font-medium">
+														<span className="text-sm font-medium">
 															{problemTitle(problem.code)}
 														</span>
 														<span className="text-xs leading-relaxed text-muted-foreground">
@@ -457,14 +453,14 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 							render={
 								<div
 									className={cn(
-										"group/column relative flex flex-row justify-items-start border-t border-border bg-card text-[8px] leading-5 transition hover:bg-muted",
+										"group/column relative flex flex-row justify-items-start border-t border-border bg-card text-4xs leading-5 transition hover:bg-muted",
 										editingColumnId === column.id ? "cursor-text" : "cursor-default",
 										ITEM_HEIGHT,
 									)}
 								/>
 							}
 						>
-							<div className="mx-2 flex min-w-[40px] items-center justify-start gap-[0.24rem] align-middle">
+							<div className="mx-2 flex min-w-10 items-center justify-start gap-1 align-middle">
 								{columnFlags(column, () =>
 									updateColumn(column.id, { isNullable: !column.isNullable }),
 								).map((flag) => (
@@ -496,10 +492,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 							</div>
 
 							<div className="flex w-full items-center justify-between gap-3 pr-1">
-								<div
-									className="relative inline-block h-5 min-w-[2ch] pr-[3px] leading-5 font-medium"
-									style={{ fontSize: "8px" }}
-								>
+								<div className="relative inline-block h-5 min-w-2 pr-0.75 text-4xs leading-5 font-medium">
 									<span aria-hidden="true" className="invisible block whitespace-pre">
 										{editingColumnId === column.id ? editValue || " " : column.name || " "}
 									</span>
@@ -515,7 +508,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 												else if (e.key === "Escape") setEditingColumnId(null);
 											}}
 											onClick={(e) => e.stopPropagation()}
-											className="absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 text-[8px] leading-5 font-medium text-foreground caret-primary outline-none focus:ring-0"
+											className="absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 text-4xs leading-5 font-medium text-foreground caret-primary outline-none focus:ring-0"
 										/>
 									) : (
 										<span
@@ -630,12 +623,12 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 					<div className="border-t-2 border-border bg-muted">
 						<div className="flex items-center gap-1 px-2 py-1">
 							<Database size={8} className="text-muted-foreground" />
-							<span className="text-[0.4rem] font-medium text-muted-foreground">INDEXES</span>
+							<span className="text-5xs font-medium text-muted-foreground">INDEXES</span>
 						</div>
 						{data.indexes.map((index) => (
 							<div
 								key={index.name}
-								className="border-t border-border px-2 py-1 text-[7px] transition hover:bg-muted"
+								className="border-t border-border px-2 py-1 text-5xs transition hover:bg-muted"
 							>
 								<div className="flex items-center justify-between">
 									<span className="font-mono text-foreground">{index.name}</span>
@@ -648,12 +641,12 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 				)}
 
 				{data.columns.length === 0 && (
-					<div className="py-3 text-center text-[0.5rem] text-muted-foreground">No columns yet</div>
+					<div className="py-3 text-center text-4xs text-muted-foreground">No columns yet</div>
 				)}
 
 				<button
 					type="button"
-					className="nodrag nopan flex items-center justify-center gap-1 rounded-b-lg border-t border-border py-1 text-[8px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
+					className="nodrag nopan flex items-center justify-center gap-1 rounded-b-lg border-t border-border py-1 text-4xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
 					onClick={() => addColumn(id)}
 				>
 					<PlusIcon size={8} strokeWidth={2} />

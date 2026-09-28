@@ -48,6 +48,55 @@
 	--radius-2xl: calc(var(--radius) + 8px);
 	--radius-3xl: calc(var(--radius) + 12px);
 	--radius-4xl: calc(var(--radius) + 16px);
+	--color-canvas: var(--canvas);
+	--color-info: var(--info);
+	--text-2xs: 0.6875rem;
+	--text-3xs: 0.55rem;
+	--text-4xs: 0.5rem;
+	--text-5xs: 0.4375rem;
+	--tracking-snug: -0.01em;
+	--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-back: cubic-bezier(0.485, -0.05, 0.285, 1.505);
+	--ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+	--shadow-toolbar:
+		0px 1px 2px 0px rgb(19 21 26 / 0.29), 0px 4px 4px 0px rgb(19 21 26 / 0.26),
+		0px 10px 6px 0px rgb(19 21 26 / 0.15), 0px 17px 7px 0px rgb(19 21 26 / 0.04),
+		0px 26px 7px 0px rgb(19 21 26 / 0.01);
+	--shadow-halo: 0 0 0 6px color-mix(in oklab, var(--color-primary) 20%, transparent);
+}
+
+/* The dots the canvas is drawn on, at the two densities the app uses. */
+@utility bg-dots {
+	background-image: radial-gradient(var(--color-border) 0.5px, transparent 0.5px);
+	background-size: 6px 6px;
+}
+
+@utility bg-dots-lg {
+	background-image: radial-gradient(var(--color-muted-foreground) 1px, transparent 1px);
+	background-size: 16px 16px;
+}
+
+@utility transition-height {
+	transition-property: height;
+	transition-timing-function: var(--default-transition-timing-function);
+	transition-duration: var(--default-transition-duration);
+}
+
+@utility transition-veil {
+	transition-property: opacity, visibility, background-color, backdrop-filter;
+	transition-timing-function: var(--default-transition-timing-function);
+	transition-duration: var(--default-transition-duration);
+}
+
+/* Panels in a resizable group slide to their new share instead of jumping. */
+@utility panel-glide {
+	& > [data-panel] {
+		transition: flex-grow 450ms var(--ease-glide);
+	}
+}
+
+@utility h-settings {
+	height: min(37.5rem, 85vh);
 }
 
 :root {
@@ -84,6 +133,8 @@
 	--sidebar-accent-foreground: oklch(0.21 0.006 285.885);
 	--sidebar-border: oklch(0.92 0.004 286.32);
 	--sidebar-ring: oklch(0.705 0.015 286.067);
+	--canvas: oklch(1 0 0);
+	--info: oklch(0.588 0.158 241.966);
 }
 
 .dark {
@@ -119,6 +170,8 @@
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.552 0.016 285.938);
+	--canvas: #141414;
+	--info: oklch(0.746 0.16 232.661);
 }
 
 /* Sileo injects its stylesheet at runtime, so it lands after this file and wins

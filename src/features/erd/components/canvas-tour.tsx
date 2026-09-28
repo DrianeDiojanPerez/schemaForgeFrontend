@@ -9,7 +9,7 @@ import { TOUR } from "../lib/tour";
 function Step({ title, children }: { title: string; children: string }) {
 	return (
 		<div className="space-y-1.5 pr-6">
-			<h3 className="text-base font-semibold tracking-[-0.01em]">{title}</h3>
+			<h3 className="text-base font-semibold tracking-snug">{title}</h3>
 			<p className="text-muted-foreground">{children}</p>
 		</div>
 	);

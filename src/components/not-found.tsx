@@ -17,12 +17,9 @@ export function NotFound() {
 	const router = useRouter();
 
 	return (
-		<main className="relative flex h-svh w-full flex-col items-center justify-center overflow-hidden bg-background px-6 dark:bg-[#141414]">
+		<main className="relative flex h-svh w-full flex-col items-center justify-center overflow-hidden bg-canvas px-6">
 			{/* The same dots as the canvas, so the page reads as a corner of it. */}
-			<div
-				aria-hidden
-				className="absolute inset-0 bg-[radial-gradient(var(--color-muted-foreground)_1px,transparent_1px)] bg-size-[16px_16px] opacity-30"
-			/>
+			<div aria-hidden className="absolute inset-0 bg-dots-lg opacity-30" />
 
 			<div className="relative flex flex-col items-center">
 				<motion.div
@@ -34,7 +31,7 @@ export function NotFound() {
 						<TablePropertiesIcon className="size-3.5 text-primary" />
 						not_found
 					</header>
-					<dl className="text-[11px] leading-6">
+					<dl className="text-2xs leading-6">
 						<div className="flex justify-between gap-3 border-t border-border px-2.5">
 							<dt className="text-muted-foreground">status</dt>
 							<dd className="font-mono tabular-nums">404</dd>
@@ -74,7 +71,7 @@ export function NotFound() {
 								cx="80"
 								cy="4"
 								r="9"
-								className="fill-background stroke-primary/50 dark:fill-[#141414]"
+								className="fill-canvas stroke-primary/50"
 								strokeWidth="1.5"
 								strokeDasharray="3 3"
 							/>

@@ -25,7 +25,7 @@ export function problemTitle(code: string) {
 
 const TYPES = new Set(allPostgresTypes);
 
-const CHIP = "rounded bg-foreground/8 px-1 py-px font-mono text-[11px]";
+const CHIP = "rounded bg-foreground/8 px-1 py-px font-mono text-2xs";
 
 // Coloured the way an editor colours code: the table in the brand colour, the
 // column after it in plain text and a type in a colour of its own.
@@ -44,7 +44,7 @@ function Name({ name }: { name: string }) {
 }
 
 function Type({ name }: { name: string }) {
-	return <code className={cn(CHIP, "text-sky-600! dark:text-sky-400!")}>{name}</code>;
+	return <code className={cn(CHIP, "text-info!")}>{name}</code>;
 }
 
 // Types are left bare in the sentence and many of them are plain words too, a

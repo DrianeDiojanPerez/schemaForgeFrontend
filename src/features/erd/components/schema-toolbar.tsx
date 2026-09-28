@@ -53,16 +53,15 @@ const REACH = 42;
 // Astro's own shadow, six layers of their near-black. It stays that colour in
 // both themes, since a shadow drawn in the foreground glows white on a dark
 // canvas instead of sitting the bar down on it.
-const SHADOW =
-	"shadow-[0px_1px_2px_0px_rgb(19_21_26_/_0.29),0px_4px_4px_0px_rgb(19_21_26_/_0.26),0px_10px_6px_0px_rgb(19_21_26_/_0.15),0px_17px_7px_0px_rgb(19_21_26_/_0.04),0px_26px_7px_0px_rgb(19_21_26_/_0.01)]";
+const SHADOW = "shadow-toolbar";
 
 // 40 tall inside a 1px border, a fill that thins towards the bottom, and the
 // ends clipped so the first and last items round with the bar.
 const BAR =
-	"nodrag nopan pointer-events-auto flex h-[42px] items-stretch overflow-hidden rounded-full border border-border bg-linear-to-b from-card to-card/88";
+	"nodrag nopan pointer-events-auto flex h-10.5 items-stretch overflow-hidden rounded-full border border-border bg-linear-to-b from-card to-card/88";
 
 // Astro's curve, which carries the bar a little past its mark and settles back.
-const SLIDE = "transition-transform duration-350 ease-[cubic-bezier(0.485,-0.05,0.285,1.505)]";
+const SLIDE = "transition-transform duration-350 ease-back";
 
 const ITEM =
 	"h-full w-11 rounded-none transition-opacity duration-200 ease-out hover:bg-foreground/10";
@@ -183,7 +182,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 									size="icon"
 									aria-label="New table"
 									onClick={onAddTable}
-									className={cn(ITEM, "w-[42px] rounded-l-full pl-1", !up && "opacity-20")}
+									className={cn(ITEM, "w-10.5 rounded-l-full pl-1", !up && "opacity-20")}
 								/>
 							}
 						>
@@ -298,7 +297,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 										typed.current = event.detail === 0;
 										onSettingsOpenChange(true, typed.current);
 									}}
-									className={cn(ITEM, "w-[42px] rounded-r-full pr-1", !up && "opacity-20")}
+									className={cn(ITEM, "w-10.5 rounded-r-full pr-1", !up && "opacity-20")}
 								/>
 							}
 						>

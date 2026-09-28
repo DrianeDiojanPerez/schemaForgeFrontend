@@ -17,7 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 export type LoadingPhase = "covering" | "glass" | "gone";
 
 // The tour's curve: quick to start, long and soft to settle.
-const EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]";
+const EASE = "ease-out-expo";
 
 // The loader is mounted twice on a fresh load, once by the server and once
 // more when the browser takes the page over, and a spinner that started
@@ -36,14 +36,12 @@ export function CanvasSkeleton({
 	return (
 		<div
 			className={cn(
-				"overflow-hidden transition-[opacity,visibility,background-color,backdrop-filter] duration-700",
+				"overflow-hidden transition-veil duration-700",
 				EASE,
 				// React Flow paints its own dark grey over the theme background, so
 				// the same grey is used here or the fade would step through a darker
 				// shade on the way.
-				phase === "covering"
-					? "bg-background dark:bg-[#141414]"
-					: "bg-background/70 backdrop-blur-xs dark:bg-[#141414]/70",
+				phase === "covering" ? "bg-canvas" : "bg-canvas/70 backdrop-blur-xs",
 				phase === "gone" && "invisible opacity-0",
 				className,
 			)}

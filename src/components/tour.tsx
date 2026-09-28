@@ -287,7 +287,7 @@ export function TourProvider({
 										height: box.height,
 									}}
 									transition={GLIDE}
-									className="absolute rounded-lg shadow-[0_0_0_6px_--theme(--color-primary/20%)] ring-2 ring-primary"
+									className="absolute rounded-lg shadow-halo ring-2 ring-primary"
 								/>
 
 								<motion.div

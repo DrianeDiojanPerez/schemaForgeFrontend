@@ -145,14 +145,11 @@ export const SchemaNode = ({ data, width = 0, height = 0 }: NodeProps<ErdSchemaN
 				// nopan, or the pane's own double-click zoom swallows the event before
 				// React sees it. React Flow adds that class itself, but only to nodes it
 				// lets you drag, and the box is not one.
-				className="nopan pointer-events-auto absolute top-0 left-0 flex h-[26px] max-w-[70%] items-center gap-x-1 px-2 select-none"
+				className="nopan pointer-events-auto absolute top-0 left-0 flex h-6.5 max-w-7/10 items-center gap-x-1 px-2 select-none"
 			>
 				<Layers size={12} strokeWidth={1.5} className={accent.text} />
 				<span className="relative inline-block h-5 overflow-hidden leading-5">
-					<span
-						aria-hidden="true"
-						className="invisible block text-[0.55rem] font-medium whitespace-pre"
-					>
+					<span aria-hidden="true" className="invisible block text-3xs font-medium whitespace-pre">
 						{(editing ? draft : label) || " "}
 					</span>
 					{editing ? (
@@ -169,7 +166,7 @@ export const SchemaNode = ({ data, width = 0, height = 0 }: NodeProps<ErdSchemaN
 							// A pixel of padding, so the name does not drop as the label
 							// gives way to the input. See the table's own name for why.
 							className={cn(
-								"absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 pb-px text-[0.55rem] leading-5 font-medium outline-none",
+								"absolute inset-0 m-0 h-full w-full border-0 bg-transparent p-0 pb-px text-3xs leading-5 font-medium outline-none",
 								accent.text,
 							)}
 							style={{ caretColor: "currentColor" }}
@@ -180,7 +177,7 @@ export const SchemaNode = ({ data, width = 0, height = 0 }: NodeProps<ErdSchemaN
 								render={
 									<span
 										className={cn(
-											"absolute inset-0 cursor-pointer truncate text-[0.55rem] leading-5 font-medium",
+											"absolute inset-0 cursor-pointer truncate text-3xs leading-5 font-medium",
 											accent.text,
 										)}
 										onDoubleClick={() => {

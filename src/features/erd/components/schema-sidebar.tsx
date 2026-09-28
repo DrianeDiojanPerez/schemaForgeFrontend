@@ -54,7 +54,7 @@ import type { ErdNode, ErdTableNode, SchemaAccent } from "../types/erd";
 import { schemaAccentText } from "./schema-node";
 
 const FOLD =
-	"h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0";
+	"h-(--collapsible-panel-height) overflow-hidden transition-height duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0";
 
 const CARET = "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200";
 
@@ -266,7 +266,7 @@ const SchemaList = memo(function SchemaList({
 			)}
 		>
 			{/* Left clear for the button, which stays put while this moves. */}
-			<header className="flex h-[63px] shrink-0 items-center border-b border-sidebar-border pr-2 pl-[58px]">
+			<header className="flex h-15.75 shrink-0 items-center border-b border-sidebar-border pr-2 pl-14.5">
 				<Popover open={picking} onOpenChange={setPicking}>
 					<PopoverTrigger
 						id={TOUR.schemaPicker}
@@ -291,7 +291,7 @@ const SchemaList = memo(function SchemaList({
 						<Command>
 							{/* A handful of schemas is read faster than it is searched. */}
 							{choices.length > 4 && <CommandInput placeholder="Search schemas" />}
-							<CommandList className={cn("max-h-[220px]", choices.length > 4 && "mt-1")}>
+							<CommandList className={cn("max-h-55", choices.length > 4 && "mt-1")}>
 								<CommandEmpty className="py-4 text-sm">No schema found.</CommandEmpty>
 
 								{choices.map((choice) => (
@@ -592,10 +592,7 @@ export function SchemaSidebar({
 				// above the canvas, so every press the library takes lands on it.
 				resizeTargetMinimumSize={{ coarse: 8, fine: 8 }}
 				disableCursor
-				className={cn(
-					sliding &&
-						"[&>[data-panel]]:transition-[flex-grow] [&>[data-panel]]:duration-[450ms] [&>[data-panel]]:ease-[cubic-bezier(0.32,0.72,0,1)]",
-				)}
+				className={cn(sliding && "panel-glide")}
 				onLayoutChanged={(_, meta) => {
 					if (!meta.isUserInteraction || !panel.current) return;
 
@@ -640,7 +637,7 @@ export function SchemaSidebar({
 			</ResizablePanelGroup>
 
 			{active && (
-				<div id={TOUR.sidebarToggle} className="absolute top-[15px] left-[15px] z-30">
+				<div id={TOUR.sidebarToggle} className="absolute top-3.75 left-3.75 z-30">
 					<Trigger open={showing} onClick={() => onOpenChange(!showing)} />
 				</div>
 			)}

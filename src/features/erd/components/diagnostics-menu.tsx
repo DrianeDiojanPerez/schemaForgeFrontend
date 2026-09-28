@@ -117,7 +117,7 @@ export function DiagnosticsMenu({
 							<BugIcon className="size-3.5" />
 							Diagnostics
 							{diagnostics.length > 0 && (
-								<span className="rounded-full bg-muted px-1.5 text-[11px] leading-4 text-muted-foreground tabular-nums">
+								<span className="rounded-full bg-muted px-1.5 text-2xs leading-4 text-muted-foreground tabular-nums">
 									{diagnostics.length}
 								</span>
 							)}
@@ -154,7 +154,7 @@ export function DiagnosticsMenu({
 								>
 									<ProblemMark severity={diagnostic.severity} />
 									<span className="flex min-w-0 flex-1 flex-col gap-1">
-										<span className="text-[13px] font-medium text-foreground!">
+										<span className="text-sm font-medium text-foreground!">
 											{problemTitle(diagnostic.code)}
 										</span>
 										<span className="text-xs leading-relaxed whitespace-normal text-muted-foreground!">

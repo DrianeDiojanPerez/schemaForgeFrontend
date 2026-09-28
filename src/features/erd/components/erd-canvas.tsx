@@ -558,7 +558,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 					/>
 				</div>
 				{showControls && (
-					<div className="absolute bottom-[15px] left-[15px] z-20">
+					<div className="absolute bottom-3.75 left-3.75 z-20">
 						<CanvasControls />
 					</div>
 				)}
