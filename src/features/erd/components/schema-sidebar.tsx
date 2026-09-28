@@ -530,13 +530,6 @@ export function SchemaSidebar({
 	useEffect(() => {
 		if (was.current === showing) return;
 
-		if (showing) {
-			measured.current = width;
-			setHeld(width);
-		} else {
-			setHeld(measured.current);
-		}
-
 		// The size has to change after the transition is on the panels, or it
 		// is put on in one step, and on a fresh load it has to wait for the
 		// browser to be free, since a slide begun while the tables are still
@@ -552,6 +545,12 @@ export function SchemaSidebar({
 					requestAnimationFrame(() => {
 						was.current = showing;
 						first.current = false;
+						if (showing) {
+							measured.current = width;
+							setHeld(width);
+						} else {
+							setHeld(measured.current);
+						}
 						setSliding(true);
 						if (showing) panel.current?.resize(width);
 						else panel.current?.collapse();

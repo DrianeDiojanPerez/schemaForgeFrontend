@@ -6,6 +6,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -23,6 +24,48 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/*
+ * Whether a tour was finished lives in storage, so it is read as an external
+ * store rather than copied into state after mount. A finish is also kept in
+ * memory, since private browsing can refuse the write and the tour still has
+ * to stay closed.
+ */
+const finishedNow = new Set<string>();
+const listeners = new Set<() => void>();
+
+function finished(key: string): boolean {
+	if (finishedNow.has(key)) return true;
+
+	try {
+		return localStorage.getItem(key) === "done";
+	} catch {
+		return false;
+	}
+}
+
+function finish(key: string) {
+	finishedNow.add(key);
+
+	try {
+		localStorage.setItem(key, "done");
+	} catch {
+		// Storage that cannot be written only means the tour is offered again
+		// next time.
+	}
+
+	for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void) {
+	listeners.add(listener);
+	window.addEventListener("storage", listener);
+
+	return () => {
+		listeners.delete(listener);
+		window.removeEventListener("storage", listener);
+	};
+}
 
 export type TourSide = "top" | "bottom" | "left" | "right" | "center";
 
@@ -141,7 +184,11 @@ export function TourProvider({
 	const [steps, setSteps] = useState<TourStep[]>([]);
 	const [run, setRun] = useState<TourStep[]>([]);
 	const [step, setStep] = useState(-1);
-	const [done, setDone] = useState(false);
+	const done = useSyncExternalStore(
+		subscribe,
+		() => finished(storageKey),
+		() => false,
+	);
 	const [box, setBox] = useState<Box | null>(null);
 	const [tall, setTall] = useState(180);
 
@@ -157,14 +204,6 @@ export function TourProvider({
 		return () => watch.disconnect();
 	}, []);
 
-	useEffect(() => {
-		try {
-			if (localStorage.getItem(storageKey) === "done") setDone(true);
-		} catch {
-			// Storage that cannot be read just means the tour is offered again.
-		}
-	}, [storageKey]);
-
 	// What the tour moved to show its stops goes back only once the card and
 	// the shade have faded, so nothing slides out from under them.
 	const settle = useCallback(() => {
@@ -174,13 +213,7 @@ export function TourProvider({
 
 	const end = useCallback(() => {
 		setStep(-1);
-		setDone(true);
-
-		try {
-			localStorage.setItem(storageKey, "done");
-		} catch {
-			// Private browsing can refuse storage. The tour still closes.
-		}
+		finish(storageKey);
 	}, [storageKey]);
 
 	// Only the steps whose target is on screen are walked, so a panel that is
@@ -209,6 +242,9 @@ export function TourProvider({
 
 	const current = step >= 0 ? run[step] : undefined;
 
+	// The box is a measurement of the target once it is on screen, so it can
+	// only be taken after the render that put it there.
+	/* oxlint-disable react/set-state-in-effect */
 	useEffect(() => {
 		if (!current) {
 			setBox(null);
@@ -230,6 +266,7 @@ export function TourProvider({
 			window.removeEventListener("scroll", update, true);
 		};
 	}, [current]);
+	/* oxlint-enable react/set-state-in-effect */
 
 	const running = { enabled: Boolean(current) };
 

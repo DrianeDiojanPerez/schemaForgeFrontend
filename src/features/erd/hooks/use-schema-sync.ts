@@ -265,6 +265,8 @@ export function useSchemaSync({
 		timer = setTimeout(run, AUTO_DELAY);
 
 		return () => clearTimeout(timer);
+		// The diagram is not read here, but any change to it restarts the delay.
+		// oxlint-disable-next-line react/exhaustive-effect-dependencies
 	}, [autoSave, autoValidate, name, nodes, edges]);
 
 	const generate = useCallback(async () => {
