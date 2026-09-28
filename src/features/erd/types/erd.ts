@@ -1,73 +1,72 @@
-import type { Edge, Node } from "@xyflow/react"
+import type { Edge, Node } from "@xyflow/react";
 
-export type RelationshipType = "one-to-one" | "one-to-many" | "many-to-many"
+export type RelationshipType = "one-to-one" | "one-to-many" | "many-to-many";
 
-export type SchemaAccent =
-  "chart-1" | "chart-2" | "chart-3" | "chart-4" | "chart-5"
+export type SchemaAccent = "chart-1" | "chart-2" | "chart-3" | "chart-4" | "chart-5";
 
 export type ColumnIndex = {
-  name: string
-  columns: string[]
-  type: "btree" | "hash" | "gin" | "gist"
-}
+	name: string;
+	columns: string[];
+	type: "btree" | "hash" | "gin" | "gist";
+};
 
 export type TableColumn = {
-  id: string
-  name: string
-  format: string
-  isPrimary: boolean
-  isNullable: boolean
-  isUnique: boolean
-  isIdentity: boolean
-  isForeignKey?: boolean
-  // Carried so a column survives a round trip through the backend, which
-  // models these separately from the type name.
-  length?: number
-  precision?: number
-  scale?: number
-  defaultValue?: string
-  /** Becomes COMMENT ON COLUMN. */
-  description?: string
-}
+	id: string;
+	name: string;
+	format: string;
+	isPrimary: boolean;
+	isNullable: boolean;
+	isUnique: boolean;
+	isIdentity: boolean;
+	isForeignKey?: boolean;
+	// Carried so a column survives a round trip through the backend, which
+	// models these separately from the type name.
+	length?: number;
+	precision?: number;
+	scale?: number;
+	defaultValue?: string;
+	/** Becomes COMMENT ON COLUMN. */
+	description?: string;
+};
 
 export type TableNodeData = {
-  id: number
-  schema: string
-  name: string
-  ref?: string
-  isForeign?: boolean
-  columns: TableColumn[]
-  indexes?: ColumnIndex[]
-  /** Becomes COMMENT ON TABLE. */
-  description?: string
-}
+	id: number;
+	schema: string;
+	name: string;
+	ref?: string;
+	isForeign?: boolean;
+	columns: TableColumn[];
+	indexes?: ColumnIndex[];
+	/** Becomes COMMENT ON TABLE. */
+	description?: string;
+};
 
 export type SchemaNodeData = {
-  /** The schema the tables carry, which renaming one has to match on. */
-  name: string
-  /** The name shown on the tab, which for `public` is the diagram's own. */
-  label?: string
-  accent?: SchemaAccent
-  /** How many tables the box was drawn around, for the tooltip to report. */
-  tables?: number
-}
+	/** The schema the tables carry, which renaming one has to match on. */
+	name: string;
+	/** The name shown on the tab, which for `public` is the diagram's own. */
+	label?: string;
+	accent?: SchemaAccent;
+	/** How many tables the box was drawn around, for the tooltip to report. */
+	tables?: number;
+};
 
 export type RelationshipEdgeData = {
-  relationshipType: RelationshipType
-  name?: string
-  description?: string
-}
+	relationshipType: RelationshipType;
+	name?: string;
+	description?: string;
+};
 
-export type ErdTableNode = Node<TableNodeData, "table">
+export type ErdTableNode = Node<TableNodeData, "table">;
 
-export type ErdSchemaNode = Node<SchemaNodeData, "schema">
+export type ErdSchemaNode = Node<SchemaNodeData, "schema">;
 
-export type ErdNode = ErdTableNode | ErdSchemaNode
+export type ErdNode = ErdTableNode | ErdSchemaNode;
 
-export type ErdEdge = Edge<RelationshipEdgeData, "relationship">
+export type ErdEdge = Edge<RelationshipEdgeData, "relationship">;
 
 export type ErdDiagram = {
-  nodes: ErdNode[]
-  edges: ErdEdge[]
-  timestamp?: string
-}
+	nodes: ErdNode[];
+	edges: ErdEdge[];
+	timestamp?: string;
+};

@@ -1,76 +1,76 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "react", "import", "unicorn", "oxc"],
-  "categories": {
-    "correctness": "error",
-    "suspicious": "warn"
-  },
-  "env": {
-    "browser": true,
-    "es2024": true
-  },
-  "settings": {
-    "react": {
-      "version": "19"
-    }
-  },
-  "ignorePatterns": [
-    "node_modules",
-    "dist",
-    ".output",
-    ".tanstack",
-    "src/routeTree.gen.ts",
-    "src/server/rpc/generated/**"
-  ],
-  "rules": {
-    "react/react-in-jsx-scope": "off",
-    "react/set-state-in-effect": "warn",
-    "unicorn/consistent-function-scoping": "off",
-    "shadcn/no-restyle": "warn",
-    "shadcn/no-raw-colors": "warn",
-    "shadcn/no-arbitrary-values": "warn",
-    "shadcn/no-inline-styles": [
-      "warn",
-      {
-        "allow": [
-          "width",
-          "height",
-          "minWidth",
-          "top",
-          "left",
-          "transform",
-          "stroke",
-          "strokeWidth",
-          "strokeDasharray",
-          "strokeOpacity",
-          "fill"
-        ]
-      }
-    ],
-    "shadcn/no-unknown-classes": [
-      "warn",
-      {
-        "allow": ["nodrag", "nopan"]
-      }
-    ],
-    "shadcn/require-static-classes": "warn"
-  },
-  "overrides": [
-    {
-      "files": ["src/components/ui/**", "src/hooks/use-mobile.ts"],
-      "rules": {
-        "no-shadow": "off",
-        "no-underscore-dangle": "off",
-        "react/no-unstable-nested-components": "off",
-        "react/set-state-in-effect": "off",
-        "shadcn/no-restyle": "off",
-        "shadcn/no-raw-colors": "off",
-        "shadcn/no-arbitrary-values": "off",
-        "shadcn/no-inline-styles": "off",
-        "shadcn/no-unknown-classes": "off",
-        "shadcn/require-static-classes": "off"
-      }
-    }
-  ],
-  "jsPlugins": ["@shadcn/lint"]
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "react", "import", "unicorn", "oxc"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "warn"
+	},
+	"env": {
+		"browser": true,
+		"es2024": true
+	},
+	"settings": {
+		"react": {
+			"version": "19"
+		}
+	},
+	"ignorePatterns": [
+		"node_modules",
+		"dist",
+		".output",
+		".tanstack",
+		"src/routeTree.gen.ts",
+		"src/server/rpc/generated/**"
+	],
+	"rules": {
+		"react/react-in-jsx-scope": "off",
+		"react/set-state-in-effect": "warn",
+		"unicorn/consistent-function-scoping": "off",
+		"shadcn/no-restyle": "warn",
+		"shadcn/no-raw-colors": "warn",
+		"shadcn/no-arbitrary-values": "warn",
+		"shadcn/no-inline-styles": [
+			"warn",
+			{
+				"allow": [
+					"width",
+					"height",
+					"minWidth",
+					"top",
+					"left",
+					"transform",
+					"stroke",
+					"strokeWidth",
+					"strokeDasharray",
+					"strokeOpacity",
+					"fill"
+				]
+			}
+		],
+		"shadcn/no-unknown-classes": [
+			"warn",
+			{
+				"allow": ["nodrag", "nopan"]
+			}
+		],
+		"shadcn/require-static-classes": "warn"
+	},
+	"overrides": [
+		{
+			"files": ["src/components/ui/**", "src/hooks/use-mobile.ts"],
+			"rules": {
+				"no-shadow": "off",
+				"no-underscore-dangle": "off",
+				"react/no-unstable-nested-components": "off",
+				"react/set-state-in-effect": "off",
+				"shadcn/no-restyle": "off",
+				"shadcn/no-raw-colors": "off",
+				"shadcn/no-arbitrary-values": "off",
+				"shadcn/no-inline-styles": "off",
+				"shadcn/no-unknown-classes": "off",
+				"shadcn/require-static-classes": "off"
+			}
+		}
+	],
+	"jsPlugins": ["@shadcn/lint"]
 }

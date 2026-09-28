@@ -1,453 +1,384 @@
-import { memo, useState } from "react"
+import { memo, useState } from "react";
+import { BackgroundVariant, useStore, useStoreApi, useReactFlow } from "@xyflow/react";
 import {
-  BackgroundVariant,
-  useStore,
-  useStoreApi,
-  useReactFlow,
-} from "@xyflow/react"
-import {
-  GridIcon,
-  MaximizeIcon,
-  MinusIcon,
-  MoonIcon,
-  MousePointer2Icon,
-  RouteIcon,
-  PaletteIcon,
-  PlusIcon,
-  RefreshCwIcon,
-  ServerIcon,
-  SunIcon,
-} from "lucide-react"
-import type { LucideIcon } from "lucide-react"
-import { cn } from "cn"
+	GridIcon,
+	MaximizeIcon,
+	MinusIcon,
+	MoonIcon,
+	MousePointer2Icon,
+	RouteIcon,
+	PaletteIcon,
+	PlusIcon,
+	RefreshCwIcon,
+	ServerIcon,
+	SunIcon,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { cn } from "cn";
 
-import { useTour } from "@/components/tour"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BACKGROUNDS } from "@/features/erd/lib/backgrounds"
-import type { BackgroundStyle } from "@/features/erd/lib/backgrounds"
-import { SCHEMA_GROUPINGS } from "@/features/erd/lib/canvas-preferences"
-import type { SchemaGrouping } from "@/features/erd/lib/canvas-preferences"
-import { CONNECTOR_ARROWS } from "@/features/erd/lib/connector-arrows"
-import type { ConnectorArrow } from "@/features/erd/lib/connector-arrows"
-import { EDGE_DASHES, EDGE_LINES } from "@/features/erd/lib/edge-lines"
-import type { EdgeDash, EdgeLine } from "@/features/erd/lib/edge-lines"
-import { useBackendStatus } from "@/features/schema/hooks/use-backend-status"
-import type { BackendState } from "@/features/schema/hooks/use-backend-status"
-import { setTheme, useTheme } from "@/lib/theme"
-import type { Theme } from "@/lib/theme"
-import {
-  SCREEN_POSITIONS,
-  setToastPosition,
-  useToastPosition,
-} from "@/lib/toast"
-import type { ScreenPosition } from "@/lib/toast"
+import { useTour } from "@/components/tour";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BACKGROUNDS } from "@/features/erd/lib/backgrounds";
+import type { BackgroundStyle } from "@/features/erd/lib/backgrounds";
+import { SCHEMA_GROUPINGS } from "@/features/erd/lib/canvas-preferences";
+import type { SchemaGrouping } from "@/features/erd/lib/canvas-preferences";
+import { CONNECTOR_ARROWS } from "@/features/erd/lib/connector-arrows";
+import type { ConnectorArrow } from "@/features/erd/lib/connector-arrows";
+import { EDGE_DASHES, EDGE_LINES } from "@/features/erd/lib/edge-lines";
+import type { EdgeDash, EdgeLine } from "@/features/erd/lib/edge-lines";
+import { useBackendStatus } from "@/features/schema/hooks/use-backend-status";
+import type { BackendState } from "@/features/schema/hooks/use-backend-status";
+import { setTheme, useTheme } from "@/lib/theme";
+import type { Theme } from "@/lib/theme";
+import { SCREEN_POSITIONS, setToastPosition, useToastPosition } from "@/lib/toast";
+import type { ScreenPosition } from "@/lib/toast";
 
-const ZOOM_DURATION = 150
-const FIT_DURATION = 300
+const ZOOM_DURATION = 150;
+const FIT_DURATION = 300;
 
 const TABS = [
-  { id: "appearance", label: "Appearance", icon: PaletteIcon },
-  { id: "canvas", label: "Canvas", icon: GridIcon },
-  { id: "interaction", label: "Interaction", icon: MousePointer2Icon },
-  { id: "backend", label: "Backend", icon: ServerIcon },
-] as const
+	{ id: "appearance", label: "Appearance", icon: PaletteIcon },
+	{ id: "canvas", label: "Canvas", icon: GridIcon },
+	{ id: "interaction", label: "Interaction", icon: MousePointer2Icon },
+	{ id: "backend", label: "Backend", icon: ServerIcon },
+] as const;
 
-type TabId = (typeof TABS)[number]["id"]
+type TabId = (typeof TABS)[number]["id"];
 
 // The preview has to show both themes at once, so it cannot read the tokens
 // the page is currently painted with. These mirror styles.css.
 const THEMES: {
-  value: Theme
-  label: string
-  icon: LucideIcon
-  page: string
-  card: string
-  border: string
-  text: string
-  accent: string
+	value: Theme;
+	label: string;
+	icon: LucideIcon;
+	page: string;
+	card: string;
+	border: string;
+	text: string;
+	accent: string;
 }[] = [
-  {
-    value: "light",
-    label: "Light",
-    icon: SunIcon,
-    page: "oklch(1 0 0)",
-    card: "oklch(0.985 0 0)",
-    border: "oklch(0.92 0.004 286.32)",
-    text: "oklch(0.552 0.016 285.938)",
-    accent: "oklch(0.60 0.13 163)",
-  },
-  {
-    value: "dark",
-    label: "Dark",
-    icon: MoonIcon,
-    page: "oklch(0.141 0.005 285.823)",
-    card: "oklch(0.21 0.006 285.885)",
-    border: "oklch(0.32 0.006 286)",
-    text: "oklch(0.705 0.015 286.067)",
-    accent: "oklch(0.70 0.15 162)",
-  },
-]
+	{
+		value: "light",
+		label: "Light",
+		icon: SunIcon,
+		page: "oklch(1 0 0)",
+		card: "oklch(0.985 0 0)",
+		border: "oklch(0.92 0.004 286.32)",
+		text: "oklch(0.552 0.016 285.938)",
+		accent: "oklch(0.60 0.13 163)",
+	},
+	{
+		value: "dark",
+		label: "Dark",
+		icon: MoonIcon,
+		page: "oklch(0.141 0.005 285.823)",
+		card: "oklch(0.21 0.006 285.885)",
+		border: "oklch(0.32 0.006 286)",
+		text: "oklch(0.705 0.015 286.067)",
+		accent: "oklch(0.70 0.15 162)",
+	},
+];
 
 export type CanvasSettingsProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  returnFocus?: boolean
-  showMiniMap: boolean
-  onShowMiniMapChange: (show: boolean) => void
-  showControls: boolean
-  onShowControlsChange: (show: boolean) => void
-  background: BackgroundStyle
-  onBackgroundChange: (background: BackgroundStyle) => void
-  schemaGrouping: SchemaGrouping
-  onSchemaGroupingChange: (grouping: SchemaGrouping) => void
-  snapToGrid: boolean
-  onSnapToGridChange: (snap: boolean) => void
-  autoSave: boolean
-  onAutoSaveChange: (autoSave: boolean) => void
-  autoValidate: boolean
-  onAutoValidateChange: (autoValidate: boolean) => void
-  connectorArrow: ConnectorArrow
-  onConnectorArrowChange: (arrow: ConnectorArrow) => void
-  edgeLine: EdgeLine
-  onEdgeLineChange: (line: EdgeLine) => void
-  edgeDash: EdgeDash
-  onEdgeDashChange: (dash: EdgeDash) => void
-  edgeLabels: boolean
-  onEdgeLabelsChange: (show: boolean) => void
-}
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	returnFocus?: boolean;
+	showMiniMap: boolean;
+	onShowMiniMapChange: (show: boolean) => void;
+	showControls: boolean;
+	onShowControlsChange: (show: boolean) => void;
+	background: BackgroundStyle;
+	onBackgroundChange: (background: BackgroundStyle) => void;
+	schemaGrouping: SchemaGrouping;
+	onSchemaGroupingChange: (grouping: SchemaGrouping) => void;
+	snapToGrid: boolean;
+	onSnapToGridChange: (snap: boolean) => void;
+	autoSave: boolean;
+	onAutoSaveChange: (autoSave: boolean) => void;
+	autoValidate: boolean;
+	onAutoValidateChange: (autoValidate: boolean) => void;
+	connectorArrow: ConnectorArrow;
+	onConnectorArrowChange: (arrow: ConnectorArrow) => void;
+	edgeLine: EdgeLine;
+	onEdgeLineChange: (line: EdgeLine) => void;
+	edgeDash: EdgeDash;
+	onEdgeDashChange: (dash: EdgeDash) => void;
+	edgeLabels: boolean;
+	onEdgeLabelsChange: (show: boolean) => void;
+};
 
 // Mirrors what React Flow's own Background draws, so the swatch is the
 // pattern rather than a drawing of it.
 const PATTERNS: Record<BackgroundVariant, React.ReactNode> = {
-  [BackgroundVariant.Dots]: (
-    <circle cx={1} cy={1} r={0.9} fill="currentColor" />
-  ),
-  [BackgroundVariant.Lines]: (
-    <path d="M8 0 V8 M0 8 H8" stroke="currentColor" strokeWidth={0.7} />
-  ),
-  [BackgroundVariant.Cross]: (
-    <path d="M4 2.6 v2.8 M2.6 4 h2.8" stroke="currentColor" strokeWidth={0.7} />
-  ),
-}
+	[BackgroundVariant.Dots]: <circle cx={1} cy={1} r={0.9} fill="currentColor" />,
+	[BackgroundVariant.Lines]: <path d="M8 0 V8 M0 8 H8" stroke="currentColor" strokeWidth={0.7} />,
+	[BackgroundVariant.Cross]: (
+		<path d="M4 2.6 v2.8 M2.6 4 h2.8" stroke="currentColor" strokeWidth={0.7} />
+	),
+};
 
 function BackgroundPreview({ variant }: { variant: BackgroundStyle }) {
-  const patternId = `background-pattern-${variant}`
+	const patternId = `background-pattern-${variant}`;
 
-  return (
-    <svg
-      aria-hidden
-      className="h-[72px] w-full rounded-md border border-border bg-background text-muted-foreground"
-    >
-      {variant !== "none" && (
-        <>
-          <pattern
-            id={patternId}
-            width={8}
-            height={8}
-            patternUnits="userSpaceOnUse"
-          >
-            {PATTERNS[variant]}
-          </pattern>
-          <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-        </>
-      )}
-    </svg>
-  )
+	return (
+		<svg
+			aria-hidden
+			className="h-[72px] w-full rounded-md border border-border bg-background text-muted-foreground"
+		>
+			{variant !== "none" && (
+				<>
+					<pattern id={patternId} width={8} height={8} patternUnits="userSpaceOnUse">
+						{PATTERNS[variant]}
+					</pattern>
+					<rect width="100%" height="100%" fill={`url(#${patternId})`} />
+				</>
+			)}
+		</svg>
+	);
 }
 
 function ThemePreview({ theme }: { theme: (typeof THEMES)[number] }) {
-  return (
-    <span
-      className="flex h-[72px] items-center justify-center rounded-md border"
-      style={{
-        backgroundColor: theme.page,
-        backgroundImage: `radial-gradient(color-mix(in oklch, ${theme.text} 40%, transparent) 0.5px, transparent 0.5px)`,
-        backgroundSize: "6px 6px",
-        borderColor: theme.border,
-      }}
-    >
-      <MiniTable theme={theme} />
-      <span
-        className="h-px w-4 shrink-0"
-        style={{ background: theme.accent }}
-        aria-hidden
-      />
-      <MiniTable theme={theme} />
-    </span>
-  )
+	return (
+		<span
+			className="flex h-[72px] items-center justify-center rounded-md border"
+			style={{
+				backgroundColor: theme.page,
+				backgroundImage: `radial-gradient(color-mix(in oklch, ${theme.text} 40%, transparent) 0.5px, transparent 0.5px)`,
+				backgroundSize: "6px 6px",
+				borderColor: theme.border,
+			}}
+		>
+			<MiniTable theme={theme} />
+			<span className="h-px w-4 shrink-0" style={{ background: theme.accent }} aria-hidden />
+			<MiniTable theme={theme} />
+		</span>
+	);
 }
 
 function MiniTable({ theme }: { theme: (typeof THEMES)[number] }) {
-  return (
-    <span
-      className="flex w-11 shrink-0 flex-col gap-[3px] rounded-sm border p-[5px]"
-      style={{ background: theme.card, borderColor: theme.border }}
-    >
-      <span
-        className="h-[3px] rounded-full"
-        style={{ background: theme.accent }}
-      />
-      {[1, 0.75, 0.55].map((width) => (
-        <span
-          key={width}
-          className="h-[3px] rounded-full opacity-50"
-          style={{ background: theme.text, width: `${width * 100}%` }}
-        />
-      ))}
-    </span>
-  )
+	return (
+		<span
+			className="flex w-11 shrink-0 flex-col gap-[3px] rounded-sm border p-[5px]"
+			style={{ background: theme.card, borderColor: theme.border }}
+		>
+			<span className="h-[3px] rounded-full" style={{ background: theme.accent }} />
+			{[1, 0.75, 0.55].map((width) => (
+				<span
+					key={width}
+					className="h-[3px] rounded-full opacity-50"
+					style={{ background: theme.text, width: `${width * 100}%` }}
+				/>
+			))}
+		</span>
+	);
 }
 
 function Row({
-  htmlFor,
-  label,
-  hint,
-  stacked,
-  children,
+	htmlFor,
+	label,
+	hint,
+	stacked,
+	children,
 }: {
-  htmlFor?: string
-  label: string
-  hint: string
-  stacked?: boolean
-  children: React.ReactNode
+	htmlFor?: string;
+	label: string;
+	hint: string;
+	stacked?: boolean;
+	children: React.ReactNode;
 }) {
-  const text = (
-    <span className="flex flex-col gap-0.5">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <span className="text-xs font-normal text-muted-foreground">{hint}</span>
-    </span>
-  )
+	const text = (
+		<span className="flex flex-col gap-0.5">
+			<span className="text-sm font-medium text-foreground">{label}</span>
+			<span className="text-xs font-normal text-muted-foreground">{hint}</span>
+		</span>
+	);
 
-  return (
-    <div
-      className={cn(
-        "flex py-3.5",
-        stacked ? "flex-col gap-3" : "items-center justify-between gap-6"
-      )}
-    >
-      {htmlFor ? (
-        <Label htmlFor={htmlFor} className="cursor-pointer">
-          {text}
-        </Label>
-      ) : (
-        text
-      )}
-      <div
-        className={cn(
-          "flex items-center gap-2",
-          stacked ? "w-full" : "shrink-0"
-        )}
-      >
-        {children}
-      </div>
-    </div>
-  )
+	return (
+		<div
+			className={cn(
+				"flex py-3.5",
+				stacked ? "flex-col gap-3" : "items-center justify-between gap-6",
+			)}
+		>
+			{htmlFor ? (
+				<Label htmlFor={htmlFor} className="cursor-pointer">
+					{text}
+				</Label>
+			) : (
+				text
+			)}
+			<div className={cn("flex items-center gap-2", stacked ? "w-full" : "shrink-0")}>
+				{children}
+			</div>
+		</div>
+	);
 }
 
 function SchemaGroupingRow({
-  value,
-  onValueChange,
+	value,
+	onValueChange,
 }: {
-  value: SchemaGrouping
-  onValueChange: (grouping: SchemaGrouping) => void
+	value: SchemaGrouping;
+	onValueChange: (grouping: SchemaGrouping) => void;
 }) {
-  return (
-    <Row
-      stacked
-      label="Schemas"
-      hint="Where the tables are gathered by the schema they belong to"
-    >
-      <RadioGroup
-        aria-label="Schemas"
-        value={value}
-        onValueChange={(next) => onValueChange(next as SchemaGrouping)}
-        className="grid-cols-2"
-      >
-        {SCHEMA_GROUPINGS.map((item) => (
-          <Label
-            key={item.id}
-            htmlFor={`schema-grouping-${item.id}`}
-            className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-          >
-            <SchemaGroupingPreview grouping={item.id} />
-            <span className="flex items-center gap-2 px-0.5">
-              <RadioGroupItem
-                id={`schema-grouping-${item.id}`}
-                value={item.id}
-              />
-              {item.label}
-            </span>
-          </Label>
-        ))}
-      </RadioGroup>
-    </Row>
-  )
+	return (
+		<Row stacked label="Schemas" hint="Where the tables are gathered by the schema they belong to">
+			<RadioGroup
+				aria-label="Schemas"
+				value={value}
+				onValueChange={(next) => onValueChange(next as SchemaGrouping)}
+				className="grid-cols-2"
+			>
+				{SCHEMA_GROUPINGS.map((item) => (
+					<Label
+						key={item.id}
+						htmlFor={`schema-grouping-${item.id}`}
+						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
+					>
+						<SchemaGroupingPreview grouping={item.id} />
+						<span className="flex items-center gap-2 px-0.5">
+							<RadioGroupItem id={`schema-grouping-${item.id}`} value={item.id} />
+							{item.label}
+						</span>
+					</Label>
+				))}
+			</RadioGroup>
+		</Row>
+	);
 }
 
 function SchemaGroupingPreview({ grouping }: { grouping: SchemaGrouping }) {
-  const table = (x: number, y: number) => (
-    <rect
-      x={x}
-      y={y}
-      width="17"
-      height="14"
-      rx="2"
-      fill="var(--card)"
-      stroke="var(--muted-foreground)"
-      strokeWidth="0.8"
-    />
-  )
+	const table = (x: number, y: number) => (
+		<rect
+			x={x}
+			y={y}
+			width="17"
+			height="14"
+			rx="2"
+			fill="var(--card)"
+			stroke="var(--muted-foreground)"
+			strokeWidth="0.8"
+		/>
+	);
 
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 64 44"
-      className="h-[52px] w-full rounded-md border border-border bg-background"
-    >
-      {grouping === "boxes" ? (
-        <>
-          <rect
-            x="6"
-            y="10"
-            width="52"
-            height="27"
-            rx="3"
-            fill="none"
-            stroke="var(--primary)"
-            strokeWidth="1"
-            strokeDasharray="3 2"
-          />
-          <rect
-            x="6"
-            y="5"
-            width="18"
-            height="6"
-            rx="2"
-            fill="var(--primary)"
-          />
-          {table(12, 17)}
-          {table(35, 17)}
-        </>
-      ) : (
-        <>
-          <rect
-            x="0"
-            y="0"
-            width="19"
-            height="44"
-            fill="var(--primary)"
-            opacity="0.15"
-          />
-          {[8, 15, 22, 29].map((y) => (
-            <rect
-              key={y}
-              x="4"
-              y={y}
-              width="11"
-              height="3"
-              rx="1.5"
-              fill="var(--primary)"
-            />
-          ))}
-          {table(26, 8)}
-          {table(40, 24)}
-        </>
-      )}
-    </svg>
-  )
+	return (
+		<svg
+			aria-hidden
+			viewBox="0 0 64 44"
+			className="h-[52px] w-full rounded-md border border-border bg-background"
+		>
+			{grouping === "boxes" ? (
+				<>
+					<rect
+						x="6"
+						y="10"
+						width="52"
+						height="27"
+						rx="3"
+						fill="none"
+						stroke="var(--primary)"
+						strokeWidth="1"
+						strokeDasharray="3 2"
+					/>
+					<rect x="6" y="5" width="18" height="6" rx="2" fill="var(--primary)" />
+					{table(12, 17)}
+					{table(35, 17)}
+				</>
+			) : (
+				<>
+					<rect x="0" y="0" width="19" height="44" fill="var(--primary)" opacity="0.15" />
+					{[8, 15, 22, 29].map((y) => (
+						<rect key={y} x="4" y={y} width="11" height="3" rx="1.5" fill="var(--primary)" />
+					))}
+					{table(26, 8)}
+					{table(40, 24)}
+				</>
+			)}
+		</svg>
+	);
 }
 
 function SwitchRow({
-  id,
-  label,
-  hint,
-  checked,
-  onCheckedChange,
+	id,
+	label,
+	hint,
+	checked,
+	onCheckedChange,
 }: {
-  id: string
-  label: string
-  hint: string
-  checked: boolean
-  onCheckedChange: (checked: boolean) => void
+	id: string;
+	label: string;
+	hint: string;
+	checked: boolean;
+	onCheckedChange: (checked: boolean) => void;
 }) {
-  return (
-    <Row htmlFor={id} label={label} hint={hint}>
-      {/* The id lands on Base UI's hidden input, which is what makes the
+	return (
+		<Row htmlFor={id} label={label} hint={hint}>
+			{/* The id lands on Base UI's hidden input, which is what makes the
           label clickable. The visible control needs its own name. */}
-      <Switch
-        id={id}
-        aria-label={label}
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-      />
-    </Row>
-  )
+			<Switch id={id} aria-label={label} checked={checked} onCheckedChange={onCheckedChange} />
+		</Row>
+	);
 }
 
 const POSITION_LABELS: Record<ScreenPosition, string> = {
-  "top-left": "Top left",
-  "top-center": "Top centre",
-  "top-right": "Top right",
-  "bottom-left": "Bottom left",
-  "bottom-center": "Bottom centre",
-  "bottom-right": "Bottom right",
-}
+	"top-left": "Top left",
+	"top-center": "Top centre",
+	"top-right": "Top right",
+	"bottom-left": "Bottom left",
+	"bottom-center": "Bottom centre",
+	"bottom-right": "Bottom right",
+};
 
 /**
  * A small canvas with the six placements marked on it. Picking one is pointing
  * at the spot rather than matching a name to a corner in your head.
  */
 function ToastPositionRow({
-  value,
-  onValueChange,
+	value,
+	onValueChange,
 }: {
-  value: ScreenPosition
-  onValueChange: (position: ScreenPosition) => void
+	value: ScreenPosition;
+	onValueChange: (position: ScreenPosition) => void;
 }) {
-  return (
-    <Row label="Notifications" hint="Where saving and validation report back">
-      <div className="flex flex-col items-end gap-1.5">
-        <RadioGroup
-          aria-label="Notifications"
-          value={value}
-          onValueChange={(next) => onValueChange(next as ScreenPosition)}
-          className="grid w-44 grid-cols-3 grid-rows-2 gap-1 rounded-md border border-border bg-background bg-[radial-gradient(var(--border)_0.5px,transparent_0.5px)] bg-[length:6px_6px] p-1.5"
-        >
-          {SCREEN_POSITIONS.map((position) => (
-            <Label
-              key={position}
-              htmlFor={`setting-toast-${position}`}
-              title={POSITION_LABELS[position]}
-              className="flex h-8 cursor-pointer items-center justify-center rounded-sm text-muted-foreground/30 transition hover:bg-muted hover:text-muted-foreground/70 has-focus-visible:ring-2 has-focus-visible:ring-ring has-data-checked:bg-primary/10 has-data-checked:text-primary"
-            >
-              {/* The cell is the target, so the control itself only has to
+	return (
+		<Row label="Notifications" hint="Where saving and validation report back">
+			<div className="flex flex-col items-end gap-1.5">
+				<RadioGroup
+					aria-label="Notifications"
+					value={value}
+					onValueChange={(next) => onValueChange(next as ScreenPosition)}
+					className="grid w-44 grid-cols-3 grid-rows-2 gap-1 rounded-md border border-border bg-background bg-[radial-gradient(var(--border)_0.5px,transparent_0.5px)] bg-[length:6px_6px] p-1.5"
+				>
+					{SCREEN_POSITIONS.map((position) => (
+						<Label
+							key={position}
+							htmlFor={`setting-toast-${position}`}
+							title={POSITION_LABELS[position]}
+							className="flex h-8 cursor-pointer items-center justify-center rounded-sm text-muted-foreground/30 transition hover:bg-muted hover:text-muted-foreground/70 has-focus-visible:ring-2 has-focus-visible:ring-ring has-data-checked:bg-primary/10 has-data-checked:text-primary"
+						>
+							{/* The cell is the target, so the control itself only has to
                   stay reachable by keyboard. */}
-              <RadioGroupItem
-                id={`setting-toast-${position}`}
-                value={position}
-                aria-label={POSITION_LABELS[position]}
-                className="sr-only"
-              />
-              <span
-                aria-hidden
-                className="block h-2.5 w-6 rounded-full bg-current"
-              />
-            </Label>
-          ))}
-        </RadioGroup>
-        <span className="text-xs text-muted-foreground">
-          {POSITION_LABELS[value]}
-        </span>
-      </div>
-    </Row>
-  )
+							<RadioGroupItem
+								id={`setting-toast-${position}`}
+								value={position}
+								aria-label={POSITION_LABELS[position]}
+								className="sr-only"
+							/>
+							<span aria-hidden className="block h-2.5 w-6 rounded-full bg-current" />
+						</Label>
+					))}
+				</RadioGroup>
+				<span className="text-xs text-muted-foreground">{POSITION_LABELS[value]}</span>
+			</div>
+		</Row>
+	);
 }
 
 /**
@@ -455,182 +386,154 @@ function ToastPositionRow({
  * with the pair of arrows drawn where they sit on a real one.
  */
 function ConnectorArrowRow({
-  value,
-  onValueChange,
+	value,
+	onValueChange,
 }: {
-  value: ConnectorArrow
-  onValueChange: (arrow: ConnectorArrow) => void
+	value: ConnectorArrow;
+	onValueChange: (arrow: ConnectorArrow) => void;
 }) {
-  return (
-    <Row
-      stacked
-      label="Connector arrows"
-      hint="Appear on a column you hover, to drag a relationship from"
-    >
-      <RadioGroup
-        aria-label="Connector arrows"
-        value={value}
-        onValueChange={(next) => onValueChange(next as ConnectorArrow)}
-        className="grid-cols-3"
-      >
-        {CONNECTOR_ARROWS.map((arrow) => (
-          <Label
-            key={arrow.id}
-            htmlFor={`connector-${arrow.id}`}
-            className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-          >
-            <span className="flex h-[52px] items-center justify-center gap-1 rounded-md border border-border bg-background text-primary">
-              <arrow.left
-                className="size-3.5"
-                fill={arrow.filled ? "currentColor" : "none"}
-              />
-              <span
-                aria-hidden
-                className="h-6 w-10 rounded-xs border border-border bg-card"
-              />
-              <arrow.right
-                className="size-3.5"
-                fill={arrow.filled ? "currentColor" : "none"}
-              />
-            </span>
-            <span className="flex items-center gap-2 px-0.5">
-              <RadioGroupItem id={`connector-${arrow.id}`} value={arrow.id} />
-              {arrow.label}
-            </span>
-          </Label>
-        ))}
-      </RadioGroup>
-    </Row>
-  )
+	return (
+		<Row
+			stacked
+			label="Connector arrows"
+			hint="Appear on a column you hover, to drag a relationship from"
+		>
+			<RadioGroup
+				aria-label="Connector arrows"
+				value={value}
+				onValueChange={(next) => onValueChange(next as ConnectorArrow)}
+				className="grid-cols-3"
+			>
+				{CONNECTOR_ARROWS.map((arrow) => (
+					<Label
+						key={arrow.id}
+						htmlFor={`connector-${arrow.id}`}
+						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
+					>
+						<span className="flex h-[52px] items-center justify-center gap-1 rounded-md border border-border bg-background text-primary">
+							<arrow.left className="size-3.5" fill={arrow.filled ? "currentColor" : "none"} />
+							<span aria-hidden className="h-6 w-10 rounded-xs border border-border bg-card" />
+							<arrow.right className="size-3.5" fill={arrow.filled ? "currentColor" : "none"} />
+						</span>
+						<span className="flex items-center gap-2 px-0.5">
+							<RadioGroupItem id={`connector-${arrow.id}`} value={arrow.id} />
+							{arrow.label}
+						</span>
+					</Label>
+				))}
+			</RadioGroup>
+		</Row>
+	);
 }
 
 function EdgeLineRow({
-  value,
-  onValueChange,
+	value,
+	onValueChange,
 }: {
-  value: EdgeLine
-  onValueChange: (line: EdgeLine) => void
+	value: EdgeLine;
+	onValueChange: (line: EdgeLine) => void;
 }) {
-  return (
-    <Row
-      stacked
-      label="Relationship lines"
-      hint="How a line gets from one table to the other"
-    >
-      <RadioGroup
-        aria-label="Relationship lines"
-        value={value}
-        onValueChange={(next) => onValueChange(next as EdgeLine)}
-        className="grid-cols-2"
-      >
-        {EDGE_LINES.map((line) => (
-          <Label
-            key={line.id}
-            htmlFor={`edge-line-${line.id}`}
-            className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-          >
-            <svg
-              aria-hidden
-              viewBox="0 0 64 44"
-              className="h-[52px] w-full rounded-md border border-border bg-background"
-            >
-              <path
-                d={line.preview}
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth={1.5}
-              />
-            </svg>
-            <span className="flex items-center gap-2 px-0.5">
-              <RadioGroupItem id={`edge-line-${line.id}`} value={line.id} />
-              {line.label}
-            </span>
-          </Label>
-        ))}
-      </RadioGroup>
-    </Row>
-  )
+	return (
+		<Row stacked label="Relationship lines" hint="How a line gets from one table to the other">
+			<RadioGroup
+				aria-label="Relationship lines"
+				value={value}
+				onValueChange={(next) => onValueChange(next as EdgeLine)}
+				className="grid-cols-2"
+			>
+				{EDGE_LINES.map((line) => (
+					<Label
+						key={line.id}
+						htmlFor={`edge-line-${line.id}`}
+						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
+					>
+						<svg
+							aria-hidden
+							viewBox="0 0 64 44"
+							className="h-[52px] w-full rounded-md border border-border bg-background"
+						>
+							<path d={line.preview} fill="none" stroke="var(--primary)" strokeWidth={1.5} />
+						</svg>
+						<span className="flex items-center gap-2 px-0.5">
+							<RadioGroupItem id={`edge-line-${line.id}`} value={line.id} />
+							{line.label}
+						</span>
+					</Label>
+				))}
+			</RadioGroup>
+		</Row>
+	);
 }
 
 function EdgeDashRow({
-  value,
-  onValueChange,
+	value,
+	onValueChange,
 }: {
-  value: EdgeDash
-  onValueChange: (dash: EdgeDash) => void
+	value: EdgeDash;
+	onValueChange: (dash: EdgeDash) => void;
 }) {
-  return (
-    <Row stacked label="Line style" hint="Solid, or broken up along its length">
-      <RadioGroup
-        aria-label="Line style"
-        value={value}
-        onValueChange={(next) => onValueChange(next as EdgeDash)}
-        className="grid-cols-2"
-      >
-        {EDGE_DASHES.map((item) => (
-          <Label
-            key={item.id}
-            htmlFor={`edge-dash-${item.id}`}
-            className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-          >
-            <svg
-              aria-hidden
-              viewBox="0 0 64 20"
-              className="h-8 w-full rounded-md border border-border bg-background"
-            >
-              <path
-                d="M4 10 H60"
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth={1.5}
-                strokeDasharray={item.dash}
-              />
-            </svg>
-            <span className="flex items-center gap-2 px-0.5">
-              <RadioGroupItem id={`edge-dash-${item.id}`} value={item.id} />
-              {item.label}
-            </span>
-          </Label>
-        ))}
-      </RadioGroup>
-    </Row>
-  )
+	return (
+		<Row stacked label="Line style" hint="Solid, or broken up along its length">
+			<RadioGroup
+				aria-label="Line style"
+				value={value}
+				onValueChange={(next) => onValueChange(next as EdgeDash)}
+				className="grid-cols-2"
+			>
+				{EDGE_DASHES.map((item) => (
+					<Label
+						key={item.id}
+						htmlFor={`edge-dash-${item.id}`}
+						className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
+					>
+						<svg
+							aria-hidden
+							viewBox="0 0 64 20"
+							className="h-8 w-full rounded-md border border-border bg-background"
+						>
+							<path
+								d="M4 10 H60"
+								fill="none"
+								stroke="var(--primary)"
+								strokeWidth={1.5}
+								strokeDasharray={item.dash}
+							/>
+						</svg>
+						<span className="flex items-center gap-2 px-0.5">
+							<RadioGroupItem id={`edge-dash-${item.id}`} value={item.id} />
+							{item.label}
+						</span>
+					</Label>
+				))}
+			</RadioGroup>
+		</Row>
+	);
 }
 
 const CONNECTION: Record<BackendState, { label: string; dot: string }> = {
-  checking: { label: "Checking", dot: "animate-pulse bg-muted-foreground" },
-  online: { label: "Connected", dot: "bg-primary" },
-  unauthorised: { label: "Refused sign-in", dot: "bg-warning" },
-  offline: { label: "No answer", dot: "bg-destructive" },
-}
+	checking: { label: "Checking", dot: "animate-pulse bg-muted-foreground" },
+	online: { label: "Connected", dot: "bg-primary" },
+	unauthorised: { label: "Refused sign-in", dot: "bg-warning" },
+	offline: { label: "No answer", dot: "bg-destructive" },
+};
 
 function ConnectionRow() {
-  const { status, check } = useBackendStatus()
-  const view = CONNECTION[status.state]
+	const { status, check } = useBackendStatus();
+	const view = CONNECTION[status.state];
 
-  return (
-    <Row
-      label="Connection"
-      hint={status.detail || "The backend behind saving and validation"}
-    >
-      <span className="flex items-center gap-2 text-sm">
-        <span className={cn("size-2 rounded-full", view.dot)} aria-hidden />
-        {view.label}
-        {status.version && (
-          <span className="text-muted-foreground">v{status.version}</span>
-        )}
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={status.state === "checking"}
-        onClick={check}
-      >
-        <RefreshCwIcon />
-        Check
-      </Button>
-    </Row>
-  )
+	return (
+		<Row label="Connection" hint={status.detail || "The backend behind saving and validation"}>
+			<span className="flex items-center gap-2 text-sm">
+				<span className={cn("size-2 rounded-full", view.dot)} aria-hidden />
+				{view.label}
+				{status.version && <span className="text-muted-foreground">v{status.version}</span>}
+			</span>
+			<Button variant="outline" size="sm" disabled={status.state === "checking"} onClick={check}>
+				<RefreshCwIcon />
+				Check
+			</Button>
+		</Row>
+	);
 }
 
 /**
@@ -638,313 +541,286 @@ function ConnectionRow() {
  * first. The wait covers its closing animation.
  */
 function TourRow({ onClose }: { onClose: () => void }) {
-  const { start } = useTour()
+	const { start } = useTour();
 
-  return (
-    <Row label="Guided tour" hint="Walk round the canvas and the table list">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          onClose()
-          window.setTimeout(start, 250)
-        }}
-      >
-        <RouteIcon />
-        Start tour
-      </Button>
-    </Row>
-  )
+	return (
+		<Row label="Guided tour" hint="Walk round the canvas and the table list">
+			<Button
+				variant="outline"
+				size="sm"
+				onClick={() => {
+					onClose();
+					window.setTimeout(start, 250);
+				}}
+			>
+				<RouteIcon />
+				Start tour
+			</Button>
+		</Row>
+	);
 }
 
 export const CanvasSettings = memo(function CanvasSettings({
-  open,
-  onOpenChange,
-  returnFocus = true,
-  showMiniMap,
-  onShowMiniMapChange,
-  showControls,
-  onShowControlsChange,
-  background,
-  onBackgroundChange,
-  schemaGrouping,
-  onSchemaGroupingChange,
-  snapToGrid,
-  onSnapToGridChange,
-  autoSave,
-  onAutoSaveChange,
-  autoValidate,
-  onAutoValidateChange,
-  connectorArrow,
-  onConnectorArrowChange,
-  edgeLine,
-  onEdgeLineChange,
-  edgeDash,
-  onEdgeDashChange,
-  edgeLabels,
-  onEdgeLabelsChange,
+	open,
+	onOpenChange,
+	returnFocus = true,
+	showMiniMap,
+	onShowMiniMapChange,
+	showControls,
+	onShowControlsChange,
+	background,
+	onBackgroundChange,
+	schemaGrouping,
+	onSchemaGroupingChange,
+	snapToGrid,
+	onSnapToGridChange,
+	autoSave,
+	onAutoSaveChange,
+	autoValidate,
+	onAutoValidateChange,
+	connectorArrow,
+	onConnectorArrowChange,
+	edgeLine,
+	onEdgeLineChange,
+	edgeDash,
+	onEdgeDashChange,
+	edgeLabels,
+	onEdgeLabelsChange,
 }: CanvasSettingsProps) {
-  const { zoomIn, zoomOut, zoomTo, fitView } = useReactFlow()
-  const store = useStoreApi()
-  const theme = useTheme()
-  const toastPosition = useToastPosition()
-  const [tab, setTab] = useState<TabId>("appearance")
+	const { zoomIn, zoomOut, zoomTo, fitView } = useReactFlow();
+	const store = useStoreApi();
+	const theme = useTheme();
+	const toastPosition = useToastPosition();
+	const [tab, setTab] = useState<TabId>("appearance");
 
-  const zoom = useStore((state) => state.transform[2])
-  const minZoom = useStore((state) => state.minZoom)
-  const maxZoom = useStore((state) => state.maxZoom)
-  // React Flow has no single locked flag. The three permissions always move
-  // together here, so any one of them answers for the group.
-  const locked = useStore((state) => !state.nodesDraggable)
+	const zoom = useStore((state) => state.transform[2]);
+	const minZoom = useStore((state) => state.minZoom);
+	const maxZoom = useStore((state) => state.maxZoom);
+	// React Flow has no single locked flag. The three permissions always move
+	// together here, so any one of them answers for the group.
+	const locked = useStore((state) => !state.nodesDraggable);
 
-  const setLocked = (next: boolean) => {
-    store.setState({
-      nodesDraggable: !next,
-      nodesConnectable: !next,
-      elementsSelectable: !next,
-    })
-  }
+	const setLocked = (next: boolean) => {
+		store.setState({
+			nodesDraggable: !next,
+			nodesConnectable: !next,
+			elementsSelectable: !next,
+		});
+	};
 
-  const percent = Math.round(zoom * 100)
-  const activeTab = TABS.find((item) => item.id === tab)!
+	const percent = Math.round(zoom * 100);
+	const activeTab = TABS.find((item) => item.id === tab)!;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* The row has to be capped, or it grows past the dialog and the h-full
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			{/* The row has to be capped, or it grows past the dialog and the h-full
           inside it measures against the overflow rather than the dialog. */}
-      <DialogContent
-        finalFocus={returnFocus}
-        className="h-[600px] max-h-[85vh] grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-3xl"
-      >
-        <Tabs
-          orientation="vertical"
-          value={tab}
-          onValueChange={(value) => setTab(value as TabId)}
-          className="h-full gap-0"
-        >
-          <div className="flex w-52 shrink-0 flex-col border-r border-border bg-muted/40 p-3">
-            <span className="px-2.5 pt-1 pb-2 text-xs font-medium text-muted-foreground">
-              Settings
-            </span>
-            <TabsList className="w-full items-stretch gap-0.5 rounded-none bg-transparent p-0">
-              {TABS.map((item) => (
-                <TabsTrigger
-                  key={item.id}
-                  value={item.id}
-                  className="h-auto flex-none gap-2.5 px-2.5 py-2 font-normal data-active:font-medium"
-                >
-                  <item.icon />
-                  {item.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
+			<DialogContent
+				finalFocus={returnFocus}
+				className="h-[600px] max-h-[85vh] grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-3xl"
+			>
+				<Tabs
+					orientation="vertical"
+					value={tab}
+					onValueChange={(value) => setTab(value as TabId)}
+					className="h-full gap-0"
+				>
+					<div className="flex w-52 shrink-0 flex-col border-r border-border bg-muted/40 p-3">
+						<span className="px-2.5 pt-1 pb-2 text-xs font-medium text-muted-foreground">
+							Settings
+						</span>
+						<TabsList className="w-full items-stretch gap-0.5 rounded-none bg-transparent p-0">
+							{TABS.map((item) => (
+								<TabsTrigger
+									key={item.id}
+									value={item.id}
+									className="h-auto flex-none gap-2.5 px-2.5 py-2 font-normal data-active:font-medium"
+								>
+									<item.icon />
+									{item.label}
+								</TabsTrigger>
+							))}
+						</TabsList>
+					</div>
 
-          {/* min-h-0 stops the flex item from growing to fit its content,
+					{/* min-h-0 stops the flex item from growing to fit its content,
               which is what lets it scroll instead. */}
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="px-6 py-5">
-              <DialogTitle className="pr-10 pb-1 text-base">
-                {activeTab.label}
-              </DialogTitle>
+					<ScrollArea className="min-h-0 flex-1">
+						<div className="px-6 py-5">
+							<DialogTitle className="pr-10 pb-1 text-base">{activeTab.label}</DialogTitle>
 
-              <TabsContent value="appearance">
-                <div className="flex flex-col">
-                  <Row stacked label="Theme" hint="Applies across the app">
-                    <RadioGroup
-                      value={theme}
-                      onValueChange={(value) => setTheme(value as Theme)}
-                      className="grid-cols-2"
-                    >
-                      {THEMES.map((item) => (
-                        <Label
-                          key={item.value}
-                          htmlFor={`theme-${item.value}`}
-                          className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-                        >
-                          <ThemePreview theme={item} />
-                          <span className="flex items-center gap-2 px-0.5">
-                            <RadioGroupItem
-                              id={`theme-${item.value}`}
-                              value={item.value}
-                            />
-                            <item.icon className="size-3.5 text-muted-foreground" />
-                            {item.label}
-                          </span>
-                        </Label>
-                      ))}
-                    </RadioGroup>
-                  </Row>
-                  <Row
-                    stacked
-                    label="Background"
-                    hint="Pattern behind the tables"
-                  >
-                    <RadioGroup
-                      value={background}
-                      onValueChange={(value) =>
-                        onBackgroundChange(value as BackgroundStyle)
-                      }
-                      className="grid-cols-2"
-                    >
-                      {BACKGROUNDS.map((item) => (
-                        <Label
-                          key={item.id}
-                          htmlFor={`background-${item.id}`}
-                          className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
-                        >
-                          <BackgroundPreview variant={item.id} />
-                          <span className="flex items-center gap-2 px-0.5">
-                            <RadioGroupItem
-                              id={`background-${item.id}`}
-                              value={item.id}
-                            />
-                            {item.label}
-                          </span>
-                        </Label>
-                      ))}
-                    </RadioGroup>
-                  </Row>
-                  <EdgeLineRow
-                    value={edgeLine}
-                    onValueChange={onEdgeLineChange}
-                  />
-                  <EdgeDashRow
-                    value={edgeDash}
-                    onValueChange={onEdgeDashChange}
-                  />
-                  <SwitchRow
-                    id="setting-edge-labels"
-                    label="Relationship labels"
-                    hint="The 1:N badge on the line, which a line you click shows anyway"
-                    checked={edgeLabels}
-                    onCheckedChange={onEdgeLabelsChange}
-                  />
-                </div>
-              </TabsContent>
+							<TabsContent value="appearance">
+								<div className="flex flex-col">
+									<Row stacked label="Theme" hint="Applies across the app">
+										<RadioGroup
+											value={theme}
+											onValueChange={(value) => setTheme(value as Theme)}
+											className="grid-cols-2"
+										>
+											{THEMES.map((item) => (
+												<Label
+													key={item.value}
+													htmlFor={`theme-${item.value}`}
+													className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
+												>
+													<ThemePreview theme={item} />
+													<span className="flex items-center gap-2 px-0.5">
+														<RadioGroupItem id={`theme-${item.value}`} value={item.value} />
+														<item.icon className="size-3.5 text-muted-foreground" />
+														{item.label}
+													</span>
+												</Label>
+											))}
+										</RadioGroup>
+									</Row>
+									<Row stacked label="Background" hint="Pattern behind the tables">
+										<RadioGroup
+											value={background}
+											onValueChange={(value) => onBackgroundChange(value as BackgroundStyle)}
+											className="grid-cols-2"
+										>
+											{BACKGROUNDS.map((item) => (
+												<Label
+													key={item.id}
+													htmlFor={`background-${item.id}`}
+													className="flex cursor-pointer flex-col items-stretch gap-2 rounded-lg border border-border p-2 transition hover:bg-muted/50 has-data-checked:border-primary has-data-checked:ring-1 has-data-checked:ring-primary"
+												>
+													<BackgroundPreview variant={item.id} />
+													<span className="flex items-center gap-2 px-0.5">
+														<RadioGroupItem id={`background-${item.id}`} value={item.id} />
+														{item.label}
+													</span>
+												</Label>
+											))}
+										</RadioGroup>
+									</Row>
+									<EdgeLineRow value={edgeLine} onValueChange={onEdgeLineChange} />
+									<EdgeDashRow value={edgeDash} onValueChange={onEdgeDashChange} />
+									<SwitchRow
+										id="setting-edge-labels"
+										label="Relationship labels"
+										hint="The 1:N badge on the line, which a line you click shows anyway"
+										checked={edgeLabels}
+										onCheckedChange={onEdgeLabelsChange}
+									/>
+								</div>
+							</TabsContent>
 
-              <TabsContent value="canvas">
-                <div className="flex flex-col">
-                  <Row label="Zoom" hint="Drag or step through the range">
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      aria-label="Zoom out"
-                      disabled={zoom <= minZoom}
-                      onClick={() => void zoomOut({ duration: ZOOM_DURATION })}
-                    >
-                      <MinusIcon />
-                    </Button>
-                    {/* The slider stretches to its parent, so the width has to
+							<TabsContent value="canvas">
+								<div className="flex flex-col">
+									<Row label="Zoom" hint="Drag or step through the range">
+										<Button
+											variant="outline"
+											size="icon-sm"
+											aria-label="Zoom out"
+											disabled={zoom <= minZoom}
+											onClick={() => void zoomOut({ duration: ZOOM_DURATION })}
+										>
+											<MinusIcon />
+										</Button>
+										{/* The slider stretches to its parent, so the width has to
                       come from a box around it. */}
-                    <div className="w-32">
-                      <Slider
-                        aria-label="Zoom level"
-                        min={minZoom * 100}
-                        max={maxZoom * 100}
-                        value={[percent]}
-                        onValueChange={(value) =>
-                          zoomTo(
-                            (Array.isArray(value) ? value[0] : value) / 100
-                          )
-                        }
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      aria-label="Zoom in"
-                      disabled={zoom >= maxZoom}
-                      onClick={() => void zoomIn({ duration: ZOOM_DURATION })}
-                    >
-                      <PlusIcon />
-                    </Button>
-                    <span className="min-w-11 text-right text-sm tabular-nums">
-                      {percent}%
-                    </span>
-                  </Row>
-                  <Row label="Fit to screen" hint="Frame every table at once">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void fitView({ duration: FIT_DURATION })}
-                    >
-                      <MaximizeIcon />
-                      Fit
-                    </Button>
-                  </Row>
-                  <SwitchRow
-                    id="setting-mini-map"
-                    label="Mini-map"
-                    hint="Overview in the bottom-right corner"
-                    checked={showMiniMap}
-                    onCheckedChange={onShowMiniMapChange}
-                  />
-                  <SwitchRow
-                    id="setting-controls"
-                    label="Control bar"
-                    hint="Zoom buttons on the canvas itself"
-                    checked={showControls}
-                    onCheckedChange={onShowControlsChange}
-                  />
-                  <SchemaGroupingRow
-                    value={schemaGrouping}
-                    onValueChange={onSchemaGroupingChange}
-                  />
-                  <ToastPositionRow
-                    value={toastPosition}
-                    onValueChange={setToastPosition}
-                  />
-                </div>
-              </TabsContent>
+										<div className="w-32">
+											<Slider
+												aria-label="Zoom level"
+												min={minZoom * 100}
+												max={maxZoom * 100}
+												value={[percent]}
+												onValueChange={(value) =>
+													zoomTo((Array.isArray(value) ? value[0] : value) / 100)
+												}
+											/>
+										</div>
+										<Button
+											variant="outline"
+											size="icon-sm"
+											aria-label="Zoom in"
+											disabled={zoom >= maxZoom}
+											onClick={() => void zoomIn({ duration: ZOOM_DURATION })}
+										>
+											<PlusIcon />
+										</Button>
+										<span className="min-w-11 text-right text-sm tabular-nums">{percent}%</span>
+									</Row>
+									<Row label="Fit to screen" hint="Frame every table at once">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => void fitView({ duration: FIT_DURATION })}
+										>
+											<MaximizeIcon />
+											Fit
+										</Button>
+									</Row>
+									<SwitchRow
+										id="setting-mini-map"
+										label="Mini-map"
+										hint="Overview in the bottom-right corner"
+										checked={showMiniMap}
+										onCheckedChange={onShowMiniMapChange}
+									/>
+									<SwitchRow
+										id="setting-controls"
+										label="Control bar"
+										hint="Zoom buttons on the canvas itself"
+										checked={showControls}
+										onCheckedChange={onShowControlsChange}
+									/>
+									<SchemaGroupingRow
+										value={schemaGrouping}
+										onValueChange={onSchemaGroupingChange}
+									/>
+									<ToastPositionRow value={toastPosition} onValueChange={setToastPosition} />
+								</div>
+							</TabsContent>
 
-              <TabsContent value="interaction">
-                <div className="flex flex-col">
-                  <SwitchRow
-                    id="setting-lock"
-                    label="Lock canvas"
-                    hint="Stop moving and selecting tables"
-                    checked={locked}
-                    onCheckedChange={setLocked}
-                  />
-                  <SwitchRow
-                    id="setting-snap"
-                    label="Snap to grid"
-                    hint="Line tables up as you drag them"
-                    checked={snapToGrid}
-                    onCheckedChange={onSnapToGridChange}
-                  />
-                  <ConnectorArrowRow
-                    value={connectorArrow}
-                    onValueChange={onConnectorArrowChange}
-                  />
-                  <TourRow onClose={() => onOpenChange(false)} />
-                </div>
-              </TabsContent>
+							<TabsContent value="interaction">
+								<div className="flex flex-col">
+									<SwitchRow
+										id="setting-lock"
+										label="Lock canvas"
+										hint="Stop moving and selecting tables"
+										checked={locked}
+										onCheckedChange={setLocked}
+									/>
+									<SwitchRow
+										id="setting-snap"
+										label="Snap to grid"
+										hint="Line tables up as you drag them"
+										checked={snapToGrid}
+										onCheckedChange={onSnapToGridChange}
+									/>
+									<ConnectorArrowRow
+										value={connectorArrow}
+										onValueChange={onConnectorArrowChange}
+									/>
+									<TourRow onClose={() => onOpenChange(false)} />
+								</div>
+							</TabsContent>
 
-              <TabsContent value="backend">
-                <div className="flex flex-col">
-                  <SwitchRow
-                    id="setting-auto-save"
-                    label="Auto-save"
-                    hint="Store changes shortly after you stop making them"
-                    checked={autoSave}
-                    onCheckedChange={onAutoSaveChange}
-                  />
-                  <SwitchRow
-                    id="setting-auto-validate"
-                    label="Auto-validate"
-                    hint="Mark the tables with defects as you work"
-                    checked={autoValidate}
-                    onCheckedChange={onAutoValidateChange}
-                  />
-                  <ConnectionRow />
-                </div>
-              </TabsContent>
-            </div>
-          </ScrollArea>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-  )
-})
+							<TabsContent value="backend">
+								<div className="flex flex-col">
+									<SwitchRow
+										id="setting-auto-save"
+										label="Auto-save"
+										hint="Store changes shortly after you stop making them"
+										checked={autoSave}
+										onCheckedChange={onAutoSaveChange}
+									/>
+									<SwitchRow
+										id="setting-auto-validate"
+										label="Auto-validate"
+										hint="Mark the tables with defects as you work"
+										checked={autoValidate}
+										onCheckedChange={onAutoValidateChange}
+									/>
+									<ConnectionRow />
+								</div>
+							</TabsContent>
+						</div>
+					</ScrollArea>
+				</Tabs>
+			</DialogContent>
+		</Dialog>
+	);
+});
