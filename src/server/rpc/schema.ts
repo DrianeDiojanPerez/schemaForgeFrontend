@@ -17,6 +17,7 @@ import {
 	summaryIn,
 } from "@/features/schema/lib/wire";
 
+import { session } from "../auth/session";
 import { isUnimplemented, v1 } from "./client";
 import type { GenerateDdlRequest } from "./generated/schemaforge/v1/GenerateDdlRequest";
 
@@ -158,9 +159,8 @@ export const generateDdl = createServerFn({ method: "POST" })
 
 /**
  * The health call carries no token, so on its own it reports that the process
- * is up and nothing about whether this one may talk to it. Bad credentials
- * would read as a healthy backend right up until the first save. The cheapest
- * authenticated call answers that second question.
+ * is up and nothing about this visitor. Whether they are signed in is read
+ * off their session alongside it.
  */
 export const checkBackend = createServerFn({ method: "GET" }).handler(
 	async (): Promise<{
@@ -170,22 +170,13 @@ export const checkBackend = createServerFn({ method: "GET" }).handler(
 		reason?: string;
 	}> => {
 		const response = await v1.HealthService.check();
-
-		try {
-			await v1.SchemaService.listSchemas({ page: 1, perPage: 1 });
-		} catch (error) {
-			return {
-				status: response.status,
-				version: response.version,
-				signedIn: false,
-				reason: error instanceof Error ? error.message : "Could not sign in",
-			};
-		}
+		const signedIn = Boolean((await session()).data.token);
 
 		return {
 			status: response.status,
 			version: response.version,
-			signedIn: true,
+			signedIn,
+			reason: signedIn ? undefined : "Not signed in",
 		};
 	},
 );

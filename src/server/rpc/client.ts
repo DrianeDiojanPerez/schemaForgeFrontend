@@ -9,6 +9,10 @@ import { env } from "../env";
 import type { ProtoGrpcType as AuthProto } from "./generated/auth";
 import type { ProtoGrpcType as HealthProto } from "./generated/health";
 import type { ProtoGrpcType as SchemaProto } from "./generated/schema";
+import { redirect } from "@tanstack/react-router";
+
+import { session } from "../auth/session";
+import type { Tokens } from "../auth/session";
 import type { AuthServiceClient } from "./generated/schemaforge/v1/AuthService";
 import type { CheckResponse__Output } from "./generated/schemaforge/v1/CheckResponse";
 import type { CreateSchemaRequest } from "./generated/schemaforge/v1/CreateSchemaRequest";
@@ -18,10 +22,17 @@ import type { DeleteSchemaResponse__Output } from "./generated/schemaforge/v1/De
 import type { GenerateDdlRequest } from "./generated/schemaforge/v1/GenerateDdlRequest";
 import type { GenerateDdlResponse__Output } from "./generated/schemaforge/v1/GenerateDdlResponse";
 import type { GetSchemaRequest } from "./generated/schemaforge/v1/GetSchemaRequest";
+import type { GetCurrentUserResponse__Output } from "./generated/schemaforge/v1/GetCurrentUserResponse";
 import type { GetSchemaResponse__Output } from "./generated/schemaforge/v1/GetSchemaResponse";
+import type { GoogleLoginUrlRequest } from "./generated/schemaforge/v1/GoogleLoginUrlRequest";
+import type { GoogleLoginUrlResponse__Output } from "./generated/schemaforge/v1/GoogleLoginUrlResponse";
 import type { HealthServiceClient } from "./generated/schemaforge/v1/HealthService";
 import type { ListSchemasRequest } from "./generated/schemaforge/v1/ListSchemasRequest";
 import type { ListSchemasResponse__Output } from "./generated/schemaforge/v1/ListSchemasResponse";
+import type { LoginResponse__Output } from "./generated/schemaforge/v1/LoginResponse";
+import type { LoginWithGoogleRequest } from "./generated/schemaforge/v1/LoginWithGoogleRequest";
+import type { RefreshTokenRequest } from "./generated/schemaforge/v1/RefreshTokenRequest";
+import type { RefreshTokenResponse__Output } from "./generated/schemaforge/v1/RefreshTokenResponse";
 import type { SchemaServiceClient } from "./generated/schemaforge/v1/SchemaService";
 import type { UpdateSchemaRequest } from "./generated/schemaforge/v1/UpdateSchemaRequest";
 import type { UpdateSchemaResponse__Output } from "./generated/schemaforge/v1/UpdateSchemaResponse";
@@ -145,17 +156,24 @@ function toRpcError(error: ServiceError): RpcError {
 function plainMessage(error: ServiceError): string {
 	switch (error.code) {
 		case grpcStatus.UNAVAILABLE:
-			return `Nothing is answering at ${address()}. Is the backend running?`;
+			// The backend answers UNAVAILABLE too, when something behind it
+			// is out of reach. Its own words say what, so they stay.
+			return unreachable(error)
+				? `Nothing is answering at ${address()}. Is the backend running?`
+				: error.details;
 		case grpcStatus.DEADLINE_EXCEEDED:
 			return `The backend took longer than ${env.SCHEMAFORGE_RPC_TIMEOUT_MS / 1000}s to answer.`;
 		case grpcStatus.UNAUTHENTICATED:
-			return "The backend refused the sign-in. Check SCHEMAFORGE_EMAIL and SCHEMAFORGE_PASSWORD.";
+			return "Your sign-in has run out. Sign in again.";
 		case grpcStatus.PERMISSION_DENIED:
-			return "The account the server signs in with is not allowed to do this.";
+			return error.details || "Your account is not allowed to do this.";
 		default:
 			return error.details || error.message;
 	}
 }
+
+const unreachable = (error: ServiceError) =>
+	!error.details || /No connection established|ECONNREFUSED|ENOTFOUND/.test(error.details);
 
 /** Thrown by the server functions so a failed call rejects rather than resolving with junk. */
 export class SchemaForgeRpcError extends Error {
@@ -166,71 +184,6 @@ export class SchemaForgeRpcError extends Error {
 		this.name = "SchemaForgeRpcError";
 		this.rpc = rpc;
 	}
-}
-
-/**
- * Credentials, tokens and renewal.
- *
- * Every `SchemaService` call needs a bearer token and a permission behind it.
- * The token lives here rather than in the browser: this process is the only
- * one that speaks gRPC, so a token that never leaves it cannot be read out of a
- * page or replayed from a client bundle.
- */
-
-type Tokens = { token: string; refreshToken: string };
-
-let tokens: Tokens | undefined;
-let renewal: Promise<Tokens> | undefined;
-
-function loginRequest(): { email: string; password: string } {
-	return { email: env.SCHEMAFORGE_EMAIL, password: env.SCHEMAFORGE_PASSWORD };
-}
-
-async function obtain(): Promise<Tokens> {
-	const current = tokens;
-
-	if (current) {
-		try {
-			return await unary((metadata, options, callback) =>
-				clients().auth.RefreshToken(
-					{ refreshToken: current.refreshToken },
-					metadata,
-					options,
-					callback,
-				),
-			);
-		} catch {
-			// A refresh token the backend has stopped honouring is not a failure
-			// worth surfacing while the credentials are still good.
-		}
-	}
-
-	return unary((metadata, options, callback) =>
-		clients().auth.Login(loginRequest(), metadata, options, callback),
-	);
-}
-
-/**
- * Concurrent callers share one renewal. Without that, the first render after a
- * restart would log in once per loader running in parallel.
- */
-function renew(): Promise<Tokens> {
-	renewal ??= obtain()
-		.then((next) => {
-			tokens = next;
-			return next;
-		})
-		.finally(() => {
-			renewal = undefined;
-		});
-
-	return renewal;
-}
-
-async function bearer(): Promise<string> {
-	const current = tokens ?? (await renew());
-
-	return `Bearer ${current.token}`;
 }
 
 /**
@@ -258,16 +211,37 @@ type Call<TResponse> = (
 	callback: requestCallback<TResponse>,
 ) => ClientUnaryCall;
 
+/**
+ * A call made as the visitor. The token comes out of their session cookie,
+ * and a visitor without one is sent to sign in: the redirect is thrown here
+ * so every server function gets it without each one asking.
+ */
 async function authed<TResponse>(call: Call<TResponse>, requestId?: string): Promise<TResponse> {
+	const current = await session();
+	const { token, refreshToken } = current.data;
+
+	if (!token) throw redirect({ to: "/login" });
+
 	try {
-		return await unary(call, requestId, await bearer());
+		return await unary(call, requestId, `Bearer ${token}`);
 	} catch (error) {
 		if (!isExpired(error)) throw error;
 
 		// An access token has a lifetime, and it runs out mid-session rather than
 		// between sessions. Renewing and retrying once turns that into a slower
-		// call instead of an error the user has to do something about.
-		const renewed = await renew();
+		// call instead of an error the user has to do something about. A refresh
+		// the backend no longer honours ends the session.
+		let renewed: Tokens;
+
+		try {
+			if (!refreshToken) throw error;
+			renewed = await v1.AuthService.refreshToken({ refreshToken });
+		} catch {
+			await current.clear();
+			throw redirect({ to: "/login" });
+		}
+
+		await current.update(renewed);
 
 		return unary(call, requestId, `Bearer ${renewed.token}`);
 	}
@@ -385,6 +359,29 @@ export const v1 = {
 		check: (): Promise<CheckResponse__Output> =>
 			unary((metadata, options, callback) =>
 				clients().health.Check({}, metadata, options, callback),
+			),
+	},
+
+	// Signing in needs no token, so these go out bare.
+	AuthService: {
+		googleLoginUrl: (request: GoogleLoginUrlRequest): Promise<GoogleLoginUrlResponse__Output> =>
+			unary((metadata, options, callback) =>
+				clients().auth.GoogleLoginUrl(request, metadata, options, callback),
+			),
+
+		loginWithGoogle: (request: LoginWithGoogleRequest): Promise<LoginResponse__Output> =>
+			unary((metadata, options, callback) =>
+				clients().auth.LoginWithGoogle(request, metadata, options, callback),
+			),
+
+		refreshToken: (request: RefreshTokenRequest): Promise<RefreshTokenResponse__Output> =>
+			unary((metadata, options, callback) =>
+				clients().auth.RefreshToken(request, metadata, options, callback),
+			),
+
+		getCurrentUser: (): Promise<GetCurrentUserResponse__Output> =>
+			authed((metadata, options, callback) =>
+				clients().auth.GetCurrentUser({}, metadata, options, callback),
 			),
 	},
 };
