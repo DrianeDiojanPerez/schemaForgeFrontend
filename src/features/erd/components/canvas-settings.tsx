@@ -1,17 +1,27 @@
+import { useQuery } from "@tanstack/react-query";
 import type * as React from "react";
 import { memo, useState } from "react";
 import { BackgroundVariant, useStore, useStoreApi, useReactFlow } from "@xyflow/react";
+import { Alpha, hexToHsva, hsvaToHexa, ShadeSlider, Wheel } from "@uiw/react-color";
+import type { HsvaColor } from "@uiw/react-color";
 import {
+	CircleUserRoundIcon,
 	GridIcon,
+	UploadIcon,
+	LogOutIcon,
 	MaximizeIcon,
 	MinusIcon,
 	MoonIcon,
 	MousePointer2Icon,
-	RouteIcon,
 	PaletteIcon,
+	PencilIcon,
 	PlusIcon,
 	RefreshCwIcon,
+	SearchIcon,
+	RouteIcon,
+	InfoIcon,
 	ServerIcon,
+	ShieldCheckIcon,
 	SunIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -20,8 +30,10 @@ import { cn } from "cn";
 import { useTour } from "@/components/tour";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { OptionTile } from "@/components/ui/option-tile";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
@@ -29,27 +41,36 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BACKGROUNDS } from "@/features/erd/lib/backgrounds";
 import type { BackgroundStyle } from "@/features/erd/lib/backgrounds";
-import { SCHEMA_GROUPINGS } from "@/features/erd/lib/canvas-preferences";
-import type { SchemaGrouping } from "@/features/erd/lib/canvas-preferences";
+import { SCHEMA_GROUPINGS, TABLE_STYLES } from "@/features/erd/lib/canvas-preferences";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { accountQueries } from "@/features/schema/api/queries";
+import { signOut } from "@/server/auth/google";
+import type { Account } from "@/server/auth/google";
+import type { SchemaGrouping, TableStyle } from "@/features/erd/lib/canvas-preferences";
 import { CONNECTOR_ARROWS } from "@/features/erd/lib/connector-arrows";
 import type { ConnectorArrow } from "@/features/erd/lib/connector-arrows";
 import { EDGE_DASHES, EDGE_LINES } from "@/features/erd/lib/edge-lines";
 import type { EdgeDash, EdgeLine } from "@/features/erd/lib/edge-lines";
 import { useBackendStatus } from "@/features/schema/hooks/use-backend-status";
 import type { BackendState } from "@/features/schema/hooks/use-backend-status";
+import { COVERS, setCover, toHex, useCover } from "@/lib/account-cover";
+import type { Cover, CoverPattern } from "@/lib/account-cover";
 import { setTheme, useTheme } from "@/lib/theme";
 import type { Theme } from "@/lib/theme";
-import { SCREEN_POSITIONS, setToastPosition, useToastPosition } from "@/lib/toast";
+import { SCREEN_POSITIONS, notify, setToastPosition, useToastPosition } from "@/lib/toast";
 import type { ScreenPosition } from "@/lib/toast";
 
 const ZOOM_DURATION = 150;
 const FIT_DURATION = 300;
 
 const TABS = [
+	{ id: "account", label: "Account", icon: CircleUserRoundIcon },
 	{ id: "appearance", label: "Appearance", icon: PaletteIcon },
 	{ id: "canvas", label: "Canvas", icon: GridIcon },
 	{ id: "interaction", label: "Interaction", icon: MousePointer2Icon },
-	{ id: "backend", label: "Backend", icon: ServerIcon },
+	{ id: "sync", label: "Saving & sync", icon: ServerIcon },
+	{ id: "about", label: "About", icon: InfoIcon },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -98,6 +119,8 @@ export type CanvasSettingsProps = {
 	onShowControlsChange: (show: boolean) => void;
 	background: BackgroundStyle;
 	onBackgroundChange: (background: BackgroundStyle) => void;
+	tableStyle: TableStyle;
+	onTableStyleChange: (style: TableStyle) => void;
 	schemaGrouping: SchemaGrouping;
 	onSchemaGroupingChange: (grouping: SchemaGrouping) => void;
 	snapToGrid: boolean;
@@ -143,6 +166,35 @@ function BackgroundPreview({ variant }: { variant: BackgroundStyle }) {
 				</>
 			)}
 		</svg>
+	);
+}
+
+function TableStylePreview({ variant }: { variant: TableStyle }) {
+	const outline = variant === "outline";
+
+	return (
+		<span className="flex h-18 items-center justify-center rounded-md border border-border bg-background bg-dots">
+			<span
+				className={cn(
+					"flex w-16 flex-col overflow-hidden rounded-sm border",
+					outline ? "border-foreground" : "border-border bg-card shadow-sm",
+				)}
+			>
+				<span className={cn("h-3", outline ? "border-b border-foreground" : "bg-muted")} />
+				{[0, 1].map((row) => (
+					<span
+						key={row}
+						className={cn(
+							"flex h-3 items-center gap-1 px-1",
+							row > 0 && (outline ? "border-t border-foreground" : "border-t border-border"),
+						)}
+					>
+						<span className="h-0.75 w-5 rounded-full bg-foreground/60" />
+						<span className="ml-auto h-0.75 w-3 rounded-full bg-foreground/30" />
+					</span>
+				))}
+			</span>
+		</span>
 	);
 }
 
@@ -524,6 +576,493 @@ function ConnectionRow() {
 	);
 }
 
+type AccountView = { me: Account; leaveButton: React.ReactNode };
+
+const ABOUT_FEATURES = [
+	{
+		icon: GridIcon,
+		title: "Draw",
+		hint: "Lay the tables out on a canvas and join them by dragging",
+	},
+	{
+		icon: ShieldCheckIcon,
+		title: "Check",
+		hint: "Cycles, broken keys and mismatched types, found as you work",
+	},
+	{
+		icon: RouteIcon,
+		title: "Generate",
+		hint: "Turn the finished diagram into DDL for your database",
+	},
+] as const;
+
+const ABOUT_BLURB =
+	"Draw a database on a canvas, check it for defects, and generate the DDL for it.";
+
+type AboutViewProps = {
+	version?: string;
+	detail: string;
+	connection: { label: string; dot: string };
+};
+
+function Mark({ className }: { className?: string }) {
+	return <img src="/favicon.svg" alt="" className={cn("shrink-0 rounded-xl", className)} />;
+}
+
+// The waves band from the cover patterns, with the mark sitting on it and
+// the rest reading as a caption underneath.
+function AboutWave({ version, detail, connection }: AboutViewProps) {
+	return (
+		<div className="flex flex-col items-center gap-4">
+			<div className="flex w-full justify-center rounded-lg bg-primary/15 bg-waves py-8">
+				<Mark className="size-16 ring-4 ring-popover" />
+			</div>
+			<span className="text-lg font-semibold">SchemaForge</span>
+			<p className="max-w-sm text-center text-sm text-muted-foreground">{ABOUT_BLURB}</p>
+			<div className="flex flex-wrap items-center justify-center gap-1.5">
+				{ABOUT_FEATURES.map((feature) => (
+					<Badge key={feature.title} variant="secondary">
+						<feature.icon />
+						{feature.title}
+					</Badge>
+				))}
+			</div>
+			<span className="flex items-center gap-2 text-xs text-muted-foreground">
+				<span className={cn("size-2 rounded-full", connection.dot)} aria-hidden />
+				{connection.label}
+				{version && <span>· v{version}</span>}
+				<span className="sr-only">{detail}</span>
+			</span>
+		</div>
+	);
+}
+
+function AboutPanel() {
+	const { status } = useBackendStatus();
+	const connection = CONNECTION[status.state];
+	const detail = status.detail || "The backend behind saving, validation and DDL";
+
+	return (
+		<div className="py-4">
+			<AboutWave version={status.version} detail={detail} connection={connection} />
+		</div>
+	);
+}
+
+function AccountPanel() {
+	const { data: me } = useQuery(accountQueries.me());
+	const [leaving, setLeaving] = useState(false);
+
+	// A full load rather than a navigation, so nothing fetched as this person
+	// is left in memory for the next.
+	const leave = async () => {
+		setLeaving(true);
+		await signOut();
+		window.location.assign("/login");
+	};
+
+	if (!me) {
+		return <p className="py-4 text-sm text-muted-foreground">Loading your account</p>;
+	}
+
+	const leaveButton = (
+		<Button variant="outline" size="sm" disabled={leaving} onClick={() => void leave()}>
+			<LogOutIcon />
+			Sign out
+		</Button>
+	);
+
+	return (
+		<div className="flex min-w-0 flex-col gap-6 py-4">
+			<AccountCustom me={me} leaveButton={leaveButton} />
+		</div>
+	);
+}
+
+function RoleBadges({ roles }: { roles: string[] }) {
+	if (roles.length === 0) return <p className="text-sm text-muted-foreground">No roles yet.</p>;
+
+	return (
+		<>
+			{roles.map((role) => (
+				<Badge key={role} variant="secondary">
+					<ShieldCheckIcon />
+					{role}
+				</Badge>
+			))}
+		</>
+	);
+}
+
+function RoleChips({ roles }: { roles: string[] }) {
+	const [first, ...rest] = roles;
+
+	if (!first) return <Badge variant="secondary">No roles yet</Badge>;
+
+	return (
+		<span className="flex items-center gap-1.5">
+			<Badge variant="secondary">
+				<ShieldCheckIcon />
+				{first}
+			</Badge>
+			{rest.length > 0 && (
+				<Popover>
+					<PopoverTrigger
+						render={
+							<Badge
+								variant="outline"
+								className="cursor-pointer"
+								aria-label={`${rest.length} more roles`}
+							/>
+						}
+					>
+						+{rest.length}
+					</PopoverTrigger>
+					<PopoverContent align="start" className="w-56 gap-2">
+						<PopoverTitle>Roles</PopoverTitle>
+						<div className="flex flex-wrap gap-1.5">
+							<RoleBadges roles={roles} />
+						</div>
+					</PopoverContent>
+				</Popover>
+			)}
+		</span>
+	);
+}
+
+// One class list for the band and its previews: the pattern comes from
+// `data-cover`, the colour under it from `--cover`.
+const COVER_CLASSES =
+	"bg-(--cover) data-[cover=dots]:bg-dots-lg data-[cover=grid]:bg-grid-lines data-[cover=stripes]:bg-stripes data-[cover=checks]:bg-checks data-[cover=waves]:bg-waves";
+
+const coverColor = (color: string | null) => color ?? "var(--color-muted)";
+
+function BannerHeader({ me, leaveButton, provider }: AccountView & { provider?: boolean }) {
+	const cover = useCover();
+
+	return (
+		<div className="overflow-hidden rounded-lg border border-border">
+			<div
+				data-cover={cover.pattern}
+				style={{ "--cover": coverColor(cover.color) } as React.CSSProperties}
+				className={cn("relative h-20", COVER_CLASSES)}
+			>
+				<span className="absolute top-2 right-2">
+					<CoverPicker value={cover} />
+				</span>
+			</div>
+			<div className="flex items-end gap-4 px-4 pb-4">
+				<span className="-mt-8 flex rounded-full ring-4 ring-background">
+					<Avatar className="size-16">
+						<AvatarImage src={me.avatarUrl || undefined} alt="" />
+						<AvatarFallback>{initials(me.name || me.email)}</AvatarFallback>
+					</Avatar>
+				</span>
+				<div className="flex min-w-0 flex-1 flex-col pt-2">
+					<span className="flex min-w-0 items-center gap-2">
+						<span className="truncate text-base font-medium">{me.name || me.email}</span>
+						<RoleChips roles={me.roles} />
+					</span>
+					<span className="truncate text-sm text-muted-foreground">{me.email}</span>
+					{provider && (
+						<span className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+							<img src="/google.svg" alt="" className="size-3" />
+							Signed in with Google
+						</span>
+					)}
+				</div>
+				{leaveButton}
+			</div>
+		</div>
+	);
+}
+
+function ColorWheel({
+	value,
+	onChange,
+}: {
+	value: string | null;
+	onChange: (color: string) => void;
+}) {
+	// The wheel carries hue and saturation only, so the two sliders beside it
+	// hold the brightness and the alpha the wheel has nowhere to put.
+	const hsva = hexToHsva(value ?? toHex("var(--color-muted)"));
+	const change = (next: Partial<HsvaColor>) => onChange(hsvaToHexa({ ...hsva, ...next }));
+
+	return (
+		<div className="flex items-center gap-3 px-1">
+			<Wheel
+				color={hsva}
+				width={96}
+				height={96}
+				onChange={(color) => change({ h: color.hsva.h, s: color.hsva.s })}
+			/>
+			<div className="flex min-w-0 flex-1 flex-col gap-2">
+				<ShadeSlider hsva={hsva} height={14} radius={7} onChange={change} />
+				<Alpha hsva={hsva} height={14} radius={7} onChange={change} />
+				<span className="font-mono text-xs text-muted-foreground uppercase">
+					{hsvaToHexa(hsva)}
+				</span>
+			</div>
+		</div>
+	);
+}
+
+function CoverPicker({ value }: { value: Cover }) {
+	// TODO: send the picked file to the backend once it can keep a cover per
+	// account. Until then the picker only says so.
+	const upload = (event: React.ChangeEvent<HTMLInputElement>) => {
+		if (!event.target.files?.length) return;
+		event.target.value = "";
+		notify.info({
+			title: "Not built yet",
+			description: "Uploading your own cover is not wired up yet.",
+		});
+	};
+
+	return (
+		<Popover>
+			<PopoverTrigger
+				render={<Button variant="outline" size="icon-xs" aria-label="Change cover" />}
+			>
+				<PencilIcon />
+			</PopoverTrigger>
+			{/* Six patterns and the wheel are taller than the gap under the
+			    trigger on a short window, so the popup is capped at what the
+			    positioner says is free and scrolls inside that. */}
+			<PopoverContent
+				align="end"
+				className="max-h-(--available-height) w-80 overflow-x-hidden overflow-y-auto overscroll-contain"
+			>
+				<RadioGroup
+					aria-label="Pattern"
+					value={value.pattern}
+					onValueChange={(next) => setCover({ pattern: next as CoverPattern })}
+					className="grid-cols-3 gap-2"
+				>
+					{COVERS.map((item) => (
+						<OptionTile key={item.id} htmlFor={`cover-${item.id}`}>
+							<span
+								aria-hidden
+								data-cover={item.id}
+								style={{ "--cover": coverColor(value.color) } as React.CSSProperties}
+								className={cn("block h-8 rounded-sm", COVER_CLASSES)}
+							/>
+							<span className="flex items-center gap-2 px-0.5 text-xs">
+								<RadioGroupItem id={`cover-${item.id}`} value={item.id} />
+								{item.label}
+							</span>
+						</OptionTile>
+					))}
+				</RadioGroup>
+				<ColorWheel value={value.color} onChange={(color) => setCover({ color })} />
+				<div className="flex items-center justify-between gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						render={<label htmlFor="cover-upload" />}
+						nativeButton={false}
+					>
+						<UploadIcon />
+						Upload image
+						<input
+							id="cover-upload"
+							type="file"
+							accept="image/*"
+							className="sr-only"
+							onChange={upload}
+						/>
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						disabled={!value.color}
+						onClick={() => setCover({ color: null })}
+					>
+						Reset colour
+					</Button>
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+type PermissionViewProps = { permissions: Account["permissions"] };
+
+// Cell sizing lifted from the Table component, so these hand built tables
+// line up with the ones that use it.
+const HEAD_CELL = "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground";
+const BODY_CELL = "p-2 align-middle whitespace-nowrap";
+// The label column holds its place while the dots scroll under it, so it
+// needs a background of its own to hide what passes behind.
+const STICKY_CELL = "sticky left-0 z-10 border-r border-border bg-popover";
+const HEAD_RULE = "border-b border-border";
+
+// Table dots with two rules only: under the header and down the right of
+// the label column, so the labels are fenced off and the dots stay open.
+function LinedDotTable({
+	label,
+	rows,
+	columns,
+	granted,
+}: {
+	label: string;
+	rows: string[];
+	columns: string[];
+	granted: (row: string, column: string) => boolean;
+}) {
+	return (
+		<div className="w-full max-w-lg overflow-hidden rounded-lg border border-border">
+			<div className="max-h-64 overflow-auto">
+				<table className="w-max min-w-full border-separate border-spacing-0 text-sm">
+					<thead>
+						<tr>
+							<th className={cn(HEAD_CELL, HEAD_RULE, STICKY_CELL)}>{label}</th>
+							{columns.map((column) => (
+								<th key={column} className={cn(HEAD_CELL, HEAD_RULE)}>
+									<span className="flex justify-center">{column}</span>
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{rows.map((row) => (
+							<tr key={row}>
+								<td className={cn(BODY_CELL, STICKY_CELL)}>{row}</td>
+								{columns.map((column) => (
+									<td key={column} className={BODY_CELL}>
+										<span className="flex justify-center">
+											<span
+												title={`${row} · ${column}`}
+												className={cn(
+													"size-2.5 rounded-full",
+													granted(row, column) ? "bg-primary" : "bg-border",
+												)}
+											/>
+										</span>
+									</td>
+								))}
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	);
+}
+
+// A plain term matches either half of a grant. A dot splits it, so "cat.cre"
+// is "a module like cat, an action like cre" and neither half has to be
+// spelled out in full.
+function searchMatches(query: string, module: string, action: string): boolean {
+	const term = query.trim().toLowerCase();
+
+	if (!term) return true;
+
+	const dot = term.indexOf(".");
+
+	if (dot === -1) {
+		return `${module} ${action}`.toLowerCase().includes(term);
+	}
+
+	const left = term.slice(0, dot).trim();
+	const right = term.slice(dot + 1).trim();
+
+	return module.toLowerCase().includes(left) && action.toLowerCase().includes(right);
+}
+
+function PermissionDots({ permissions }: PermissionViewProps) {
+	const [query, setQuery] = useState("");
+
+	const matches = permissions.filter(({ module, name }) =>
+		searchMatches(query, moduleLabel(module), name),
+	);
+
+	const modules = byModule(matches);
+
+	return (
+		<div className="flex min-w-0 flex-col gap-2">
+			<InputGroup className="max-w-lg">
+				<InputGroupAddon>
+					<SearchIcon />
+				</InputGroupAddon>
+				<InputGroupInput
+					value={query}
+					placeholder="Search, or module.action"
+					aria-label="Search permissions"
+					onChange={(event) => setQuery(event.target.value)}
+				/>
+			</InputGroup>
+			{modules.length === 0 ? (
+				<p className="text-sm text-muted-foreground">Nothing matches “{query.trim()}”.</p>
+			) : (
+				<LinedDotTable
+					label="Module"
+					rows={modules.map(([module]) => module)}
+					columns={actionsOf(matches)}
+					granted={(module, action) =>
+						modules.some(([name, names]) => name === module && names.includes(action))
+					}
+				/>
+			)}
+		</div>
+	);
+}
+
+function PermissionTabs({ permissions }: PermissionViewProps) {
+	return (
+		<section className="flex min-w-0 flex-col gap-2">
+			<h3 className="text-sm font-medium">Permissions</h3>
+			{permissions.length === 0 ? (
+				<p className="text-sm text-muted-foreground">Nothing granted yet.</p>
+			) : (
+				<PermissionDots permissions={permissions} />
+			)}
+		</section>
+	);
+}
+
+function AccountCustom({ me, leaveButton }: AccountView) {
+	return (
+		<div className="flex min-w-0 flex-col gap-6">
+			<BannerHeader me={me} leaveButton={leaveButton} provider />
+			<PermissionTabs permissions={me.permissions} />
+		</div>
+	);
+}
+
+// "Schema Module" reads as "Schema" next to its permissions.
+function moduleLabel(module: string): string {
+	return module.replace(/\s+module$/i, "");
+}
+
+function byModule(permissions: Account["permissions"]): [string, string[]][] {
+	const groups = new Map<string, string[]>();
+
+	for (const { module, name } of permissions) {
+		const label = moduleLabel(module);
+		groups.set(label, [...(groups.get(label) ?? []), name]);
+	}
+
+	return [...groups.entries()];
+}
+
+// Every distinct action across the modules, so the table has one column each.
+function actionsOf(permissions: Account["permissions"]): string[] {
+	// The array is built here, so sorting it in place touches nothing else.
+	// oxlint-disable-next-line unicorn/no-array-sort
+	return [...new Set(permissions.map(({ name }) => name))].sort();
+}
+
+function initials(name: string): string {
+	return name
+		.split(/[\s@.]+/)
+		.filter(Boolean)
+		.slice(0, 2)
+		.map((part) => part.charAt(0).toUpperCase())
+		.join("");
+}
+
 /**
  * The tour draws over the canvas, so the dialog has to be out of the way
  * first. The wait covers its closing animation.
@@ -558,6 +1097,8 @@ export const CanvasSettings = memo(function CanvasSettings({
 	onShowControlsChange,
 	background,
 	onBackgroundChange,
+	tableStyle,
+	onTableStyleChange,
 	schemaGrouping,
 	onSchemaGroupingChange,
 	snapToGrid,
@@ -579,7 +1120,7 @@ export const CanvasSettings = memo(function CanvasSettings({
 	const store = useStoreApi();
 	const theme = useTheme();
 	const toastPosition = useToastPosition();
-	const [tab, setTab] = useState<TabId>("appearance");
+	const [tab, setTab] = useState<TabId>(TABS[0].id);
 
 	const zoom = useStore((state) => state.transform[2]);
 	const minZoom = useStore((state) => state.minZoom);
@@ -600,7 +1141,13 @@ export const CanvasSettings = memo(function CanvasSettings({
 	const activeTab = TABS.find((item) => item.id === tab)!;
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (next) setTab(TABS[0].id);
+				onOpenChange(next);
+			}}
+		>
 			{/* The row has to be capped, or it grows past the dialog and the h-full
           inside it measures against the overflow rather than the dialog. */}
 			<DialogContent
@@ -629,7 +1176,7 @@ export const CanvasSettings = memo(function CanvasSettings({
 
 					{/* min-h-0 stops the flex item from growing to fit its content,
               which is what lets it scroll instead. */}
-					<ScrollArea className="min-h-0 flex-1">
+					<ScrollArea className="min-h-0 min-w-0 flex-1">
 						<div className="px-6 py-5">
 							<DialogTitle className="pr-10 pb-1 text-base">{activeTab.label}</DialogTitle>
 
@@ -664,6 +1211,23 @@ export const CanvasSettings = memo(function CanvasSettings({
 													<BackgroundPreview variant={item.id} />
 													<span className="flex items-center gap-2 px-0.5">
 														<RadioGroupItem id={`background-${item.id}`} value={item.id} />
+														{item.label}
+													</span>
+												</OptionTile>
+											))}
+										</RadioGroup>
+									</Row>
+									<Row stacked label="Tables" hint="Filled cards, or lines alone over the canvas">
+										<RadioGroup
+											value={tableStyle}
+											onValueChange={(value) => onTableStyleChange(value as TableStyle)}
+											className="grid-cols-2"
+										>
+											{TABLE_STYLES.map((item) => (
+												<OptionTile key={item.id} htmlFor={`table-style-${item.id}`}>
+													<TableStylePreview variant={item.id} />
+													<span className="flex items-center gap-2 px-0.5">
+														<RadioGroupItem id={`table-style-${item.id}`} value={item.id} />
 														{item.label}
 													</span>
 												</OptionTile>
@@ -774,7 +1338,7 @@ export const CanvasSettings = memo(function CanvasSettings({
 								</div>
 							</TabsContent>
 
-							<TabsContent value="backend">
+							<TabsContent value="sync">
 								<div className="flex flex-col">
 									<SwitchRow
 										id="setting-auto-save"
@@ -792,6 +1356,14 @@ export const CanvasSettings = memo(function CanvasSettings({
 									/>
 									<ConnectionRow />
 								</div>
+							</TabsContent>
+
+							<TabsContent value="account">
+								<AccountPanel />
+							</TabsContent>
+
+							<TabsContent value="about">
+								<AboutPanel />
 							</TabsContent>
 						</div>
 					</ScrollArea>
