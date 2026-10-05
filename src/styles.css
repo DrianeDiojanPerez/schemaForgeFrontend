@@ -76,6 +76,49 @@
 	background-size: 16px 16px;
 }
 
+/* The other patterns the account cover can be drawn in. */
+@utility bg-grid-lines {
+	background-image:
+		linear-gradient(var(--color-border) 1px, transparent 1px),
+		linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+	background-size: 16px 16px;
+}
+
+@utility bg-stripes {
+	background-image: repeating-linear-gradient(
+		135deg,
+		var(--color-border) 0 1px,
+		transparent 1px 12px
+	);
+}
+
+@utility bg-checks {
+	background-image:
+		linear-gradient(45deg, var(--color-border) 25%, transparent 25% 75%, var(--color-border) 75%),
+		linear-gradient(45deg, var(--color-border) 25%, transparent 25% 75%, var(--color-border) 75%);
+	background-position:
+		0 0,
+		8px 8px;
+	background-size: 16px 16px;
+}
+
+@utility bg-waves {
+	background-image: radial-gradient(
+		circle at 50% 100%,
+		transparent 11px,
+		var(--color-border) 11px 12px,
+		transparent 12px
+	);
+	background-size: 24px 12px;
+}
+
+/* Column headings turned on their side, so a grid with many columns still
+   fits without scrolling. */
+@utility text-sideways {
+	writing-mode: vertical-rl;
+	rotate: 180deg;
+}
+
 /* The settings preview of a theme, dotted in that theme's own text colour. */
 @utility bg-dots-preview {
 	background-image: radial-gradient(
