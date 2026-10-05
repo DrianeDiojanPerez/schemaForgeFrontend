@@ -19,6 +19,7 @@ import { useHeldSides } from "../hooks/use-held-sides";
 import { edgeDash, linePath, END_GAP } from "../lib/edge-lines";
 import type { ErdEdge, RelationshipType } from "../types/erd";
 import { DescriptionDialog } from "./details-dialogs";
+import { useCanvasPreferences } from "../lib/canvas-preferences";
 import { useEdgeStyle } from "./edge-line-context";
 
 const FALLBACK_TABLE_WIDTH = 160;
@@ -62,6 +63,7 @@ export const RelationshipEdge = ({
 	selected,
 }: EdgeProps<ErdEdge>) => {
 	const { updateEdgeData, deleteElements } = useReactFlow();
+	const { tableStyle } = useCanvasPreferences();
 	const [editingDetails, setEditingDetails] = useState(false);
 	const relationshipType = data?.relationshipType ?? "one-to-many";
 
@@ -107,26 +109,28 @@ export const RelationshipEdge = ({
 
 	const { line, dash, labels } = useEdgeStyle();
 
-	// A "one" end stops short of the table and its marker carries the line on,
-	// so the stretch past the bar is drawn once rather than twice. A crow's
-	// foot goes all the way, with its toes on the row.
-	const sourceGap = relationshipType !== "many-to-many" ? END_GAP : 0;
-	const targetGap = relationshipType === "one-to-one" ? END_GAP : 0;
+	// Both ends stop short of the table. A "one" bar's marker carries the line
+	// on to the row, so that stretch is drawn once rather than twice; a crow's
+	// foot ends where the line does, with the gap left open.
+
+	// At rest the ends sit on whole pixels, which keeps a one-pixel line from
+	// smearing across two. While a table is being dragged they follow it as it
+	// is, since snapping would hold the line still and then jump it a pixel at
+	// a time behind the table.
+	const settled = !sourceNode?.dragging && !targetNode?.dragging;
 
 	// Each route hands back the label anchor along with the path, so the badge
 	// follows the line even when both ends leave from the same side.
 	const [edgePath, labelX, labelY] = useMemo(() => {
+		const snap = settled ? Math.round : (value: number) => value;
+
 		return linePath(
 			line,
 			{
-				sourceX: Math.round(
-					sourceSide === "left" ? sourceLeftX - sourceGap : sourceRightX + sourceGap,
-				),
-				sourceY: Math.round(sourceY),
-				targetX: Math.round(
-					targetSide === "left" ? targetLeftX - targetGap : targetRightX + targetGap,
-				),
-				targetY: Math.round(targetY),
+				sourceX: snap(sourceSide === "left" ? sourceLeftX - END_GAP : sourceRightX + END_GAP),
+				sourceY: snap(sourceY),
+				targetX: snap(targetSide === "left" ? targetLeftX - END_GAP : targetRightX + END_GAP),
+				targetY: snap(targetY),
 				sourcePosition: sourceSide === "left" ? Position.Left : Position.Right,
 				targetPosition: targetSide === "left" ? Position.Left : Position.Right,
 			},
@@ -142,27 +146,39 @@ export const RelationshipEdge = ({
 		targetY,
 		sourceSide,
 		targetSide,
-		sourceGap,
-		targetGap,
 		edgeNumber,
+		settled,
 	]);
 
 	const relationship = RELATIONSHIPS[relationshipType];
+
+	// Outline mode draws the tables in the text colour, so the lines that
+	// join them follow rather than staying in their own.
+	const stroke = tableStyle === "outline" ? "var(--color-foreground)" : relationship.stroke;
 	const sourceMarkerId = `source-${id}-${relationshipType}`;
 	const targetMarkerId = `target-${id}-${relationshipType}`;
 	const sourceIsOne = relationshipType !== "many-to-many";
 	const targetIsOne = relationshipType === "one-to-one";
 
+	// The line stops at the set-back, and the toes carry on across it to rest
+	// on the outer face of the table's outline. A rounded cap reaches half a
+	// stroke past its point, so the toes end that much short of the line.
+	const reach = END_GAP - 1.6;
 	const crowsFoot = (pointing: "left" | "right") => {
-		const [tip, base] = pointing === "left" ? [12, 4] : [4, 12];
+		// The outer end stays on the table, so a shorter toe pulls its tip in
+		// towards the line rather than lifting the foot off the edge.
+		const span = 5;
+		const base = pointing === "left" ? 8 - reach : 8 + reach;
+		const tip = pointing === "left" ? base + span : base - span;
+
 		return (
 			<>
 				<line
 					x1={tip}
 					y1="8"
 					x2={base}
-					y2="3"
-					stroke={relationship.stroke}
+					y2="4.8"
+					stroke={stroke}
 					strokeWidth="1.2"
 					strokeLinecap="round"
 				/>
@@ -171,7 +187,7 @@ export const RelationshipEdge = ({
 					y1="8"
 					x2={base}
 					y2="8"
-					stroke={relationship.stroke}
+					stroke={stroke}
 					strokeWidth="1.2"
 					strokeLinecap="round"
 				/>
@@ -179,8 +195,8 @@ export const RelationshipEdge = ({
 					x1={tip}
 					y1="8"
 					x2={base}
-					y2="13"
-					stroke={relationship.stroke}
+					y2="11.2"
+					stroke={stroke}
 					strokeWidth="1.2"
 					strokeLinecap="round"
 				/>
@@ -188,16 +204,17 @@ export const RelationshipEdge = ({
 		);
 	};
 
-	// The path ends at the bar; this is the solid run from it to the table.
+	// The path ends at the bar; this is the solid run from it to the outer
+	// face of the table's outline.
 	const singleBar = (
 		<>
-			<line x1="8" y1="8" x2={9 + END_GAP} y2="8" stroke={relationship.stroke} strokeWidth="1.5" />
+			<line x1="8" y1="8" x2={7 + END_GAP} y2="8" stroke={stroke} strokeWidth="1.5" />
 			<line
 				x1="8"
 				y1="4.5"
 				x2="8"
 				y2="11.5"
-				stroke={relationship.stroke}
+				stroke={stroke}
 				strokeWidth="1.3"
 				strokeLinecap="round"
 			/>
@@ -240,7 +257,7 @@ export const RelationshipEdge = ({
 				style={{
 					...style,
 					strokeWidth: selected ? 1.4 : 1,
-					stroke: relationship.stroke,
+					stroke,
 					strokeDasharray: edgeDash(dash).dash,
 					fill: "none",
 				}}

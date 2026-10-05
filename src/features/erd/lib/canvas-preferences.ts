@@ -15,6 +15,7 @@ import type { EdgeDash, EdgeLine } from "./edge-lines";
  */
 export type CanvasPreferences = {
 	background: BackgroundStyle;
+	tableStyle: TableStyle;
 	schemaGrouping: SchemaGrouping;
 	/** Whether the list panel is unfolded. Kept apart from the grouping so
       putting the panel away for a moment is not the same as sending the
@@ -42,10 +43,19 @@ export const SCHEMA_GROUPINGS = [
 
 export const SCHEMA_LIST_WIDTH = { min: 200, max: 560, start: 256 };
 
+/** Filled is the card look. Outline keeps only the lines, in the text colour, over a clear ground. */
+export type TableStyle = "filled" | "outline";
+
+export const TABLE_STYLES = [
+	{ id: "filled", label: "Filled" },
+	{ id: "outline", label: "Outline" },
+] as const satisfies readonly { id: TableStyle; label: string }[];
+
 const STORAGE_KEY = "erd-canvas";
 
 const DEFAULTS: CanvasPreferences = {
 	background: DEFAULT_BACKGROUND,
+	tableStyle: "filled",
 	schemaGrouping: "boxes",
 	schemaListOpen: true,
 	schemaListWidth: SCHEMA_LIST_WIDTH.start,
@@ -98,6 +108,7 @@ function snapshot(): CanvasPreferences {
 
 		current = {
 			background: known(saved.background, BACKGROUNDS, DEFAULTS.background),
+			tableStyle: known(saved.tableStyle, TABLE_STYLES, DEFAULTS.tableStyle),
 			schemaGrouping: grouping(saved),
 			schemaListOpen: flag(saved.schemaListOpen, DEFAULTS.schemaListOpen),
 			schemaListWidth: width(saved.schemaListWidth, DEFAULTS.schemaListWidth),

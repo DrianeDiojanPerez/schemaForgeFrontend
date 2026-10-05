@@ -1,7 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Handle, Position, useReactFlow } from "@xyflow/react";
+import { Handle, Position, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
+import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import type { NodeProps } from "@xyflow/react";
+import type * as React from "react";
 import {
 	AlertTriangle,
 	BugIcon,
@@ -13,6 +15,7 @@ import {
 	Database,
 	FileTextIcon,
 	Fingerprint,
+	GripVerticalIcon,
 	Hash,
 	Key,
 	Link2,
@@ -54,6 +57,12 @@ import { useGraphActions } from "./graph-actions-context";
 import { ProblemMark, ProblemMessage, problemTitle } from "./problem-text";
 import { useNodeProblems } from "./problems-context";
 
+// The outline style: fills go, and every line takes the text colour.
+const OUTLINE_CARD =
+	"group-data-[table-style=outline]/canvas:bg-transparent group-data-[table-style=outline]/canvas:shadow-none group-data-[table-style=outline]/canvas:ring-foreground group-data-[table-style=outline]/canvas:hover:shadow-none";
+const OUTLINE_SURFACE =
+	"group-data-[table-style=outline]/canvas:border-foreground group-data-[table-style=outline]/canvas:bg-transparent group-data-[table-style=outline]/canvas:hover:bg-foreground/10";
+
 const HIDDEN_CONNECTOR = "h-px! w-px! min-w-0! min-h-0! cursor-grab! border-0! opacity-0!";
 const ITEM_HEIGHT = "h-5.5";
 const SIDES = ["left", "right", "top", "bottom"] as const;
@@ -68,7 +77,7 @@ const SIDES = ["left", "right", "top", "bottom"] as const;
  * once the pointer has left the row.
  */
 const COLUMN_CONNECTOR =
-	"flex! size-2.25! min-w-0! min-h-0! items-center justify-center rounded-none! border-0! bg-transparent! text-primary opacity-0 transition-opacity duration-150 group-hover/column:opacity-40 hover:opacity-100! [&.connectingfrom]:opacity-100!";
+	"flex! size-2.25! min-w-0! min-h-0! items-center justify-center rounded-none! border-0! bg-transparent! text-primary opacity-0 transition-opacity duration-150 group-hover/column:opacity-40 group-data-dragging/column:opacity-0! hover:opacity-100! [&.connectingfrom]:opacity-100!";
 
 // Far enough out to clear the border the row draws, so the arrow reads as
 // leaving the table rather than sitting on its edge.
@@ -241,7 +250,8 @@ const columnFlags = (column: TableColumn, toggleNullable: () => void): ColumnFla
 };
 
 function Table({ id, data }: NodeProps<ErdTableNode>) {
-	const { updateNodeData } = useReactFlow<ErdTableNode>();
+	const { updateNodeData, getZoom } = useReactFlow<ErdTableNode>();
+	const updateNodeInternals = useUpdateNodeInternals();
 	const { addColumn, copyTable, removeTable, removeColumn } = useGraphActions();
 	const problems = useNodeProblems(id);
 	const failing = problems.some((problem) => problem.severity === "ERROR");
@@ -284,6 +294,99 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 		}));
 	};
 
+	/**
+	 * The row follows the pointer and the others slide aside to show the slot
+	 * it would take. Nothing is written until it is let go: it then snaps into
+	 * the slot, and only once it has settled is the order saved, so a drag
+	 * costs one save rather than one per row crossed.
+	 */
+	const startRowDrag = (event: React.PointerEvent<HTMLElement>) => {
+		const grip = event.currentTarget;
+		const row = grip.parentElement;
+		if (!row?.parentElement) return;
+
+		event.preventDefault();
+		event.stopPropagation();
+		grip.setPointerCapture(event.pointerId);
+
+		// Pointer movement is in screen pixels, the rows are drawn at the
+		// canvas zoom.
+		const zoom = getZoom();
+		const height = row.offsetHeight;
+		const rows = Array.from(
+			row.parentElement.querySelectorAll<HTMLElement>(":scope > [data-column]"),
+		);
+		const from = rows.indexOf(row);
+		const startY = event.clientY;
+		let slot = from;
+
+		row.dataset.dragging = "";
+
+		const move = (e: PointerEvent) => {
+			// Held within the rows, so it can go as far as the first or last
+			// slot and no further.
+			const offset = Math.min(
+				(rows.length - 1 - from) * height,
+				Math.max(-from * height, (e.clientY - startY) / zoom),
+			);
+
+			slot = from + Math.round(offset / height);
+			row.style.transform = `translateY(${offset}px)`;
+
+			rows.forEach((other, index) => {
+				if (other === row) return;
+
+				const shift =
+					from < index && index <= slot ? -height : slot <= index && index < from ? height : 0;
+
+				other.style.transform = shift ? `translateY(${shift}px)` : "";
+			});
+
+			// Measured after every move so the edges stay on the rows as they travel.
+			updateNodeInternals(id);
+		};
+
+		const settle = () => {
+			// The order is committed before this frame paints, so the rows are
+			// already where their transforms had carried them when those come
+			// off. Transitions are held off for that, or each row would slide
+			// back across the distance it no longer needs.
+			if (slot !== from) {
+				const next = [...data.columns];
+				const [moved] = next.splice(from, 1);
+				next.splice(slot, 0, moved);
+				flushSync(() => updateNodeData(id, { columns: next }));
+			}
+
+			for (const each of rows) {
+				each.style.transition = "none";
+				each.style.transform = "";
+			}
+
+			void row.offsetHeight;
+			for (const each of rows) each.style.transition = "";
+
+			updateNodeInternals(id);
+		};
+
+		const end = () => {
+			grip.removeEventListener("pointermove", move);
+			grip.removeEventListener("pointerup", end);
+			grip.removeEventListener("pointercancel", end);
+
+			// Letting go turns the row's transition back on, so moving it to the
+			// slot plays as a snap. The row keeps its place in the order until
+			// that has finished, or the swap would show for a frame.
+			delete row.dataset.dragging;
+			row.style.transform = `translateY(${(slot - from) * height}px)`;
+			window.setTimeout(settle, 160);
+		};
+
+		grip.addEventListener("pointermove", move);
+		grip.addEventListener("pointerup", end);
+		grip.addEventListener("pointercancel", end);
+	};
+
 	const saveColumnName = (columnId: string) => {
 		const next = editValue.trim();
 		const current = data.columns.find((c) => c.id === columnId)?.name;
@@ -309,7 +412,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 
 	if (data.isForeign) {
 		return (
-			<span className="relative inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border border-transparent bg-secondary px-2 py-1 text-3xs font-medium whitespace-nowrap text-secondary-foreground">
+			<span className="relative inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border border-transparent bg-secondary px-2 py-1 text-3xs font-medium whitespace-nowrap text-secondary-foreground group-data-[table-style=outline]/canvas:border-foreground group-data-[table-style=outline]/canvas:bg-transparent group-data-[table-style=outline]/canvas:text-foreground">
 				{data.name}
 				<Handle
 					type="target"
@@ -329,7 +432,10 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 					// connectors off at the border they are meant to reach past. The
 					// corners are rounded by the header and the button that sit in them.
 					<div
-						className="flex w-max flex-col rounded-lg bg-card text-sm text-card-foreground shadow-lg ring-1 ring-foreground/10 transition-all hover:shadow-xl"
+						className={cn(
+							"flex w-max flex-col rounded-lg bg-card text-sm text-card-foreground shadow-lg ring-1 ring-foreground/10 transition-all hover:shadow-xl",
+							OUTLINE_CARD,
+						)}
 						style={{ minWidth: TABLE_NODE_WIDTH / 2 }}
 					/>
 				}
@@ -338,6 +444,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 					className={cn(
 						"relative flex items-center rounded-t-lg bg-muted pr-1 pl-2 text-3xs",
 						ITEM_HEIGHT,
+						OUTLINE_SURFACE,
 					)}
 				>
 					<div className="flex items-center gap-x-1 whitespace-nowrap">
@@ -461,14 +568,23 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 						<ContextMenuTrigger
 							render={
 								<div
+									data-column={column.id}
 									className={cn(
-										"group/column relative flex flex-row justify-items-start border-t border-border bg-card text-4xs leading-5 transition hover:bg-muted",
+										"group/column relative flex flex-row justify-items-start border-t border-border bg-card text-4xs leading-5 transition hover:bg-muted data-dragging:z-10 data-dragging:bg-muted data-dragging:shadow-md data-dragging:transition-none group-data-[table-style=outline]/canvas:data-dragging:bg-foreground/10",
 										editingColumnId === column.id ? "cursor-text" : "cursor-default",
 										ITEM_HEIGHT,
+										OUTLINE_SURFACE,
 									)}
 								/>
 							}
 						>
+							<span
+								aria-hidden
+								className="nodrag nopan absolute inset-y-0 left-0 flex w-2 cursor-grab touch-none items-center justify-center text-muted-foreground opacity-0 transition-opacity group-hover/column:opacity-100 active:cursor-grabbing"
+								onPointerDown={startRowDrag}
+							>
+								<GripVerticalIcon size={8} strokeWidth={1.5} />
+							</span>
 							<div className="mx-2 flex min-w-10 items-center justify-start gap-1 align-middle">
 								{columnFlags(column, () =>
 									updateColumn(column.id, { isNullable: !column.isNullable }),
@@ -629,7 +745,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 				))}
 
 				{data.indexes && data.indexes.length > 0 && (
-					<div className="border-t-2 border-border bg-muted">
+					<div className={cn("border-t-2 border-border bg-muted", OUTLINE_SURFACE)}>
 						<div className="flex items-center gap-1 px-2 py-1">
 							<Database size={8} className="text-muted-foreground" />
 							<span className="text-5xs font-medium text-muted-foreground">INDEXES</span>
@@ -637,7 +753,10 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 						{data.indexes.map((index) => (
 							<div
 								key={index.name}
-								className="border-t border-border px-2 py-1 text-5xs transition hover:bg-muted"
+								className={cn(
+									"border-t border-border px-2 py-1 text-5xs transition hover:bg-muted",
+									OUTLINE_SURFACE,
+								)}
 							>
 								<div className="flex items-center justify-between">
 									<span className="font-mono text-foreground">{index.name}</span>
@@ -655,7 +774,10 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 
 				<button
 					type="button"
-					className="nodrag nopan flex items-center justify-center gap-1 rounded-b-lg border-t border-border py-1 text-4xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+					className={cn(
+						"nodrag nopan flex items-center justify-center gap-1 rounded-b-lg border-t border-border py-1 text-4xs text-muted-foreground transition hover:bg-muted hover:text-foreground",
+						OUTLINE_SURFACE,
+					)}
 					onClick={() => addColumn(id)}
 				>
 					<PlusIcon size={8} strokeWidth={2} />

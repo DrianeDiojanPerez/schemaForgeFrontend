@@ -24,7 +24,7 @@ import { useReveal } from "../hooks/use-reveal";
 import { useSchemaSync } from "../hooks/use-schema-sync";
 import { HOTKEYS } from "../lib/hotkeys";
 import { setCanvasPreference, useCanvasPreferences } from "../lib/canvas-preferences";
-import type { SchemaGrouping } from "../lib/canvas-preferences";
+import type { SchemaGrouping, TableStyle } from "../lib/canvas-preferences";
 import type { BackgroundStyle } from "../lib/backgrounds";
 import type { EdgeDash, EdgeLine } from "../lib/edge-lines";
 import { DEFAULT_CONNECTOR_ARROW } from "../lib/connector-arrows";
@@ -76,6 +76,7 @@ const EDGE_DEFAULTS = { type: "relationship", animated: true };
 // Written once out here so the settings dialog gets the same functions on
 // every render and can skip the ones where nothing it shows has changed.
 const setBackground = (next: BackgroundStyle) => setCanvasPreference("background", next);
+const setTableStyle = (next: TableStyle) => setCanvasPreference("tableStyle", next);
 const setAutoSave = (next: boolean) => setCanvasPreference("autoSave", next);
 const setEdgeLine = (next: EdgeLine) => setCanvasPreference("edgeLine", next);
 const setEdgeDash = (next: EdgeDash) => setCanvasPreference("edgeDash", next);
@@ -172,6 +173,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 	const [connectorArrow, setConnectorArrow] = useState<ConnectorArrow>(DEFAULT_CONNECTOR_ARROW);
 	const {
 		background,
+		tableStyle,
 		schemaGrouping,
 		schemaListOpen,
 		schemaListWidth,
@@ -476,7 +478,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 			panOnDrag={PAN_BUTTONS}
 			selectionOnDrag
 			minZoom={0.5}
-			maxZoom={2}
+			maxZoom={3}
 			defaultEdgeOptions={EDGE_DEFAULTS}
 			connectionLineComponent={ConnectionLine}
 			connectionRadius={40}
@@ -525,7 +527,9 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 	// paints the graph alone and the list joins it once the browser is in.
 	const graph = (
 		<FlowProvider value={flow}>
-			<div className="relative h-full w-full">
+			{/* The tables read the style off this attribute rather than being
+          handed it one by one. */}
+			<div className="group/canvas relative h-full w-full" data-table-style={tableStyle}>
 				<GraphMenu
 					copied={clipboard ? clipboard.nodes.length : null}
 					busy={sync.busy}
@@ -604,6 +608,8 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 							onShowControlsChange={setShowControls}
 							background={background}
 							onBackgroundChange={setBackground}
+							tableStyle={tableStyle}
+							onTableStyleChange={setTableStyle}
 							schemaGrouping={schemaGrouping}
 							onSchemaGroupingChange={setSchemaGrouping}
 							snapToGrid={snapToGrid}
