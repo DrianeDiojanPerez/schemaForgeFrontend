@@ -1,10 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { ErdCanvas } from "@/features/erd/components/erd-canvas";
 import { exampleSchema1 } from "@/features/erd/data/examples";
 import { toDiagram } from "@/features/erd/lib/schema-adapter";
 import { schemaQueries } from "@/features/schema/api/queries";
+import { currentSession } from "@/server/auth/google";
 
 const UNTITLED = { id: "", name: "untitled schema" };
 
@@ -14,6 +15,10 @@ const EXAMPLE = { diagram: exampleSchema1, schema: UNTITLED };
 const EMPTY = { diagram: { nodes: [], edges: [] }, schema: UNTITLED };
 
 export const Route = createFileRoute("/")({
+	beforeLoad: async () => {
+		const { signedIn } = await currentSession();
+		if (!signedIn) throw redirect({ to: "/login" });
+	},
 	// Filled on the server, so the first paint already has the diagram rather
 	// than flashing an empty canvas while a client fetch resolves.
 	loader: ({ context }) => context.queryClient.query(schemaQueries.latest()),

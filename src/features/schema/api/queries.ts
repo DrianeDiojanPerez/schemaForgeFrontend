@@ -1,9 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
+import { isRedirect } from "@tanstack/react-router";
 
+import { currentUser } from "@/server/auth/google";
 import { checkBackend, getSchema, listSchemas } from "@/server/rpc/schema";
 
 import type { Schema } from "../types/schema";
-import { backendKeys, schemaKeys } from "./keys";
+import { accountKeys, backendKeys, schemaKeys } from "./keys";
 
 export type BackendState = "checking" | "online" | "unauthorised" | "offline";
 
@@ -62,7 +64,9 @@ export const schemaQueries = {
 						schema: first ? await getSchema({ data: { id: first.id } }) : null,
 						reachable: true,
 					};
-				} catch {
+				} catch (error) {
+					if (isRedirect(error)) throw error;
+
 					return { schema: null, reachable: false };
 				}
 			},
@@ -100,6 +104,8 @@ export const backendQueries = {
 						detail: result.reason ?? "The backend refused the sign-in",
 					};
 				} catch (error) {
+					if (isRedirect(error)) throw error;
+
 					return {
 						state: "offline",
 						version: "",
@@ -109,5 +115,15 @@ export const backendQueries = {
 			},
 			staleTime: Infinity,
 			retry: false,
+		}),
+};
+
+export const accountQueries = {
+	/** Who is signed in. It changes only by signing out, which reloads the page. */
+	me: () =>
+		queryOptions({
+			queryKey: accountKeys.me,
+			queryFn: () => currentUser(),
+			staleTime: Infinity,
 		}),
 };

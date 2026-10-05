@@ -15,3 +15,7 @@ export const schemaKeys = {
 export const backendKeys = {
 	status: ["backend", "status"] as const,
 };
+
+export const accountKeys = {
+	me: ["account", "me"] as const,
+};
