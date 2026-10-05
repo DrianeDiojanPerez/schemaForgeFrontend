@@ -7,16 +7,20 @@ and shadcn/ui.
 ## What it needs
 
 - Node 22 or later.
-- The SchemaForge backend running, by default on `127.0.0.1:50051`.
+- The SchemaForge backend running, by default on `127.0.0.1:50051`, with its
+  Google sign-in configured. People sign in with Google; the backend holds
+  the Google client and this server holds nothing of it.
+- A secret of 32 or more characters in `SCHEMAFORGE_SESSION_SECRET`. It seals
+  the cookie that carries each visitor's backend tokens.
 - The backend's proto files on this machine. `SCHEMAFORGE_PROTO_DIR` points at
   the directory that holds them (`schema.proto`, `health.proto` and
-  `auth.proto`, and nothing else), and the server refuses to start until it
-  does.
+  `auth.proto`, and nothing else), and the server fails its first request
+  until it does.
 
 ## Running it
 
 ```bash
-cp .env.example .env   # then fill in the backend address and sign-in
+cp .env.example .env   # then fill in the backend address and the secret
 npm install
 npm run dev            # http://localhost:3100
 ```

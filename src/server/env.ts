@@ -24,8 +24,7 @@ export const env = createEnv({
 			.string()
 			.regex(/^[^\s:]+:\d{1,5}$/, "expected host:port")
 			.default("127.0.0.1:50051"),
-		SCHEMAFORGE_EMAIL: z.email(),
-		SCHEMAFORGE_PASSWORD: z.string().min(1),
+		SCHEMAFORGE_SESSION_SECRET: z.string().min(32),
 		SCHEMAFORGE_PROTO_DIR: z
 			.string()
 			.min(1)
