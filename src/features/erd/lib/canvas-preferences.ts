@@ -27,6 +27,7 @@ export type CanvasPreferences = {
 	edgeLabels: boolean;
 	autoSave: boolean;
 	autoValidate: boolean;
+	sqlVim: boolean;
 };
 
 /**
@@ -64,6 +65,7 @@ const DEFAULTS: CanvasPreferences = {
 	edgeLabels: true,
 	autoSave: true,
 	autoValidate: false,
+	sqlVim: false,
 };
 
 const listeners = new Set<() => void>();
@@ -117,6 +119,7 @@ function snapshot(): CanvasPreferences {
 			edgeLabels: flag(saved.edgeLabels, DEFAULTS.edgeLabels),
 			autoSave: flag(saved.autoSave, DEFAULTS.autoSave),
 			autoValidate: flag(saved.autoValidate, DEFAULTS.autoValidate),
+			sqlVim: flag(saved.sqlVim, DEFAULTS.sqlVim),
 		};
 	} catch {
 		// Unreadable storage or leftover nonsense from an older shape. The
