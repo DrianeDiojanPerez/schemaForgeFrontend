@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { EdgeLabelRenderer, Position, useReactFlow, useStore } from "@xyflow/react";
 import type { EdgeProps } from "@xyflow/react";
 import { FileTextIcon, Trash2Icon } from "lucide-react";
@@ -50,7 +50,81 @@ const RELATIONSHIPS: Record<
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["one-to-one", "one-to-many", "many-to-many"];
 
-export const RelationshipEdge = ({
+// The badge and its menu are the costly part of an edge to draw, and nothing
+// in them moves: the wrapper outside carries the position, so a table being
+// dragged redraws the line and leaves these alone.
+const EdgeBadge = memo(function EdgeBadge({
+	id,
+	relationshipType,
+	name,
+	selected,
+	onEditDetails,
+}: {
+	id: string;
+	relationshipType: RelationshipType;
+	name: string | undefined;
+	selected: boolean | undefined;
+	onEditDetails: () => void;
+}) {
+	const { updateEdgeData, deleteElements } = useReactFlow();
+	const relationship = RELATIONSHIPS[relationshipType];
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger
+				title="Relationship options"
+				render={
+					<button
+						type="button"
+						style={{ "--stroke": relationship.stroke } as React.CSSProperties}
+						className={cn(
+							"cursor-pointer rounded border border-(--stroke) bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
+							relationship.text,
+							selected && "ring-1 ring-primary ring-offset-1",
+						)}
+					/>
+				}
+			>
+				{relationship.symbol}
+				{name && <span className="ml-1 font-normal text-muted-foreground">{name}</span>}
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="center" className="min-w-40">
+				<DropdownMenuRadioGroup
+					value={relationshipType}
+					onValueChange={(value) =>
+						updateEdgeData(id, {
+							relationshipType: value as RelationshipType,
+						})
+					}
+				>
+					{RELATIONSHIP_ORDER.map((type) => {
+						const option = RELATIONSHIPS[type];
+						return (
+							<DropdownMenuRadioItem key={type} value={type}>
+								<span className={cn("font-bold", option.text)}>{option.symbol}</span>
+								<span className="text-muted-foreground">{option.label}</span>
+							</DropdownMenuRadioItem>
+						);
+					})}
+				</DropdownMenuRadioGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onClick={onEditDetails}>
+					<FileTextIcon />
+					Edit details
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					variant="destructive"
+					onClick={() => void deleteElements({ edges: [{ id }] })}
+				>
+					<Trash2Icon />
+					Delete relationship
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+});
+
+export const RelationshipEdge = memo(function RelationshipEdge({
 	id,
 	sourceX,
 	sourceY,
@@ -61,10 +135,11 @@ export const RelationshipEdge = ({
 	style = {},
 	data,
 	selected,
-}: EdgeProps<ErdEdge>) => {
-	const { updateEdgeData, deleteElements } = useReactFlow();
+}: EdgeProps<ErdEdge>) {
+	const { updateEdgeData } = useReactFlow();
 	const { tableStyle } = useCanvasPreferences();
 	const [editingDetails, setEditingDetails] = useState(false);
+	const openDetails = useCallback(() => setEditingDetails(true), []);
 	const relationshipType = data?.relationshipType ?? "one-to-many";
 
 	const sourceNode = useStore(useCallback((state) => state.nodeLookup.get(source), [source]));
@@ -284,59 +359,13 @@ export const RelationshipEdge = ({
 						}}
 						className="nodrag nopan pointer-events-auto absolute text-4xs"
 					>
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								title="Relationship options"
-								render={
-									<button
-										type="button"
-										style={{ "--stroke": relationship.stroke } as React.CSSProperties}
-										className={cn(
-											"cursor-pointer rounded border border-(--stroke) bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
-											relationship.text,
-											selected && "ring-1 ring-primary ring-offset-1",
-										)}
-									/>
-								}
-							>
-								{relationship.symbol}
-								{data?.name && (
-									<span className="ml-1 font-normal text-muted-foreground">{data.name}</span>
-								)}
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="center" className="min-w-40">
-								<DropdownMenuRadioGroup
-									value={relationshipType}
-									onValueChange={(value) =>
-										updateEdgeData(id, {
-											relationshipType: value as RelationshipType,
-										})
-									}
-								>
-									{RELATIONSHIP_ORDER.map((type) => {
-										const option = RELATIONSHIPS[type];
-										return (
-											<DropdownMenuRadioItem key={type} value={type}>
-												<span className={cn("font-bold", option.text)}>{option.symbol}</span>
-												<span className="text-muted-foreground">{option.label}</span>
-											</DropdownMenuRadioItem>
-										);
-									})}
-								</DropdownMenuRadioGroup>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onClick={() => setEditingDetails(true)}>
-									<FileTextIcon />
-									Edit details
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									variant="destructive"
-									onClick={() => void deleteElements({ edges: [{ id }] })}
-								>
-									<Trash2Icon />
-									Delete relationship
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						<EdgeBadge
+							id={id}
+							relationshipType={relationshipType}
+							name={data?.name}
+							selected={selected}
+							onEditDetails={openDetails}
+						/>
 					</div>
 				)}
 
@@ -353,4 +382,4 @@ export const RelationshipEdge = ({
 			</EdgeLabelRenderer>
 		</>
 	);
-};
+});

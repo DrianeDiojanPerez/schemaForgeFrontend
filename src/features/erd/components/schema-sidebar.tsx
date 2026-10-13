@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import {
 	ChevronDownIcon,
@@ -154,6 +154,65 @@ function rightAway(run: () => void): () => void {
 // the canvas a scrollbar.
 const CLIPPED = { overflow: "hidden" } as const;
 
+// One row per table, kept apart so selecting a table on the canvas redraws
+// the two rows that changed rather than every row in the list.
+const TableRow = memo(function TableRow({
+	table,
+	open,
+	onToggle,
+	onReveal,
+}: {
+	table: ErdTableNode;
+	open: boolean;
+	onToggle: (id: string, open: boolean) => void;
+	onReveal: (table: ErdTableNode) => void;
+}) {
+	return (
+		<Collapsible open={open} onOpenChange={(next) => onToggle(table.id, next)}>
+			<div
+				className={cn(
+					"flex h-8 items-center rounded-md pr-2 transition-colors",
+					table.selected ? "bg-primary/10" : "hover:bg-sidebar-accent",
+				)}
+			>
+				<CollapsibleTrigger
+					aria-label={open ? `Hide ${table.data.name} columns` : `Show ${table.data.name} columns`}
+					render={
+						<button
+							type="button"
+							className="group/table flex h-full shrink-0 items-center gap-2 rounded-md pl-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+						/>
+					}
+				>
+					<ChevronRightIcon className={cn(CARET, "group-data-panel-open/table:rotate-90")} />
+					<Table2Icon
+						className={cn(
+							"size-4 shrink-0 transition-colors",
+							table.selected ? "text-primary" : "text-muted-foreground",
+						)}
+					/>
+				</CollapsibleTrigger>
+
+				<button
+					type="button"
+					onClick={() => onReveal(table)}
+					title={`Show ${table.data.name} on the canvas`}
+					className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pl-2 text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+				>
+					<span className={cn("truncate text-sm", table.selected && "font-medium")}>
+						{table.data.name}
+					</span>
+					<Count>{table.data.columns.length}</Count>
+				</button>
+			</div>
+
+			<CollapsibleContent>
+				<Columns table={table} />
+			</CollapsibleContent>
+		</Collapsible>
+	);
+});
+
 type SchemaListProps = {
 	name: string;
 	nodes: ErdNode[];
@@ -185,16 +244,23 @@ const SchemaList = memo(function SchemaList({
 		);
 	};
 
-	const reveal = (table: ErdTableNode) => {
-		setNodes((current) =>
-			current.map((node) =>
-				node.selected === (node.id === table.id)
-					? node
-					: { ...node, selected: node.id === table.id },
-			),
-		);
-		goTo(table);
-	};
+	const reveal = useCallback(
+		(table: ErdTableNode) => {
+			setNodes((current) =>
+				current.map((node) =>
+					node.selected === (node.id === table.id)
+						? node
+						: { ...node, selected: node.id === table.id },
+				),
+			);
+			goTo(table);
+		},
+		[setNodes, goTo],
+	);
+
+	const toggleTable = useCallback((id: string, next: boolean) => {
+		setOpenTable(next ? id : null);
+	}, []);
 
 	const revealSchema = (group: SchemaGroup) => {
 		frame(group.tables.map((table) => table.id));
@@ -394,60 +460,13 @@ const SchemaList = memo(function SchemaList({
 									<CollapsibleContent>
 										<div className="flex flex-col gap-0.5 pt-0.5">
 											{group.tables.map((table) => (
-												<Collapsible
+												<TableRow
 													key={table.id}
+													table={table}
 													open={openTable === table.id}
-													onOpenChange={(next) => setOpenTable(next ? table.id : null)}
-												>
-													<div
-														className={cn(
-															"flex h-8 items-center rounded-md pr-2 transition-colors",
-															table.selected ? "bg-primary/10" : "hover:bg-sidebar-accent",
-														)}
-													>
-														<CollapsibleTrigger
-															aria-label={
-																openTable === table.id
-																	? `Hide ${table.data.name} columns`
-																	: `Show ${table.data.name} columns`
-															}
-															render={
-																<button
-																	type="button"
-																	className="group/table flex h-full shrink-0 items-center gap-2 rounded-md pl-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-																/>
-															}
-														>
-															<ChevronRightIcon
-																className={cn(CARET, "group-data-panel-open/table:rotate-90")}
-															/>
-															<Table2Icon
-																className={cn(
-																	"size-4 shrink-0 transition-colors",
-																	table.selected ? "text-primary" : "text-muted-foreground",
-																)}
-															/>
-														</CollapsibleTrigger>
-
-														<button
-															type="button"
-															onClick={() => reveal(table)}
-															title={`Show ${table.data.name} on the canvas`}
-															className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pl-2 text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-														>
-															<span
-																className={cn("truncate text-sm", table.selected && "font-medium")}
-															>
-																{table.data.name}
-															</span>
-															<Count>{table.data.columns.length}</Count>
-														</button>
-													</div>
-
-													<CollapsibleContent>
-														<Columns table={table} />
-													</CollapsibleContent>
-												</Collapsible>
+													onToggle={toggleTable}
+													onReveal={reveal}
+												/>
 											))}
 										</div>
 									</CollapsibleContent>
