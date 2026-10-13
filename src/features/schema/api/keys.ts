@@ -19,3 +19,9 @@ export const backendKeys = {
 export const accountKeys = {
 	me: ["account", "me"] as const,
 };
+
+export const ddlKeys = {
+	all: ["ddl"] as const,
+	generated: (draft: unknown, includeComments: boolean) =>
+		[...ddlKeys.all, { draft, includeComments }] as const,
+};

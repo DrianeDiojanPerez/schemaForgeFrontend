@@ -1,15 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import {
-	createSchema,
-	deleteSchema,
-	generateDdl,
-	updateSchema,
-	validateSchema,
-} from "@/server/rpc/schema";
+import { createSchema, deleteSchema, updateSchema, validateSchema } from "@/server/rpc/schema";
 
 import { EMPTY_SCHEMA } from "../types/schema";
-import type { Dialect, SchemaDraft } from "../types/schema";
+import type { SchemaDraft } from "../types/schema";
 import { schemaKeys } from "./keys";
 
 /**
@@ -45,19 +39,10 @@ export function useDeleteSchema() {
 
 type Checked = { draft: SchemaDraft; id: string };
 
-/** Validation and generation report on the draft and change nothing stored. */
+/** Validation reports on the draft and changes nothing stored. */
 export function useValidateSchema() {
 	return useMutation({
 		mutationFn: ({ draft, id }: Checked) =>
 			validateSchema({ data: { draft: { ...EMPTY_SCHEMA, ...draft, id } } }),
-	});
-}
-
-export function useGenerateDdl() {
-	return useMutation({
-		mutationFn: ({ draft, id, dialect }: Checked & { dialect?: Dialect }) =>
-			generateDdl({
-				data: { draft: { ...EMPTY_SCHEMA, ...draft, id }, dialect },
-			}),
 	});
 }

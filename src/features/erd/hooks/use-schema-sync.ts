@@ -3,10 +3,12 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { useQueryClient } from "@tanstack/react-query";
 
 import { backendKeys } from "@/features/schema/api/keys";
-import { useGenerateDdl, useSaveSchema, useValidateSchema } from "@/features/schema/api/mutations";
+import { useSaveSchema, useValidateSchema } from "@/features/schema/api/mutations";
+import { ddlQueries } from "@/features/schema/api/queries";
 import type { Diagnostic } from "@/features/schema/types/schema";
 import { notify } from "@/lib/toast";
 
+import { downloadText, fileSlug } from "../lib/download";
 import { problemsByTable, toDraft } from "../lib/schema-adapter";
 import type { ErdEdge, ErdNode } from "../types/erd";
 
@@ -20,6 +22,21 @@ type Options = {
 	onSaved: (schemaId: string) => void;
 	/** The backend could not answer a validation, so nothing will mark the tables. */
 	onValidateUnavailable: () => void;
+};
+
+export type Generated = {
+	/** Empty when the schema has errors, since the backend writes no SQL for one. */
+	ddl: string;
+	diagnostics: Diagnostic[];
+	includeComments: boolean;
+	/** The name the script is saved under. */
+	file: string;
+};
+
+export type GenerateOptions = {
+	includeComments?: boolean;
+	/** Save the script as a file instead of opening it, when there is one. */
+	download?: boolean;
 };
 
 // Long enough that dragging a table across the canvas is one round rather than
@@ -68,7 +85,7 @@ export function useSchemaSync({
 }: Options) {
 	const { mutateAsync: saveDraft, isPending: saving } = useSaveSchema();
 	const { mutateAsync: checkDraft, isPending: validating } = useValidateSchema();
-	const { mutateAsync: generateFromDraft, isPending: generating } = useGenerateDdl();
+	const [generating, setGenerating] = useState(false);
 	const busy = saving || validating || generating;
 
 	// A call that fails may have lost the backend, and the connection check
@@ -98,7 +115,7 @@ export function useSchemaSync({
 
 	const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
 	const [problems, setProblems] = useState<Map<string, Diagnostic[]>>(new Map());
-	const [ddl, setDdl] = useState<string | null>(null);
+	const [generated, setGenerated] = useState<Generated | null>(null);
 	// Whether an answer has come back yet, so "no problems" is not claimed
 	// before anything was asked.
 	const [answered, setAnswered] = useState(false);
@@ -130,6 +147,30 @@ export function useSchemaSync({
 
 	const saves = useRef(0);
 
+	// Whether a table is in hand, and who is waiting for it to be put down.
+	// An answer from the backend that lands mid-drag would redraw the canvas
+	// and swap a toast under the moving table, so it waits for the drop.
+	const inHand = useRef(false);
+	const waiting = useRef<(() => void)[]>([]);
+
+	useEffect(() => {
+		inHand.current = nodes.some((node) => node.dragging);
+		if (inHand.current) return;
+
+		const woken = waiting.current;
+		waiting.current = [];
+		for (const wake of woken) wake();
+	}, [nodes]);
+
+	const settled = useCallback(
+		() =>
+			new Promise<void>((resolve) => {
+				if (inHand.current) waiting.current.push(resolve);
+				else resolve();
+			}),
+		[],
+	);
+
 	/**
 	 * Every save says so, automatic or asked for, since a write the user cannot
 	 * see happening is a write they have to take on trust. `auto` only decides
@@ -153,6 +194,7 @@ export function useSchemaSync({
 
 			try {
 				const saved = await track(saveDraft({ ...draft, id: schemaId }));
+				await settled();
 
 				sent.current = key;
 				onSaved(saved.id);
@@ -164,10 +206,11 @@ export function useSchemaSync({
 					if (saves.current === run) notify.success({ title: "Saved" });
 				});
 			} catch (error) {
+				await settled();
 				failed("Save failed", error);
 			}
 		},
-		[draftOrReport, track, saveDraft, schemaId, onSaved, failed],
+		[draftOrReport, track, saveDraft, schemaId, settled, onSaved, failed],
 	);
 
 	/** The last diagram checked, so settling on one twice only asks once. */
@@ -193,6 +236,7 @@ export function useSchemaSync({
 
 			try {
 				const report = await track(checkDraft({ draft, id: schemaId }));
+				await settled();
 
 				if (report.unavailable) {
 					notify.info({
@@ -229,7 +273,7 @@ export function useSchemaSync({
 				onValidateUnavailable();
 			}
 		},
-		[draftOrReport, track, checkDraft, schemaId, onValidateUnavailable, failed],
+		[draftOrReport, track, checkDraft, schemaId, settled, onValidateUnavailable, failed],
 	);
 
 	// Both callbacks take a new identity whenever the diagram does, so the timer
@@ -244,6 +288,10 @@ export function useSchemaSync({
 	// Saving first, so what the backend is asked about is what it was just told.
 	useEffect(() => {
 		if (!autoSave && !autoValidate) return;
+
+		// A table still in hand is not a diagram that has settled. Writing it out
+		// mid-drag, and the toasts that come with that, is what made a drag stutter.
+		if (nodes.some((node) => node.dragging)) return;
 
 		let timer: ReturnType<typeof setTimeout>;
 
@@ -269,30 +317,79 @@ export function useSchemaSync({
 		// oxlint-disable-next-line react/exhaustive-effect-dependencies
 	}, [autoSave, autoValidate, name, nodes, edges]);
 
-	const generate = useCallback(async () => {
-		const draft = draftOrReport();
-		if (!draft) return;
+	// The script is asked for as soon as the pointer reaches the button, so
+	// the dialog has it by the time it opens. Nothing is said on the way: a
+	// diagram the backend has no type for is reported when the click comes.
+	const prefetch = useCallback(
+		(includeComments = true) => {
+			const result = toDraft(name, "", nodes, edges);
+			if (!result.ok) return;
 
-		notify.waiting({ title: "Generating" });
+			void queryClient.prefetchQuery(ddlQueries.generated(result.draft, schemaId, includeComments));
+		},
+		[name, nodes, edges, schemaId, queryClient],
+	);
 
-		try {
-			const result = await track(generateFromDraft({ draft, id: schemaId }));
+	const generate = useCallback(
+		async ({ includeComments = true, download = false }: GenerateOptions = {}) => {
+			const draft = draftOrReport();
+			if (!draft) return;
 
-			if (result.unavailable) {
-				notify.info({ title: "Not built yet", description: result.unavailable });
-				return;
+			if (download) notify.waiting({ title: "Exporting" });
+			setGenerating(true);
+
+			try {
+				const result = await track(
+					queryClient.fetchQuery(ddlQueries.generated(draft, schemaId, includeComments)),
+				);
+
+				if (result.unavailable) {
+					notify.info({ title: "Not built yet", description: result.unavailable });
+					return;
+				}
+
+				setDiagnostics(result.diagnostics);
+				setProblems(problemsByTable(draft, result.diagnostics));
+				setAnswered(true);
+
+				const file = `${fileSlug(name)}.sql`;
+
+				if (result.ddl !== "" && download) {
+					downloadText(file, result.ddl, "application/sql");
+					notify.success({ title: "Exported", description: file });
+					return;
+				}
+
+				// The dialog says the rest itself. A script that was asked for as a
+				// file but could not be written opens the same way, so the errors in
+				// the way can be read.
+				setGenerated({ ddl: result.ddl, diagnostics: result.diagnostics, includeComments, file });
+				if (!download) return;
+
+				// An empty script with errors beside it is how a broken diagram
+				// comes back, not a failure: the backend writes no SQL a database
+				// would refuse.
+				const errors = result.diagnostics.filter((item) => item.severity === "ERROR");
+
+				if (errors.length === 0) {
+					notify.info({ title: "Nothing to export" });
+					return;
+				}
+
+				notify.warning({
+					title: `${errors.length} error${errors.length === 1 ? "" : "s"} to fix first`,
+					description: errors[0].message,
+				});
+			} catch (error) {
+				failed("Could not generate", error);
+			} finally {
+				setGenerating(false);
 			}
+		},
+		[draftOrReport, track, queryClient, schemaId, name, failed],
+	);
 
-			setDiagnostics(result.diagnostics);
-			setProblems(problemsByTable(draft, result.diagnostics));
-			setDdl(result.ddl);
-			notify.success({ title: "Generated" });
-		} catch (error) {
-			failed("Could not generate", error);
-		}
-	}, [draftOrReport, track, generateFromDraft, schemaId, failed]);
-
-	const closeDdl = useCallback(() => setDdl(null), []);
+	const closeGenerated = useCallback(() => setGenerated(null), []);
 
 	const dismissDiagnostics = useCallback(() => {
 		setDiagnostics([]);
@@ -313,11 +410,12 @@ export function useSchemaSync({
 		diagnostics,
 		checked: answered,
 		problems,
-		ddl,
-		closeDdl,
+		generated,
+		closeGenerated,
 		dismissDiagnostics,
 		save,
 		validate,
 		generate,
+		prefetch,
 	};
 }

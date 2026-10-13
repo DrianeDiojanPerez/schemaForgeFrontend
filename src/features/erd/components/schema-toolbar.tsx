@@ -36,6 +36,9 @@ export type SchemaToolbarProps = {
 	generating: boolean;
 	onAddTable: () => void;
 	onGenerate: () => void;
+	/** Asks for the script ahead of the click, as the pointer arrives. */
+	onPrefetchSql: () => void;
+	onExportSql: () => void;
 	settingsOpen: boolean;
 	onSettingsOpenChange: (open: boolean, byKeyboard?: boolean) => void;
 	/** Holds the bar up for as long as something is pointing at it. */
@@ -83,6 +86,8 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 	generating,
 	onAddTable,
 	onGenerate,
+	onPrefetchSql,
+	onExportSql,
 	settingsOpen,
 	onSettingsOpenChange,
 	raised = false,
@@ -198,6 +203,8 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 									size="icon"
 									aria-label="Generate SQL"
 									disabled={generating}
+									onPointerEnter={onPrefetchSql}
+									onFocus={onPrefetchSql}
 									onClick={onGenerate}
 									className={cn(ITEM, !up && "opacity-20")}
 								/>
@@ -235,7 +242,11 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 							<DropdownMenuGroup>
 								<DropdownMenuLabel>Export as</DropdownMenuLabel>
 								{FILES.map((file) => (
-									<DropdownMenuItem key={file.id} onClick={() => soon(file.extension)}>
+									<DropdownMenuItem
+										key={file.id}
+										onPointerEnter={file.id === "sql" ? onPrefetchSql : undefined}
+										onClick={() => (file.id === "sql" ? onExportSql() : soon(file.extension))}
+									>
 										<file.icon />
 										{file.label}
 										<DropdownMenuShortcut>{file.extension}</DropdownMenuShortcut>

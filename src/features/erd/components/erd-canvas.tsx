@@ -71,6 +71,9 @@ const SNAP_GRID: [number, number] = [16, 16];
 // Holding the right button is what moves the canvas, which leaves the left one
 // free to sweep a selection over tables.
 const PAN_BUTTONS = [2];
+
+/** How much of the way to the pointer a dragged table moves each frame. */
+const GLIDE_SHARE = 0.45;
 const EDGE_DEFAULTS = { type: "relationship", animated: true };
 
 // Written once out here so the settings dialog gets the same functions on
@@ -136,7 +139,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 		removeColumn,
 	} = useErdGraph(diagram);
 	const theme = useTheme();
-	const { screenToFlowPosition, fitView, setCenter, getZoom } = useReactFlow();
+	const { screenToFlowPosition, fitView, setCenter, getZoom, getNodes } = useReactFlow<ErdNode>();
 	const tour = useTour();
 	const { bringCloser } = useReveal();
 	const [settingsOpen, setSettingsOpen] = useState(false);
@@ -277,13 +280,78 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 	 * sixty times a second and kept resetting the auto-save timer, so a change
 	 * to a table was never saved.
 	 */
+	// Where each table being dragged is headed, and the frame loop that walks
+	// it there. Pointer events land whenever the device sends them, which on a
+	// trackpad is anything but evenly, and a table moved on each one judders.
+	// Moved once a frame, part of the way to the pointer, it glides instead,
+	// a frame or two behind the hand.
+	const dragTargets = useRef(new Map<string, { x: number; y: number }>());
+	const glide = useRef<number | null>(null);
+
+	const stopGlide = useCallback(() => {
+		if (glide.current !== null) cancelAnimationFrame(glide.current);
+		glide.current = null;
+		dragTargets.current.clear();
+	}, []);
+
+	const glideStep = useCallback(
+		function step() {
+			glide.current = null;
+			const moves: NodeChange<ErdNode>[] = [];
+			const placed = getNodes();
+
+			for (const [id, target] of dragTargets.current) {
+				const node = placed.find((item) => item.id === id);
+				if (!node) {
+					dragTargets.current.delete(id);
+					continue;
+				}
+
+				const dx = target.x - node.position.x;
+				const dy = target.y - node.position.y;
+				const arrived = Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5;
+				const position = arrived
+					? target
+					: { x: node.position.x + dx * GLIDE_SHARE, y: node.position.y + dy * GLIDE_SHARE };
+
+				moves.push({ type: "position", id, position, dragging: true });
+				if (arrived) dragTargets.current.delete(id);
+			}
+
+			if (moves.length > 0) onNodesChange(moves);
+			if (dragTargets.current.size > 0) glide.current = requestAnimationFrame(step);
+		},
+		[getNodes, onNodesChange],
+	);
+
+	useEffect(() => stopGlide, [stopGlide]);
+
 	const changeNodes = useCallback(
 		(changes: NodeChange<ErdNode>[]) => {
 			const theirs = changes.filter((change) => !("id" in change) || !isSchemaBoxId(change.id));
+			if (theirs.length === 0) return;
 
-			if (theirs.length > 0) onNodesChange(theirs);
+			const rest: NodeChange<ErdNode>[] = [];
+
+			for (const change of theirs) {
+				if (change.type === "position" && change.dragging && change.position) {
+					dragTargets.current.set(change.id, change.position);
+					continue;
+				}
+
+				// The drop carries the final place, so the glide ends and the
+				// table lands exactly where the hand let go.
+				if (change.type === "position" && change.dragging === false) stopGlide();
+
+				rest.push(change);
+			}
+
+			if (rest.length > 0) onNodesChange(rest);
+			if (dragTargets.current.size > 0 && glide.current === null) {
+				glide.current = requestAnimationFrame(glideStep);
+			}
 		},
-		[onNodesChange],
+		[onNodesChange, glideStep, stopGlide],
 	);
 
 	const clickNode = useCallback(
@@ -421,6 +489,12 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 
 	const { diagnostics, checked, dismissDiagnostics } = sync;
 	const generate = useCallback(() => void latest.current.generate(), []);
+	const prefetchSql = useCallback(() => latest.current.prefetch(), []);
+	const exportSql = useCallback(() => void latest.current.generate({ download: true }), []);
+	const regenerate = useCallback(
+		(includeComments: boolean) => void latest.current.generate({ includeComments }),
+		[],
+	);
 
 	// Held back on a fresh load until the loader is gone, since coming in
 	// while the page is still busy loading it arrives in a jump.
@@ -555,6 +629,8 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 						generating={sync.generating}
 						onAddTable={addTableAtCentre}
 						onGenerate={generate}
+						onPrefetchSql={prefetchSql}
+						onExportSql={exportSql}
 						settingsOpen={settingsOpen}
 						onSettingsOpenChange={openSettings}
 						raised={tour.active}
@@ -628,7 +704,12 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 							onEdgeDashChange={setEdgeDash}
 						/>
 
-						<GeneratedSqlDialog ddl={sync.ddl} onClose={sync.closeDdl} />
+						<GeneratedSqlDialog
+							result={sync.generated}
+							generating={sync.generating}
+							onClose={sync.closeGenerated}
+							onIncludeCommentsChange={regenerate}
+						/>
 						<CanvasTour />
 						<BackendWatch onReconnect={reconnected} />
 					</GraphActionsProvider>

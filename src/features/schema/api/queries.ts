@@ -2,10 +2,11 @@ import { queryOptions } from "@tanstack/react-query";
 import { isRedirect } from "@tanstack/react-router";
 
 import { currentUser } from "@/server/auth/google";
-import { checkBackend, getSchema, listSchemas } from "@/server/rpc/schema";
+import { checkBackend, generateDdl, getSchema, listSchemas } from "@/server/rpc/schema";
 
-import type { Schema } from "../types/schema";
-import { accountKeys, backendKeys, schemaKeys } from "./keys";
+import { EMPTY_SCHEMA } from "../types/schema";
+import type { Schema, SchemaDraft } from "../types/schema";
+import { accountKeys, backendKeys, ddlKeys, schemaKeys } from "./keys";
 
 export type BackendState = "checking" | "online" | "unauthorised" | "offline";
 
@@ -125,5 +126,22 @@ export const accountQueries = {
 			queryKey: accountKeys.me,
 			queryFn: () => currentUser(),
 			staleTime: Infinity,
+		}),
+};
+
+export const ddlQueries = {
+	/**
+	 * The script for one draft. Keyed on the draft itself, so it can be asked
+	 * for ahead of the click and found again when the click comes, and let go
+	 * soon after since the diagram will have moved on.
+	 */
+	generated: (draft: SchemaDraft, id: string, includeComments: boolean) =>
+		queryOptions({
+			queryKey: ddlKeys.generated({ ...draft, id }, includeComments),
+			queryFn: () =>
+				generateDdl({ data: { draft: { ...EMPTY_SCHEMA, ...draft, id }, includeComments } }),
+			staleTime: 30_000,
+			gcTime: 60_000,
+			retry: false,
 		}),
 };
