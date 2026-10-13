@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { useReveal } from "../hooks/use-reveal";
 import { postgresTypeGroups } from "../lib/postgres-types";
 import { TABLE_NODE_WIDTH } from "../lib/node-dimensions";
+import { nodeAnchor } from "../lib/tour";
 import { typeLabel } from "../lib/type-parameters";
 import type { ErdTableNode, TableColumn } from "../types/erd";
 import { useConnectorArrows } from "./connector-arrow-context";
@@ -432,6 +433,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 					// connectors off at the border they are meant to reach past. The
 					// corners are rounded by the header and the button that sit in them.
 					<div
+						id={nodeAnchor(id)}
 						className={cn(
 							"flex w-max flex-col rounded-lg bg-card text-sm text-card-foreground shadow-lg ring-1 ring-foreground/10 transition-all hover:shadow-xl",
 							OUTLINE_CARD,

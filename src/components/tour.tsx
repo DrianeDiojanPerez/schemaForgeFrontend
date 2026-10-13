@@ -74,6 +74,9 @@ export type TourStep = {
 	target: string;
 	content: ReactNode;
 	side?: TourSide;
+	/** Brings the target on screen before it is measured, for one that has to
+	    be travelled to. The step waits for it to finish. */
+	reveal?: () => Promise<unknown> | void;
 };
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -86,6 +89,9 @@ type TourState = {
 	active: boolean;
 	done: boolean;
 	start: () => void;
+	/** Walks the given steps once, from the one at `at`, without touching
+	    what is remembered about the tour proper. */
+	show: (steps: TourStep[], at?: number) => void;
 	next: () => void;
 	back: () => void;
 	end: () => void;
@@ -98,6 +104,8 @@ const MARGIN = 16;
 const CARD_WIDTH = 300;
 
 const GLIDE = { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const };
+
+const REVEAL_LIMIT = 1500;
 
 /** Where the element is, with a little room around it, or nothing when it is
     not on screen to be pointed at. */
@@ -211,9 +219,13 @@ export function TourProvider({
 		restore.current = undefined;
 	}, []);
 
+	// A one-off walk is not the tour, so finishing it must not mark the tour
+	// as seen.
+	const remember = useRef(true);
+
 	const end = useCallback(() => {
 		setStep(-1);
-		finish(storageKey);
+		if (remember.current) finish(storageKey);
 	}, [storageKey]);
 
 	// Only the steps whose target is on screen are walked, so a panel that is
@@ -227,9 +239,18 @@ export function TourProvider({
 			return;
 		}
 
+		remember.current = true;
 		setRun(here);
 		setStep(0);
 	}, [steps, settle]);
+
+	const show = useCallback((list: TourStep[], at = 0) => {
+		if (list.length === 0) return;
+
+		remember.current = false;
+		setRun(list);
+		setStep(Math.min(at, list.length - 1));
+	}, []);
 
 	const next = useCallback(() => {
 		if (step >= run.length - 1) end();
@@ -251,16 +272,32 @@ export function TourProvider({
 			return;
 		}
 
-		const update = () => setBox(measure(current.target));
-		update();
+		let gone = false;
+		let settled = 0;
 
-		// The toolbar rises and the panel slides to meet the tour, so one more
-		// look once they have settled.
-		const settled = window.setTimeout(update, 500);
+		const update = () => {
+			if (!gone) setBox(measure(current.target));
+		};
+
+		// A target that has to be travelled to is measured once the trip is
+		// over, since where it was at the start is nowhere near where it ends.
+		// A trip that never reports back still gets its card, late.
+		const trip = Promise.resolve(current.reveal?.());
+		const limit = new Promise((resolve) => setTimeout(resolve, REVEAL_LIMIT));
+
+		void Promise.race([trip, limit]).then(() => {
+			update();
+
+			// The toolbar rises and the panel slides to meet the tour, so one
+			// more look once they have settled.
+			settled = window.setTimeout(update, 500);
+		});
+
 		window.addEventListener("resize", update);
 		window.addEventListener("scroll", update, true);
 
 		return () => {
+			gone = true;
 			window.clearTimeout(settled);
 			window.removeEventListener("resize", update);
 			window.removeEventListener("scroll", update, true);
@@ -284,11 +321,12 @@ export function TourProvider({
 			active: step >= 0,
 			done,
 			start,
+			show,
 			next,
 			back,
 			end,
 		}),
-		[steps, step, run.length, done, start, next, back, end],
+		[steps, step, run.length, done, start, show, next, back, end],
 	);
 
 	const at = box && current ? place(box, current.side ?? "bottom", tall) : null;
@@ -354,9 +392,9 @@ export function TourProvider({
 											className="flex items-center gap-1"
 											aria-label={`Step ${step + 1} of ${run.length}`}
 										>
-											{run.map((item, index) => (
+											{run.map((_item, index) => (
 												<span
-													key={item.target}
+													key={index}
 													className={cn(
 														"h-1.5 rounded-full transition-all duration-300",
 														index === step ? "w-4 bg-primary" : "w-1.5 bg-border",

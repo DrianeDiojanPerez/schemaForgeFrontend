@@ -1,4 +1,3 @@
-import { useReactFlow } from "@xyflow/react";
 import { BugIcon, CircleCheckIcon, EraserIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,8 +14,6 @@ import type { Diagnostic } from "@/features/schema/types/schema";
 import { cn } from "@/lib/utils";
 
 import { useReveal } from "../hooks/use-reveal";
-import { isTableNode } from "../lib/node-guards";
-import type { ErdNode } from "../types/erd";
 import { ProblemMark, ProblemMessage, problemTitle } from "./problem-text";
 
 export type DiagnosticsMenuProps = {
@@ -50,35 +47,10 @@ export function DiagnosticsMenu({
 	onOpenChange,
 	className,
 }: DiagnosticsMenuProps) {
-	const { getNodes, setNodes } = useReactFlow<ErdNode>();
-	const { goTo } = useReveal();
+	const { goToProblem } = useReveal();
 
 	const errors = diagnostics.filter((item) => item.severity === "ERROR");
 	const warnings = diagnostics.filter((item) => item.severity === "WARNING");
-
-	// The ids blamed can be a table or one of its columns, and either way it
-	// is the table the canvas can fly to. The first one blamed is the one the
-	// message is about, so that is the one flown to.
-	const reveal = (diagnostic: Diagnostic) => {
-		const nodes = getNodes();
-		const owner = (id: string) =>
-			nodes.find(
-				(node) =>
-					isTableNode(node) &&
-					(node.id === id || node.data.columns.some((column) => column.id === id)),
-			);
-		const table = diagnostic.elementIds.map(owner).find(Boolean);
-		if (!table) return;
-
-		setNodes((current) =>
-			current.map((node) =>
-				node.selected === (node.id === table.id)
-					? node
-					: { ...node, selected: node.id === table.id },
-			),
-		);
-		goTo(table);
-	};
 
 	const label = checked ? summary(errors.length, warnings.length) : "Checking";
 
@@ -147,7 +119,7 @@ export function DiagnosticsMenu({
 							{[...errors, ...warnings].map((diagnostic, index) => (
 								<DropdownMenuItem
 									key={`${diagnostic.code}-${index}`}
-									onClick={() => reveal(diagnostic)}
+									onClick={() => void goToProblem(diagnostic)}
 									className="items-start gap-3 px-2.5 py-2.5"
 								>
 									<ProblemMark severity={diagnostic.severity} />
