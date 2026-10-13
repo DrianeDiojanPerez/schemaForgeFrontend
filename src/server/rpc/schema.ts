@@ -42,10 +42,10 @@ function targetOut(target: Target): Pick<GenerateDdlRequest, "id" | "draft"> {
 }
 
 /**
- * Checking and generating are later milestones, so the running backend refuses
- * them. That is a fact about the backend rather than a fault in the schema, and
- * it reads as one here: the call answers with why it cannot run instead of
- * throwing, which keeps the canvas from blaming the user for it.
+ * A dialect the backend has no generator for yet, MySQL for now, comes back
+ * as Unimplemented. That is a fact about the backend rather than a fault in
+ * the schema, and it reads as one here: the call answers with why it cannot
+ * run instead of throwing, which keeps the canvas from blaming the user for it.
  */
 type Unavailable = { unavailable?: string };
 
