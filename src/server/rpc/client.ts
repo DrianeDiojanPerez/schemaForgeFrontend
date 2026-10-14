@@ -35,6 +35,7 @@ import type { ListSchemasRequest } from "./generated/schemaforge/v1/ListSchemasR
 import type { ListSchemasResponse__Output } from "./generated/schemaforge/v1/ListSchemasResponse";
 import type { LoginResponse__Output } from "./generated/schemaforge/v1/LoginResponse";
 import type { LoginWithGoogleRequest } from "./generated/schemaforge/v1/LoginWithGoogleRequest";
+import type { RegisterRequest } from "./generated/schemaforge/v1/RegisterRequest";
 import type { RefreshTokenRequest } from "./generated/schemaforge/v1/RefreshTokenRequest";
 import type { RefreshTokenResponse__Output } from "./generated/schemaforge/v1/RefreshTokenResponse";
 import type { SchemaServiceClient } from "./generated/schemaforge/v1/SchemaService";
@@ -171,6 +172,8 @@ function plainMessage(error: ServiceError): string {
 			return "Your sign-in has run out. Sign in again.";
 		case grpcStatus.PERMISSION_DENIED:
 			return error.details || "Your account is not allowed to do this.";
+		case grpcStatus.UNIMPLEMENTED:
+			return "The backend that is running does not have this call yet.";
 		default:
 			return error.details || error.message;
 	}
@@ -396,6 +399,11 @@ export const v1 = {
 		loginWithGoogle: (request: LoginWithGoogleRequest): Promise<LoginResponse__Output> =>
 			unary((metadata, options, callback) =>
 				clients().auth.LoginWithGoogle(request, metadata, options, callback),
+			),
+
+		register: (request: RegisterRequest): Promise<LoginResponse__Output> =>
+			unary((metadata, options, callback) =>
+				clients().auth.Register(request, metadata, options, callback),
 			),
 
 		refreshToken: (request: RefreshTokenRequest): Promise<RefreshTokenResponse__Output> =>

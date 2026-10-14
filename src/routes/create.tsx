@@ -8,6 +8,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/toast";
 import { currentSession } from "@/server/auth/google";
+import { registerWithPassword } from "@/server/auth/password";
 
 export const Route = createFileRoute("/create")({
 	beforeLoad: async () => {
@@ -19,6 +20,8 @@ export const Route = createFileRoute("/create")({
 });
 
 function CreateAccountPage() {
+	const navigate = Route.useNavigate();
+
 	return (
 		<AuthPage
 			title="Create your account"
@@ -33,34 +36,49 @@ function CreateAccountPage() {
 				</>
 			}
 		>
-			{(leaving) => <SignUpForm disabled={leaving} />}
+			{(leaving) => <SignUpForm disabled={leaving} onDone={() => navigate({ to: "/" })} />}
 		</AuthPage>
 	);
 }
 
 const MIN_PASSWORD = 8;
 
-// TODO: register through the backend once it has a call for it. Until then
-// submitting only says so.
-function SignUpForm({ disabled }: { disabled: boolean }) {
+function SignUpForm({ disabled, onDone }: { disabled: boolean; onDone: () => Promise<void> }) {
 	const [password, setPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
+	const [sending, setSending] = useState(false);
 
 	const short = password.length > 0 && password.length < MIN_PASSWORD;
 	const mismatch = confirm.length > 0 && confirm !== password;
+	const busy = disabled || sending;
 
-	const submit = (event: React.FormEvent<HTMLFormElement>) => {
+	const submit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (short || mismatch) return;
+		if (short || mismatch || sending) return;
 
-		notify.info({
-			title: "Not built yet",
-			description: "Signing up with a password is not wired up yet. Use Google for now.",
-		});
+		const form = new FormData(event.currentTarget);
+		setSending(true);
+
+		try {
+			await registerWithPassword({
+				data: {
+					name: String(form.get("name") ?? ""),
+					email: String(form.get("email") ?? ""),
+					password,
+				},
+			});
+			await onDone();
+		} catch (reason) {
+			notify.error({
+				title: "Could not create your account",
+				description: reason instanceof Error ? reason.message : "Try again in a moment.",
+			});
+			setSending(false);
+		}
 	};
 
 	return (
-		<form onSubmit={submit} className="flex flex-col gap-4">
+		<form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
 			<Field>
 				<FieldLabel htmlFor="create-name">Name</FieldLabel>
 				<Solid>
@@ -71,7 +89,7 @@ function SignUpForm({ disabled }: { disabled: boolean }) {
 						placeholder="Ada Lovelace"
 						required
 						autoFocus
-						disabled={disabled}
+						disabled={busy}
 					/>
 				</Solid>
 			</Field>
@@ -85,7 +103,7 @@ function SignUpForm({ disabled }: { disabled: boolean }) {
 						autoComplete="email"
 						placeholder="you@example.com"
 						required
-						disabled={disabled}
+						disabled={busy}
 					/>
 				</Solid>
 			</Field>
@@ -99,7 +117,7 @@ function SignUpForm({ disabled }: { disabled: boolean }) {
 						autoComplete="new-password"
 						minLength={MIN_PASSWORD}
 						required
-						disabled={disabled}
+						disabled={busy}
 						aria-invalid={short || undefined}
 						value={password}
 						onChange={(event) => setPassword(event.target.value)}
@@ -116,7 +134,7 @@ function SignUpForm({ disabled }: { disabled: boolean }) {
 						type="password"
 						autoComplete="new-password"
 						required
-						disabled={disabled}
+						disabled={busy}
 						aria-invalid={mismatch || undefined}
 						value={confirm}
 						onChange={(event) => setConfirm(event.target.value)}
@@ -124,8 +142,8 @@ function SignUpForm({ disabled }: { disabled: boolean }) {
 				</Solid>
 				{mismatch && <FieldError>The passwords do not match.</FieldError>}
 			</Field>
-			<Button type="submit" size="lg" className="w-full" disabled={disabled}>
-				Create account
+			<Button type="submit" size="lg" className="w-full" disabled={busy} aria-busy={sending}>
+				{sending ? "Creating your account" : "Create account"}
 			</Button>
 		</form>
 	);

@@ -12,6 +12,7 @@ import type { LoginWithGoogleRequest as _schemaforge_v1_LoginWithGoogleRequest, 
 import type { Permission as _schemaforge_v1_Permission, Permission__Output as _schemaforge_v1_Permission__Output } from './schemaforge/v1/Permission';
 import type { RefreshTokenRequest as _schemaforge_v1_RefreshTokenRequest, RefreshTokenRequest__Output as _schemaforge_v1_RefreshTokenRequest__Output } from './schemaforge/v1/RefreshTokenRequest';
 import type { RefreshTokenResponse as _schemaforge_v1_RefreshTokenResponse, RefreshTokenResponse__Output as _schemaforge_v1_RefreshTokenResponse__Output } from './schemaforge/v1/RefreshTokenResponse';
+import type { RegisterRequest as _schemaforge_v1_RegisterRequest, RegisterRequest__Output as _schemaforge_v1_RegisterRequest__Output } from './schemaforge/v1/RegisterRequest';
 
 type SubtypeConstructor<Constructor extends new (...args: any) => any, Subtype> = {
   new(...args: ConstructorParameters<Constructor>): Subtype;
@@ -31,6 +32,7 @@ export interface ProtoGrpcType {
       Permission: MessageTypeDefinition<_schemaforge_v1_Permission, _schemaforge_v1_Permission__Output>
       RefreshTokenRequest: MessageTypeDefinition<_schemaforge_v1_RefreshTokenRequest, _schemaforge_v1_RefreshTokenRequest__Output>
       RefreshTokenResponse: MessageTypeDefinition<_schemaforge_v1_RefreshTokenResponse, _schemaforge_v1_RefreshTokenResponse__Output>
+      RegisterRequest: MessageTypeDefinition<_schemaforge_v1_RegisterRequest, _schemaforge_v1_RegisterRequest__Output>
     }
   }
 }
