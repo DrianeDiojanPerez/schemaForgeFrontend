@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-import { nearestSides } from "./lib/edge-lines";
+import { Position } from "@xyflow/react";
+
+import { linePath, nearestSides } from "./lib/edge-lines";
 
 // Two tables 160 wide. The source sits at 0; the target is moved about.
 const source = { left: 0, right: 160 };
@@ -34,5 +36,66 @@ describe("nearestSides", () => {
 			sourceSide: "left",
 			targetSide: "right",
 		});
+	});
+});
+
+describe("linePath", () => {
+	const across = {
+		sourceY: 100,
+		targetY: 250,
+		sourcePosition: Position.Right,
+		targetPosition: Position.Left,
+	};
+
+	test("joins facing tables with an S that turns halfway across", () => {
+		const [path, labelX, labelY] = linePath(
+			"rounded",
+			{ ...across, sourceX: 100, targetX: 200 },
+			0,
+		);
+
+		expect(path).toBe(
+			"M100 100L140 100Q150 100 150 110L150 175Q150 175 150 175L150 175Q150 175 150 175L150 240Q150 250 160 250L200 250",
+		);
+		expect([labelX, labelY]).toEqual([150, 175]);
+	});
+
+	test("opens the S out round the other table once the gap is under two reaches", () => {
+		const [edge] = linePath("rounded", { ...across, sourceX: 100, targetX: 128 }, 0);
+		const [round] = linePath("rounded", { ...across, sourceX: 100, targetX: 120 }, 0);
+
+		expect(edge).toBe(
+			"M100 100L104 100Q114 100 114 110L114 175Q114 175 114 175L114 175Q114 175 114 175L114 240Q114 250 124 250L128 250",
+		);
+		expect(round).toBe(
+			"M100 100L104 100Q114 100 114 110L114 171Q114 175 110 175L110 175Q106 175 106 179L106 240Q106 250 116 250L120 250",
+		);
+	});
+
+	test("moves the halfway line over a lane for each line running alongside", () => {
+		const [second] = linePath("square", { ...across, sourceX: 100, targetX: 300 }, 1);
+
+		expect(second).toBe(
+			"M100 100L214 100Q214 100 214 100L214 175Q214 175 214 175L214 175Q214 175 214 175L214 250Q214 250 214 250L300 250",
+		);
+	});
+
+	test("rounds both corners the same going round a table", () => {
+		const [path] = linePath(
+			"rounded",
+			{
+				sourceX: 200,
+				sourceY: 250,
+				targetX: 260,
+				targetY: 100,
+				sourcePosition: Position.Left,
+				targetPosition: Position.Left,
+			},
+			0,
+		);
+
+		expect(path).toBe(
+			"M200 250L182 250Q172 250 172 240L172 175Q172 175 172 175L172 175Q172 175 172 175L172 110Q172 100 182 100L260 100",
+		);
 	});
 });
