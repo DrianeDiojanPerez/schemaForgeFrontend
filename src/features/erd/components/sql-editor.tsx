@@ -12,6 +12,7 @@ import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { cn } from "@/lib/utils";
 
 import { sqlThemeOf } from "../lib/sql-themes";
+import { showVimNotice, vimNotice } from "../lib/vim-notices";
 import type { Palette, SqlTheme } from "../lib/sql-themes";
 
 export type SqlEditorProps = {
@@ -429,7 +430,21 @@ export function SqlEditor({
 		setMode("normal");
 		cm.on("vim-mode-change", handler);
 
-		return () => cm.off("vim-mode-change", handler);
+		// Vim's one-liners go to the toaster. The long ones, which wait for
+		// Enter, keep the panel under the editor.
+		const panel = cm.openNotification;
+		cm.openNotification = (template, options) => {
+			const notice = options.duration === 0 ? null : vimNotice(template.textContent ?? "");
+			if (!notice) return panel.call(cm, template, options);
+
+			showVimNotice(notice, options.duration);
+			return () => {};
+		};
+
+		return () => {
+			cm.off("vim-mode-change", handler);
+			cm.openNotification = panel;
+		};
 	}, [vimOn]);
 
 	return (
