@@ -58,21 +58,30 @@ const EdgeBadge = memo(function EdgeBadge({
 	relationshipType,
 	name,
 	selected,
+	shown,
+	open,
+	onOpenChange,
 	onEditDetails,
 }: {
 	id: string;
 	relationshipType: RelationshipType;
 	name: string | undefined;
 	selected: boolean | undefined;
+	/** A badge that is not shown stays in the DOM, with no size, so the menu
+      opened from the line still has a point to hang from. */
+	shown: boolean;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	onEditDetails: () => void;
 }) {
 	const { updateEdgeData, deleteElements } = useReactFlow();
 	const relationship = RELATIONSHIPS[relationshipType];
 
 	return (
-		<DropdownMenu>
+		<DropdownMenu open={open} onOpenChange={onOpenChange}>
 			<DropdownMenuTrigger
 				title="Relationship options"
+				tabIndex={shown ? undefined : -1}
 				render={
 					<button
 						type="button"
@@ -81,6 +90,7 @@ const EdgeBadge = memo(function EdgeBadge({
 							"cursor-pointer rounded border border-(--stroke) bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
 							relationship.text,
 							selected && "ring-1 ring-primary ring-offset-1",
+							!shown && "invisible size-0 overflow-hidden border-0 p-0",
 						)}
 					/>
 				}
@@ -139,7 +149,13 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	const { updateEdgeData } = useReactFlow();
 	const { tableStyle } = useCanvasPreferences();
 	const [editingDetails, setEditingDetails] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 	const openDetails = useCallback(() => setEditingDetails(true), []);
+	const openMenu = useCallback((event: React.MouseEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setMenuOpen(true);
+	}, []);
 	const relationshipType = data?.relationshipType ?? "one-to-many";
 
 	const sourceNode = useStore(useCallback((state) => state.nodeLookup.get(source), [source]));
@@ -347,27 +363,30 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 				stroke="transparent"
 				strokeWidth={20}
 				className="react-flow__edge-interaction cursor-pointer"
+				onContextMenu={openMenu}
 			/>
 
 			<EdgeLabelRenderer>
-				{/* The badge is also the way in to the menu that sets the kind of
-            relationship, so a hidden one comes back for the line you click. */}
-				{(labels || selected) && (
-					<div
-						style={{
-							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-						}}
-						className="nodrag nopan pointer-events-auto absolute text-4xs"
-					>
-						<EdgeBadge
-							id={id}
-							relationshipType={relationshipType}
-							name={data?.name}
-							selected={selected}
-							onEditDetails={openDetails}
-						/>
-					</div>
-				)}
+				<div
+					style={{
+						transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+					}}
+					className={cn(
+						"nodrag nopan absolute text-4xs",
+						labels ? "pointer-events-auto" : "pointer-events-none",
+					)}
+				>
+					<EdgeBadge
+						id={id}
+						relationshipType={relationshipType}
+						name={data?.name}
+						selected={selected}
+						shown={labels}
+						open={menuOpen}
+						onOpenChange={setMenuOpen}
+						onEditDetails={openDetails}
+					/>
+				</div>
 
 				{editingDetails && (
 					<DescriptionDialog
