@@ -112,7 +112,7 @@ export const EDGE_DASHES = [
 
 export type EdgeDash = (typeof EDGE_DASHES)[number]["id"];
 
-export const DEFAULT_EDGE_DASH: EdgeDash = "dashed";
+export const DEFAULT_EDGE_DASH: EdgeDash = "solid";
 
 export function edgeDash(id: EdgeDash) {
 	return EDGE_DASHES.find((item) => item.id === id) ?? EDGE_DASHES[0];
