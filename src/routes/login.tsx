@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 
 import { AuthPage, Solid } from "@/components/auth-page";
@@ -8,6 +8,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/toast";
 import { currentSession } from "@/server/auth/google";
+import { signInWithPassword } from "@/server/auth/password";
 
 export const Route = createFileRoute("/login")({
 	validateSearch: (search: Record<string, unknown>): { error?: string } =>
@@ -46,24 +47,41 @@ function LoginPage() {
 				</>
 			}
 		>
-			{(leaving) => <PasswordForm disabled={leaving} />}
+			{(leaving) => <PasswordForm disabled={leaving} onDone={() => navigate({ to: "/" })} />}
 		</AuthPage>
 	);
 }
 
-// TODO: sign in with the email and password through the backend once it
-// has a call for it. Until then submitting only says so.
-function PasswordForm({ disabled }: { disabled: boolean }) {
-	const submit = (event: React.FormEvent<HTMLFormElement>) => {
+function PasswordForm({ disabled, onDone }: { disabled: boolean; onDone: () => Promise<void> }) {
+	const [sending, setSending] = useState(false);
+	const busy = disabled || sending;
+
+	const submit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		notify.info({
-			title: "Not built yet",
-			description: "Signing in with a password is not wired up yet. Use Google for now.",
-		});
+		if (sending) return;
+
+		const form = new FormData(event.currentTarget);
+		setSending(true);
+
+		try {
+			await signInWithPassword({
+				data: {
+					email: String(form.get("email") ?? ""),
+					password: String(form.get("password") ?? ""),
+				},
+			});
+			await onDone();
+		} catch (reason) {
+			notify.error({
+				title: "Could not sign you in",
+				description: reason instanceof Error ? reason.message : "Try again in a moment.",
+			});
+			setSending(false);
+		}
 	};
 
 	return (
-		<form onSubmit={submit} className="flex flex-col gap-4">
+		<form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
 			<Field>
 				<FieldLabel htmlFor="login-email">Email</FieldLabel>
 				<Solid>
@@ -75,7 +93,7 @@ function PasswordForm({ disabled }: { disabled: boolean }) {
 						placeholder="you@example.com"
 						required
 						autoFocus
-						disabled={disabled}
+						disabled={busy}
 					/>
 				</Solid>
 			</Field>
@@ -88,12 +106,12 @@ function PasswordForm({ disabled }: { disabled: boolean }) {
 						type="password"
 						autoComplete="current-password"
 						required
-						disabled={disabled}
+						disabled={busy}
 					/>
 				</Solid>
 			</Field>
-			<Button type="submit" size="lg" className="w-full" disabled={disabled}>
-				Sign in
+			<Button type="submit" size="lg" className="w-full" disabled={busy} aria-busy={sending}>
+				{sending ? "Signing you in" : "Sign in"}
 			</Button>
 		</form>
 	);

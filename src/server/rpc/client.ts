@@ -33,6 +33,7 @@ import type { ImportSchemaRequest } from "./generated/schemaforge/v1/ImportSchem
 import type { ImportSchemaResponse__Output } from "./generated/schemaforge/v1/ImportSchemaResponse";
 import type { ListSchemasRequest } from "./generated/schemaforge/v1/ListSchemasRequest";
 import type { ListSchemasResponse__Output } from "./generated/schemaforge/v1/ListSchemasResponse";
+import type { LoginRequest } from "./generated/schemaforge/v1/LoginRequest";
 import type { LoginResponse__Output } from "./generated/schemaforge/v1/LoginResponse";
 import type { LoginWithGoogleRequest } from "./generated/schemaforge/v1/LoginWithGoogleRequest";
 import type { RegisterRequest } from "./generated/schemaforge/v1/RegisterRequest";
@@ -391,6 +392,11 @@ export const v1 = {
 
 	// Signing in needs no token, so these go out bare.
 	AuthService: {
+		login: (request: LoginRequest): Promise<LoginResponse__Output> =>
+			unary((metadata, options, callback) =>
+				clients().auth.Login(request, metadata, options, callback),
+			),
+
 		googleLoginUrl: (request: GoogleLoginUrlRequest): Promise<GoogleLoginUrlResponse__Output> =>
 			unary((metadata, options, callback) =>
 				clients().auth.GoogleLoginUrl(request, metadata, options, callback),
