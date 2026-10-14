@@ -7,10 +7,12 @@
 # schemaforge-backend.internal:50051, since the gRPC client speaks plain
 # HTTP/2 without TLS.
 
-app = "schemaforge"
-primary_region = "mia"
+app = "schemaforge-app"
+primary_region = "dfw"
 
 [build]
+  [build.args]
+    VITE_GOOGLE_SITE_VERIFICATION = "nvCHHIZPKYKlVCp5rhO1R6mAEKBPfcudEkmUtqC1rUg"
 
 [env]
   PORT = "3000"
