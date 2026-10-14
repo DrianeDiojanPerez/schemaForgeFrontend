@@ -19,6 +19,8 @@ import type { CreateSchemaRequest } from "./generated/schemaforge/v1/CreateSchem
 import type { CreateSchemaResponse__Output } from "./generated/schemaforge/v1/CreateSchemaResponse";
 import type { DeleteSchemaRequest } from "./generated/schemaforge/v1/DeleteSchemaRequest";
 import type { DeleteSchemaResponse__Output } from "./generated/schemaforge/v1/DeleteSchemaResponse";
+import type { ExportSchemaRequest } from "./generated/schemaforge/v1/ExportSchemaRequest";
+import type { ExportSchemaResponse__Output } from "./generated/schemaforge/v1/ExportSchemaResponse";
 import type { GenerateDdlRequest } from "./generated/schemaforge/v1/GenerateDdlRequest";
 import type { GenerateDdlResponse__Output } from "./generated/schemaforge/v1/GenerateDdlResponse";
 import type { GetSchemaRequest } from "./generated/schemaforge/v1/GetSchemaRequest";
@@ -27,6 +29,8 @@ import type { GetSchemaResponse__Output } from "./generated/schemaforge/v1/GetSc
 import type { GoogleLoginUrlRequest } from "./generated/schemaforge/v1/GoogleLoginUrlRequest";
 import type { GoogleLoginUrlResponse__Output } from "./generated/schemaforge/v1/GoogleLoginUrlResponse";
 import type { HealthServiceClient } from "./generated/schemaforge/v1/HealthService";
+import type { ImportSchemaRequest } from "./generated/schemaforge/v1/ImportSchemaRequest";
+import type { ImportSchemaResponse__Output } from "./generated/schemaforge/v1/ImportSchemaResponse";
 import type { ListSchemasRequest } from "./generated/schemaforge/v1/ListSchemasRequest";
 import type { ListSchemasResponse__Output } from "./generated/schemaforge/v1/ListSchemasResponse";
 import type { LoginResponse__Output } from "./generated/schemaforge/v1/LoginResponse";
@@ -351,6 +355,26 @@ export const v1 = {
 			authed(
 				(metadata, options, callback) =>
 					clients().schema.GenerateDdl(request, metadata, options, callback),
+				requestId,
+			),
+
+		exportSchema: (
+			request: ExportSchemaRequest,
+			requestId?: string,
+		): Promise<ExportSchemaResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.ExportSchema(request, metadata, options, callback),
+				requestId,
+			),
+
+		importSchema: (
+			request: ImportSchemaRequest,
+			requestId?: string,
+		): Promise<ImportSchemaResponse__Output> =>
+			authed(
+				(metadata, options, callback) =>
+					clients().schema.ImportSchema(request, metadata, options, callback),
 				requestId,
 			),
 	},

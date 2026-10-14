@@ -8,7 +8,9 @@ export interface GenerateDdlRequest {
   'draft'?: (_schemaforge_v1_Schema | null);
   'dialect'?: (_schemaforge_v1_Dialect);
   'includeComments'?: (boolean);
+  'includePositions'?: (boolean);
   'target'?: "id"|"draft";
+  '_includePositions'?: "includePositions";
 }
 
 export interface GenerateDdlRequest__Output {
@@ -16,4 +18,5 @@ export interface GenerateDdlRequest__Output {
   'draft'?: (_schemaforge_v1_Schema__Output | null);
   'dialect': (_schemaforge_v1_Dialect__Output);
   'includeComments': (boolean);
+  'includePositions'?: (boolean);
 }

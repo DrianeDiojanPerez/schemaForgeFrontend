@@ -137,6 +137,7 @@ export const generateDdl = createServerFn({ method: "POST" })
 			input: Target & {
 				dialect?: Dialect;
 				includeComments?: boolean;
+				includePositions?: boolean;
 			},
 		) => input,
 	)
@@ -146,6 +147,7 @@ export const generateDdl = createServerFn({ method: "POST" })
 				...targetOut(data),
 				dialect: dialectOut(data.dialect ?? "POSTGRES"),
 				includeComments: data.includeComments ?? true,
+				includePositions: data.includePositions ?? true,
 			});
 
 			return {
@@ -155,6 +157,43 @@ export const generateDdl = createServerFn({ method: "POST" })
 		} catch (error) {
 			return { ddl: "", diagnostics: [], ...unavailable(error) };
 		}
+	});
+
+export type ExportedFile = { fileName: string; contentType: string; content: string };
+
+export const exportSchema = createServerFn({ method: "POST" })
+	.validator((input: Target & { includePositions?: boolean }) => input)
+	.handler(async ({ data }): Promise<ExportedFile> => {
+		const response = await v1.SchemaService.exportSchema({
+			...targetOut(data),
+			format: "EXPORT_FORMAT_JSON",
+			includePositions: data.includePositions ?? true,
+		});
+
+		return {
+			fileName: response.fileName,
+			contentType: response.contentType,
+			content: response.content,
+		};
+	});
+
+export type ImportFormat = "JSON" | "SQL";
+
+export const importSchema = createServerFn({ method: "POST" })
+	.validator(
+		(input: { content: string; format: ImportFormat; includePositions?: boolean }) => input,
+	)
+	.handler(async ({ data }): Promise<{ draft: Schema; diagnostics: Diagnostic[] }> => {
+		const response = await v1.SchemaService.importSchema({
+			content: data.content,
+			format: `IMPORT_FORMAT_${data.format}`,
+			includePositions: data.includePositions ?? true,
+		});
+
+		return {
+			draft: schemaIn(stored(response.draft)),
+			diagnostics: response.diagnostics.map(diagnosticIn),
+		};
 	});
 
 /**

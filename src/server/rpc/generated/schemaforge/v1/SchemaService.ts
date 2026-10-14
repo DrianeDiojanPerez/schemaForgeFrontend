@@ -6,10 +6,14 @@ import type { CreateSchemaRequest as _schemaforge_v1_CreateSchemaRequest, Create
 import type { CreateSchemaResponse as _schemaforge_v1_CreateSchemaResponse, CreateSchemaResponse__Output as _schemaforge_v1_CreateSchemaResponse__Output } from '../../schemaforge/v1/CreateSchemaResponse';
 import type { DeleteSchemaRequest as _schemaforge_v1_DeleteSchemaRequest, DeleteSchemaRequest__Output as _schemaforge_v1_DeleteSchemaRequest__Output } from '../../schemaforge/v1/DeleteSchemaRequest';
 import type { DeleteSchemaResponse as _schemaforge_v1_DeleteSchemaResponse, DeleteSchemaResponse__Output as _schemaforge_v1_DeleteSchemaResponse__Output } from '../../schemaforge/v1/DeleteSchemaResponse';
+import type { ExportSchemaRequest as _schemaforge_v1_ExportSchemaRequest, ExportSchemaRequest__Output as _schemaforge_v1_ExportSchemaRequest__Output } from '../../schemaforge/v1/ExportSchemaRequest';
+import type { ExportSchemaResponse as _schemaforge_v1_ExportSchemaResponse, ExportSchemaResponse__Output as _schemaforge_v1_ExportSchemaResponse__Output } from '../../schemaforge/v1/ExportSchemaResponse';
 import type { GenerateDdlRequest as _schemaforge_v1_GenerateDdlRequest, GenerateDdlRequest__Output as _schemaforge_v1_GenerateDdlRequest__Output } from '../../schemaforge/v1/GenerateDdlRequest';
 import type { GenerateDdlResponse as _schemaforge_v1_GenerateDdlResponse, GenerateDdlResponse__Output as _schemaforge_v1_GenerateDdlResponse__Output } from '../../schemaforge/v1/GenerateDdlResponse';
 import type { GetSchemaRequest as _schemaforge_v1_GetSchemaRequest, GetSchemaRequest__Output as _schemaforge_v1_GetSchemaRequest__Output } from '../../schemaforge/v1/GetSchemaRequest';
 import type { GetSchemaResponse as _schemaforge_v1_GetSchemaResponse, GetSchemaResponse__Output as _schemaforge_v1_GetSchemaResponse__Output } from '../../schemaforge/v1/GetSchemaResponse';
+import type { ImportSchemaRequest as _schemaforge_v1_ImportSchemaRequest, ImportSchemaRequest__Output as _schemaforge_v1_ImportSchemaRequest__Output } from '../../schemaforge/v1/ImportSchemaRequest';
+import type { ImportSchemaResponse as _schemaforge_v1_ImportSchemaResponse, ImportSchemaResponse__Output as _schemaforge_v1_ImportSchemaResponse__Output } from '../../schemaforge/v1/ImportSchemaResponse';
 import type { ListSchemasRequest as _schemaforge_v1_ListSchemasRequest, ListSchemasRequest__Output as _schemaforge_v1_ListSchemasRequest__Output } from '../../schemaforge/v1/ListSchemasRequest';
 import type { ListSchemasResponse as _schemaforge_v1_ListSchemasResponse, ListSchemasResponse__Output as _schemaforge_v1_ListSchemasResponse__Output } from '../../schemaforge/v1/ListSchemasResponse';
 import type { UpdateSchemaRequest as _schemaforge_v1_UpdateSchemaRequest, UpdateSchemaRequest__Output as _schemaforge_v1_UpdateSchemaRequest__Output } from '../../schemaforge/v1/UpdateSchemaRequest';
@@ -36,6 +40,15 @@ export interface SchemaServiceClient extends grpc.Client {
   deleteSchema(argument: _schemaforge_v1_DeleteSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_DeleteSchemaResponse__Output>): grpc.ClientUnaryCall;
   deleteSchema(argument: _schemaforge_v1_DeleteSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_DeleteSchemaResponse__Output>): grpc.ClientUnaryCall;
   
+  ExportSchema(argument: _schemaforge_v1_ExportSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ExportSchema(argument: _schemaforge_v1_ExportSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ExportSchema(argument: _schemaforge_v1_ExportSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ExportSchema(argument: _schemaforge_v1_ExportSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  exportSchema(argument: _schemaforge_v1_ExportSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  exportSchema(argument: _schemaforge_v1_ExportSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  exportSchema(argument: _schemaforge_v1_ExportSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  exportSchema(argument: _schemaforge_v1_ExportSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_ExportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  
   GenerateDdl(argument: _schemaforge_v1_GenerateDdlRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_GenerateDdlResponse__Output>): grpc.ClientUnaryCall;
   GenerateDdl(argument: _schemaforge_v1_GenerateDdlRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_GenerateDdlResponse__Output>): grpc.ClientUnaryCall;
   GenerateDdl(argument: _schemaforge_v1_GenerateDdlRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_GenerateDdlResponse__Output>): grpc.ClientUnaryCall;
@@ -53,6 +66,15 @@ export interface SchemaServiceClient extends grpc.Client {
   getSchema(argument: _schemaforge_v1_GetSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_GetSchemaResponse__Output>): grpc.ClientUnaryCall;
   getSchema(argument: _schemaforge_v1_GetSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_GetSchemaResponse__Output>): grpc.ClientUnaryCall;
   getSchema(argument: _schemaforge_v1_GetSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_GetSchemaResponse__Output>): grpc.ClientUnaryCall;
+  
+  ImportSchema(argument: _schemaforge_v1_ImportSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ImportSchema(argument: _schemaforge_v1_ImportSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ImportSchema(argument: _schemaforge_v1_ImportSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ImportSchema(argument: _schemaforge_v1_ImportSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  importSchema(argument: _schemaforge_v1_ImportSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  importSchema(argument: _schemaforge_v1_ImportSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  importSchema(argument: _schemaforge_v1_ImportSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
+  importSchema(argument: _schemaforge_v1_ImportSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
   
   ListSchemas(argument: _schemaforge_v1_ListSchemasRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
   ListSchemas(argument: _schemaforge_v1_ListSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
@@ -88,9 +110,13 @@ export interface SchemaServiceHandlers extends grpc.UntypedServiceImplementation
   
   DeleteSchema: grpc.handleUnaryCall<_schemaforge_v1_DeleteSchemaRequest__Output, _schemaforge_v1_DeleteSchemaResponse>;
   
+  ExportSchema: grpc.handleUnaryCall<_schemaforge_v1_ExportSchemaRequest__Output, _schemaforge_v1_ExportSchemaResponse>;
+  
   GenerateDdl: grpc.handleUnaryCall<_schemaforge_v1_GenerateDdlRequest__Output, _schemaforge_v1_GenerateDdlResponse>;
   
   GetSchema: grpc.handleUnaryCall<_schemaforge_v1_GetSchemaRequest__Output, _schemaforge_v1_GetSchemaResponse>;
+  
+  ImportSchema: grpc.handleUnaryCall<_schemaforge_v1_ImportSchemaRequest__Output, _schemaforge_v1_ImportSchemaResponse>;
   
   ListSchemas: grpc.handleUnaryCall<_schemaforge_v1_ListSchemasRequest__Output, _schemaforge_v1_ListSchemasResponse>;
   
@@ -103,8 +129,10 @@ export interface SchemaServiceHandlers extends grpc.UntypedServiceImplementation
 export interface SchemaServiceDefinition extends grpc.ServiceDefinition {
   CreateSchema: MethodDefinition<_schemaforge_v1_CreateSchemaRequest, _schemaforge_v1_CreateSchemaResponse, _schemaforge_v1_CreateSchemaRequest__Output, _schemaforge_v1_CreateSchemaResponse__Output>
   DeleteSchema: MethodDefinition<_schemaforge_v1_DeleteSchemaRequest, _schemaforge_v1_DeleteSchemaResponse, _schemaforge_v1_DeleteSchemaRequest__Output, _schemaforge_v1_DeleteSchemaResponse__Output>
+  ExportSchema: MethodDefinition<_schemaforge_v1_ExportSchemaRequest, _schemaforge_v1_ExportSchemaResponse, _schemaforge_v1_ExportSchemaRequest__Output, _schemaforge_v1_ExportSchemaResponse__Output>
   GenerateDdl: MethodDefinition<_schemaforge_v1_GenerateDdlRequest, _schemaforge_v1_GenerateDdlResponse, _schemaforge_v1_GenerateDdlRequest__Output, _schemaforge_v1_GenerateDdlResponse__Output>
   GetSchema: MethodDefinition<_schemaforge_v1_GetSchemaRequest, _schemaforge_v1_GetSchemaResponse, _schemaforge_v1_GetSchemaRequest__Output, _schemaforge_v1_GetSchemaResponse__Output>
+  ImportSchema: MethodDefinition<_schemaforge_v1_ImportSchemaRequest, _schemaforge_v1_ImportSchemaResponse, _schemaforge_v1_ImportSchemaRequest__Output, _schemaforge_v1_ImportSchemaResponse__Output>
   ListSchemas: MethodDefinition<_schemaforge_v1_ListSchemasRequest, _schemaforge_v1_ListSchemasResponse, _schemaforge_v1_ListSchemasRequest__Output, _schemaforge_v1_ListSchemasResponse__Output>
   UpdateSchema: MethodDefinition<_schemaforge_v1_UpdateSchemaRequest, _schemaforge_v1_UpdateSchemaResponse, _schemaforge_v1_UpdateSchemaRequest__Output, _schemaforge_v1_UpdateSchemaResponse__Output>
   ValidateSchema: MethodDefinition<_schemaforge_v1_ValidateSchemaRequest, _schemaforge_v1_ValidateSchemaResponse, _schemaforge_v1_ValidateSchemaRequest__Output, _schemaforge_v1_ValidateSchemaResponse__Output>

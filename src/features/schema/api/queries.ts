@@ -135,11 +135,18 @@ export const ddlQueries = {
 	 * for ahead of the click and found again when the click comes, and let go
 	 * soon after since the diagram will have moved on.
 	 */
-	generated: (draft: SchemaDraft, id: string, includeComments: boolean) =>
+	generated: (
+		draft: SchemaDraft,
+		id: string,
+		includeComments: boolean,
+		includePositions: boolean,
+	) =>
 		queryOptions({
-			queryKey: ddlKeys.generated({ ...draft, id }, includeComments),
+			queryKey: ddlKeys.generated({ ...draft, id }, includeComments, includePositions),
 			queryFn: () =>
-				generateDdl({ data: { draft: { ...EMPTY_SCHEMA, ...draft, id }, includeComments } }),
+				generateDdl({
+					data: { draft: { ...EMPTY_SCHEMA, ...draft, id }, includeComments, includePositions },
+				}),
 			staleTime: 30_000,
 			gcTime: 60_000,
 			retry: false,

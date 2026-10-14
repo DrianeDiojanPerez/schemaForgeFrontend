@@ -22,6 +22,6 @@ export const accountKeys = {
 
 export const ddlKeys = {
 	all: ["ddl"] as const,
-	generated: (draft: unknown, includeComments: boolean) =>
-		[...ddlKeys.all, { draft, includeComments }] as const,
+	generated: (draft: unknown, includeComments: boolean, includePositions: boolean) =>
+		[...ddlKeys.all, { draft, includeComments, includePositions }] as const,
 };
