@@ -1,0 +1,41 @@
+# Fly.io settings for the frontend. Secrets that must not live here:
+#
+#   fly secrets set SCHEMAFORGE_SESSION_SECRET=<32+ random characters>
+#   fly secrets set SCHEMAFORGE_GRPC_ADDRESS=<backend host>:50051
+#
+# The backend address should be its private Fly name, such as
+# schemaforge-backend.internal:50051, since the gRPC client speaks plain
+# HTTP/2 without TLS.
+
+app = "schemaforge"
+primary_region = "mia"
+
+[build]
+
+[env]
+  PORT = "3000"
+  SCHEMAFORGE_PROTO_DIR = "/app/proto"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/login"
+  timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

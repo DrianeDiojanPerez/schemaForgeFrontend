@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package schemaforge.v1;
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+  string refresh_token = 2;
+}
+
+message RegisterRequest {
+  string name = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string token = 1;
+  string refresh_token = 2;
+}
+
+// The state is opaque to the backend: it goes to Google untouched and comes
+// back on the redirect, which is how the frontend ties the two halves of one
+// sign in together.
+message GoogleLoginUrlRequest {
+  string state = 1;
+}
+
+message GoogleLoginUrlResponse {
+  string url = 1;
+}
+
+message LoginWithGoogleRequest {
+  string code = 1;
+}
+
+message Permission {
+  string module = 1;
+  string name = 2;
+}
+
+message GetCurrentUserRequest {}
+
+message GetCurrentUserResponse {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  string avatar_url = 4;
+  repeated string roles = 5;
+  repeated Permission permissions = 6;
+}
+
+// Where the frontend server trades credentials for tokens. Every other call
+// carries the access token this hands back in its `authorization` metadata.
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Creates the account and signs it in, so the create account page can
+  // treat a successful sign up the same way it treats a login.
+  rpc Register(RegisterRequest) returns (LoginResponse);
+
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+
+  // The frontend holds no Google settings of its own. It asks for the consent
+  // link here, sends the browser there, and hands back the code Google
+  // returns.
+  rpc GoogleLoginUrl(GoogleLoginUrlRequest) returns (GoogleLoginUrlResponse);
+  rpc LoginWithGoogle(LoginWithGoogleRequest) returns (LoginResponse);
+
+  // Who the access token belongs to, for a frontend that has to show the
+  // person it signed in. The only call on this service that needs a token.
+  rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+}
