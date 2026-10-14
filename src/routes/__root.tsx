@@ -12,8 +12,16 @@ import { NotFound } from "@/components/not-found";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { themeScript, useTheme } from "@/lib/theme";
 import { useToastPosition } from "@/lib/toast";
+import { env } from "@/env";
 
 import appCss from "../styles.css?url";
+
+/** Proves to Google that the site is ours, for the sign-in consent screen. */
+function siteVerification() {
+	const content = env.VITE_GOOGLE_SITE_VERIFICATION;
+
+	return content ? [{ name: "google-site-verification", content }] : [];
+}
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
@@ -38,6 +46,7 @@ export const Route = createRootRouteWithContext<{
 				name: "theme-color",
 				content: "#009869",
 			},
+			...siteVerification(),
 		],
 		links: [
 			{

@@ -7,6 +7,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+ARG VITE_GOOGLE_SITE_VERIFICATION
 RUN npm run build
 
 # ──── Run ──────────────────────────────────
