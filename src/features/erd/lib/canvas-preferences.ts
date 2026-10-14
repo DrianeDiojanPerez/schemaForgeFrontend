@@ -4,6 +4,8 @@ import { BACKGROUNDS, DEFAULT_BACKGROUND } from "./backgrounds";
 import type { BackgroundStyle } from "./backgrounds";
 import { DEFAULT_EDGE_DASH, DEFAULT_EDGE_LINE, EDGE_DASHES, EDGE_LINES } from "./edge-lines";
 import type { EdgeDash, EdgeLine } from "./edge-lines";
+import { SQL_THEMES } from "./sql-themes";
+import type { SqlTheme } from "./sql-themes";
 
 /**
  * Canvas settings that outlive the tab, kept under one key so adding the next
@@ -28,6 +30,9 @@ export type CanvasPreferences = {
 	autoSave: boolean;
 	autoValidate: boolean;
 	sqlVim: boolean;
+	sqlPositions: boolean;
+	sqlTheme: SqlTheme;
+	sqlPanelWidth: number;
 };
 
 /**
@@ -52,6 +57,8 @@ export const TABLE_STYLES = [
 	{ id: "outline", label: "Outline" },
 ] as const satisfies readonly { id: TableStyle; label: string }[];
 
+export const SQL_PANEL_WIDTH = { min: 360, max: 960, start: 540 };
+
 const STORAGE_KEY = "erd-canvas";
 
 const DEFAULTS: CanvasPreferences = {
@@ -66,6 +73,9 @@ const DEFAULTS: CanvasPreferences = {
 	autoSave: true,
 	autoValidate: false,
 	sqlVim: false,
+	sqlPositions: true,
+	sqlTheme: "mocha",
+	sqlPanelWidth: SQL_PANEL_WIDTH.start,
 };
 
 const listeners = new Set<() => void>();
@@ -84,10 +94,10 @@ function flag(value: unknown, fallback: boolean): boolean {
 	return typeof value === "boolean" ? value : fallback;
 }
 
-function width(value: unknown, fallback: number): number {
+function width(value: unknown, bounds: { min: number; max: number }, fallback: number): number {
 	if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
 
-	return Math.min(SCHEMA_LIST_WIDTH.max, Math.max(SCHEMA_LIST_WIDTH.min, value));
+	return Math.min(bounds.max, Math.max(bounds.min, value));
 }
 
 /** Settings saved when the two were a switch each, which allowed both and
@@ -113,13 +123,16 @@ function snapshot(): CanvasPreferences {
 			tableStyle: known(saved.tableStyle, TABLE_STYLES, DEFAULTS.tableStyle),
 			schemaGrouping: grouping(saved),
 			schemaListOpen: flag(saved.schemaListOpen, DEFAULTS.schemaListOpen),
-			schemaListWidth: width(saved.schemaListWidth, DEFAULTS.schemaListWidth),
+			schemaListWidth: width(saved.schemaListWidth, SCHEMA_LIST_WIDTH, DEFAULTS.schemaListWidth),
 			edgeLine: known(saved.edgeLine, EDGE_LINES, DEFAULTS.edgeLine),
 			edgeDash: known(saved.edgeDash, EDGE_DASHES, DEFAULTS.edgeDash),
 			edgeLabels: flag(saved.edgeLabels, DEFAULTS.edgeLabels),
 			autoSave: flag(saved.autoSave, DEFAULTS.autoSave),
 			autoValidate: flag(saved.autoValidate, DEFAULTS.autoValidate),
 			sqlVim: flag(saved.sqlVim, DEFAULTS.sqlVim),
+			sqlPositions: flag(saved.sqlPositions, DEFAULTS.sqlPositions),
+			sqlTheme: known(saved.sqlTheme, SQL_THEMES, DEFAULTS.sqlTheme),
+			sqlPanelWidth: width(saved.sqlPanelWidth, SQL_PANEL_WIDTH, DEFAULTS.sqlPanelWidth),
 		};
 	} catch {
 		// Unreadable storage or leftover nonsense from an older shape. The
