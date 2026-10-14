@@ -71,6 +71,7 @@ function sync({ autoSave = true, autoValidate = false, unavailable = () => {} } 
 				edges,
 				autoSave,
 				autoValidate,
+				includePositions: true,
 				onSaved: () => {},
 				onValidateUnavailable: unavailable,
 			}),

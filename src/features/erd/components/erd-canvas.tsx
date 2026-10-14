@@ -22,6 +22,9 @@ import { notify } from "@/lib/toast";
 import { useErdGraph } from "../hooks/use-erd-graph";
 import { useReveal } from "../hooks/use-reveal";
 import { useSchemaSync } from "../hooks/use-schema-sync";
+import type { GenerateOptions } from "../hooks/use-schema-sync";
+import type { ImportFormat } from "@/server/rpc/schema";
+import { toDiagram } from "../lib/schema-adapter";
 import { HOTKEYS } from "../lib/hotkeys";
 import { setCanvasPreference, useCanvasPreferences } from "../lib/canvas-preferences";
 import type { SchemaGrouping, TableStyle } from "../lib/canvas-preferences";
@@ -29,6 +32,7 @@ import type { BackgroundStyle } from "../lib/backgrounds";
 import type { EdgeDash, EdgeLine } from "../lib/edge-lines";
 import { DEFAULT_CONNECTOR_ARROW } from "../lib/connector-arrows";
 import type { ConnectorArrow } from "../lib/connector-arrows";
+import { isTableNode } from "../lib/node-guards";
 import { schemaBoxes as boxesFor, isSchemaBoxId } from "../lib/schema-groups";
 import { TOUR } from "../lib/tour";
 import type { ErdDiagram, ErdNode } from "../types/erd";
@@ -40,7 +44,7 @@ import { CanvasTour } from "./canvas-tour";
 import { ConnectionLine } from "./connection-line";
 import { ConnectorArrowProvider } from "./connector-arrow-context";
 import { EdgeLineProvider } from "./edge-line-context";
-import { GeneratedSqlDialog } from "./generated-sql-dialog";
+import { GeneratedSqlPanel } from "./generated-sql-panel";
 import { GraphActionsProvider } from "./graph-actions-context";
 import { FlowProvider, GraphMenu, tables } from "./graph-menu";
 import { ProblemsProvider } from "./problems-context";
@@ -137,6 +141,8 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 		addColumn,
 		removeTable,
 		removeColumn,
+		setNodes,
+		setEdges,
 	} = useErdGraph(diagram);
 	const theme = useTheme();
 	const { screenToFlowPosition, fitView, setCenter, getZoom, getNodes } = useReactFlow<ErdNode>();
@@ -185,6 +191,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 		edgeLabels,
 		autoSave,
 		autoValidate: validateWanted,
+		sqlPositions,
 	} = useCanvasPreferences();
 	const listChosen = schemaGrouping === "list";
 
@@ -203,6 +210,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 		edges,
 		autoSave,
 		autoValidate,
+		includePositions: sqlPositions,
 		onSaved: setSchemaId,
 		onValidateUnavailable: stopAutoValidate,
 	});
@@ -267,6 +275,17 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 
 	// The boxes go in front of the tables in the array and behind them on screen,
 	// and are left out of the graph state so nothing else has to know they exist.
+	// What the editor can complete: every table by name with its columns.
+	const tablesForCompletion = useMemo(
+		() =>
+			Object.fromEntries(
+				nodes
+					.filter(isTableNode)
+					.map((node) => [node.data.name, node.data.columns.map((column) => column.name)]),
+			),
+		[nodes],
+	);
+
 	const drawn = useMemo(
 		() => (listChosen ? nodes : [...boxesFor(nodes, name), ...nodes]),
 		[listChosen, nodes, name],
@@ -491,9 +510,33 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 	const generate = useCallback(() => void latest.current.generate(), []);
 	const prefetchSql = useCallback(() => latest.current.prefetch(), []);
 	const exportSql = useCallback(() => void latest.current.generate({ download: true }), []);
+	const exportJson = useCallback(() => void latest.current.exportJson(), []);
 	const regenerate = useCallback(
-		(includeComments: boolean) => void latest.current.generate({ includeComments }),
+		(options: GenerateOptions) => void latest.current.generate(options),
 		[],
+	);
+
+	// A file opens as a new diagram rather than over the stored one, so the
+	// first save writes a schema of its own and leaves the old one as it was.
+	const importFile = useCallback(
+		async (content: string, format: ImportFormat) => {
+			const read = await latest.current.importFile(content, format);
+			if (!read) return;
+
+			const next = toDiagram(read);
+
+			setSchemaId("");
+			setName(read.name);
+			setNodes(next.nodes);
+			setEdges(next.edges);
+
+			// The new tables have no size until they have been drawn once, and
+			// fitting before that frames nothing.
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => void fitView({ duration: 300 }));
+			});
+		},
+		[setNodes, setEdges, fitView],
 	);
 
 	// Held back on a fresh load until the loader is gone, since coming in
@@ -631,17 +674,14 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 						onGenerate={generate}
 						onPrefetchSql={prefetchSql}
 						onExportSql={exportSql}
+						onExportJson={exportJson}
+						onImport={importFile}
 						settingsOpen={settingsOpen}
 						onSettingsOpenChange={openSettings}
 						raised={tour.active}
 						diagnostics={problemsMenu}
 					/>
 				</div>
-				{showControls && (
-					<div className="absolute bottom-3.75 left-3.75 z-20">
-						<CanvasControls />
-					</div>
-				)}
 			</div>
 		</FlowProvider>
 	);
@@ -652,11 +692,23 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 				<EdgeLineProvider value={edgeStyle}>
 					<GraphActionsProvider value={actions}>
 						<div className="relative flex h-full w-full overflow-hidden">
+							<GeneratedSqlPanel
+								result={sync.generated}
+								generating={sync.generating}
+								tables={tablesForCompletion}
+								onClose={sync.closeGenerated}
+								onOptionsChange={regenerate}
+							/>
 							<ClientOnly
 								fallback={
 									<>
 										<div className="h-full w-full">{graph}</div>
 										<SidebarButtonSkeleton />
+										{showControls && (
+											<div className="absolute bottom-3.75 left-3.75 z-20">
+												<CanvasControls />
+											</div>
+										)}
 									</>
 								}
 							>
@@ -668,6 +720,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 									onOpenChange={(open) => setCanvasPreference("schemaListOpen", open)}
 									width={schemaListWidth}
 									onWidthChange={(width) => setCanvasPreference("schemaListWidth", width)}
+									corner={showControls && <CanvasControls />}
 								>
 									{graph}
 								</SchemaSidebar>
@@ -704,12 +757,6 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 							onEdgeDashChange={setEdgeDash}
 						/>
 
-						<GeneratedSqlDialog
-							result={sync.generated}
-							generating={sync.generating}
-							onClose={sync.closeGenerated}
-							onIncludeCommentsChange={regenerate}
-						/>
 						<CanvasTour />
 						<BackendWatch onReconnect={reconnected} />
 					</GraphActionsProvider>

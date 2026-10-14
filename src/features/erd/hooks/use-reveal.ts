@@ -111,7 +111,7 @@ export function useReveal() {
 	// One that names nothing on the canvas but says where it is gets the
 	// camera sent there instead. Resolves to whether there was anywhere to go.
 	const goToProblem = useCallback(
-		async (diagnostic: Diagnostic): Promise<boolean> => {
+		async (diagnostic: Diagnostic, inset: { right: number } = { right: 0 }): Promise<boolean> => {
 			const table = problemTable(diagnostic);
 
 			if (table) {
@@ -138,13 +138,20 @@ export function useReveal() {
 				// waits on the next node update to reach the store and, after the
 				// selection above, there may not be one.
 				const { width, height, minZoom } = store.getState();
+				// A panel open on the right is not canvas, so the table is framed in
+				// what is left of the width beside it.
+				const room = edge ? "12%" : "20%";
 				const viewport = getViewportForBounds(
 					getNodesBounds([...picked]),
 					width,
 					height,
 					minZoom,
 					READABLE_ZOOM,
-					edge ? 0.35 : 0.6,
+					inset.right > 0
+						? { top: room, bottom: room, left: room, right: `${inset.right + 48}px` }
+						: edge
+							? 0.35
+							: 0.6,
 				);
 				await setViewport(viewport, { duration: PAN_DURATION });
 				return true;

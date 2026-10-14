@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
 	BracesIcon,
@@ -6,6 +7,7 @@ import {
 	DownloadIcon,
 	FileArchiveIcon,
 	FileCodeIcon,
+	FolderOpenIcon,
 	ImageIcon,
 	SettingsIcon,
 	TablePropertiesIcon,
@@ -26,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import type { ImportFormat } from "@/server/rpc/schema";
 
 import { TOUR } from "../lib/tour";
 import { DiagnosticsMenu } from "./diagnostics-menu";
@@ -39,6 +42,8 @@ export type SchemaToolbarProps = {
 	/** Asks for the script ahead of the click, as the pointer arrives. */
 	onPrefetchSql: () => void;
 	onExportSql: () => void;
+	onExportJson: () => void;
+	onImport: (content: string, format: ImportFormat) => void;
 	settingsOpen: boolean;
 	onSettingsOpenChange: (open: boolean, byKeyboard?: boolean) => void;
 	/** Holds the bar up for as long as something is pointing at it. */
@@ -88,11 +93,25 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 	onGenerate,
 	onPrefetchSql,
 	onExportSql,
+	onExportJson,
+	onImport,
 	settingsOpen,
 	onSettingsOpenChange,
 	raised = false,
 	diagnostics,
 }: SchemaToolbarProps) {
+	const picker = useRef<HTMLInputElement>(null);
+
+	const pick = (event: ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		// Cleared so choosing the same file again still counts as a change.
+		event.target.value = "";
+		if (!file) return;
+
+		const format: ImportFormat = file.name.toLowerCase().endsWith(".sql") ? "SQL" : "JSON";
+
+		void file.text().then((content) => onImport(content, format));
+	};
 	// Up to begin with, so the two things it holds are there to be found. The
 	// first time the pointer comes and goes is what hands it the run of itself.
 	const [wanted, setWanted] = useState(true);
@@ -245,7 +264,11 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 									<DropdownMenuItem
 										key={file.id}
 										onPointerEnter={file.id === "sql" ? onPrefetchSql : undefined}
-										onClick={() => (file.id === "sql" ? onExportSql() : soon(file.extension))}
+										onClick={() => {
+											if (file.id === "sql") onExportSql();
+											else if (file.id === "json") onExportJson();
+											else soon(file.extension);
+										}}
 									>
 										<file.icon />
 										{file.label}
@@ -261,8 +284,24 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 								Migration
 								<DropdownMenuShortcut>.zip</DropdownMenuShortcut>
 							</DropdownMenuItem>
+
+							<DropdownMenuSeparator />
+
+							<DropdownMenuItem onClick={() => picker.current?.click()}>
+								<FolderOpenIcon />
+								Import
+								<DropdownMenuShortcut>.json .sql</DropdownMenuShortcut>
+							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+
+					<input
+						ref={picker}
+						type="file"
+						accept=".json,.sql,application/json,application/sql"
+						className="hidden"
+						onChange={pick}
+					/>
 
 					{/* Opens up a slot of its own, so the bar widens around it rather
               than jumping to the new size. */}

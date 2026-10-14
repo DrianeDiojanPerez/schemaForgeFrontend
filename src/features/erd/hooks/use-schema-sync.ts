@@ -5,8 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { backendKeys } from "@/features/schema/api/keys";
 import { useSaveSchema, useValidateSchema } from "@/features/schema/api/mutations";
 import { ddlQueries } from "@/features/schema/api/queries";
-import type { Diagnostic } from "@/features/schema/types/schema";
+import { EMPTY_SCHEMA } from "@/features/schema/types/schema";
+import type { Diagnostic, Schema } from "@/features/schema/types/schema";
 import { notify } from "@/lib/toast";
+import { exportSchema, importSchema } from "@/server/rpc/schema";
+import type { ImportFormat } from "@/server/rpc/schema";
 
 import { downloadText, fileSlug } from "../lib/download";
 import { problemsByTable, toDraft } from "../lib/schema-adapter";
@@ -19,6 +22,8 @@ type Options = {
 	edges: ErdEdge[];
 	autoSave: boolean;
 	autoValidate: boolean;
+	/** Whether a script carries where each table sits, as comments at the end. */
+	includePositions: boolean;
 	onSaved: (schemaId: string) => void;
 	/** The backend could not answer a validation, so nothing will mark the tables. */
 	onValidateUnavailable: () => void;
@@ -29,12 +34,14 @@ export type Generated = {
 	ddl: string;
 	diagnostics: Diagnostic[];
 	includeComments: boolean;
+	includePositions: boolean;
 	/** The name the script is saved under. */
 	file: string;
 };
 
 export type GenerateOptions = {
 	includeComments?: boolean;
+	includePositions?: boolean;
 	/** Save the script as a file instead of opening it, when there is one. */
 	download?: boolean;
 };
@@ -80,6 +87,7 @@ export function useSchemaSync({
 	edges,
 	autoSave,
 	autoValidate,
+	includePositions: positions,
 	onSaved,
 	onValidateUnavailable,
 }: Options) {
@@ -325,13 +333,19 @@ export function useSchemaSync({
 			const result = toDraft(name, "", nodes, edges);
 			if (!result.ok) return;
 
-			void queryClient.prefetchQuery(ddlQueries.generated(result.draft, schemaId, includeComments));
+			void queryClient.prefetchQuery(
+				ddlQueries.generated(result.draft, schemaId, includeComments, positions),
+			);
 		},
-		[name, nodes, edges, schemaId, queryClient],
+		[name, nodes, edges, schemaId, positions, queryClient],
 	);
 
 	const generate = useCallback(
-		async ({ includeComments = true, download = false }: GenerateOptions = {}) => {
+		async ({
+			includeComments = true,
+			includePositions = positions,
+			download = false,
+		}: GenerateOptions = {}) => {
 			const draft = draftOrReport();
 			if (!draft) return;
 
@@ -340,7 +354,9 @@ export function useSchemaSync({
 
 			try {
 				const result = await track(
-					queryClient.fetchQuery(ddlQueries.generated(draft, schemaId, includeComments)),
+					queryClient.fetchQuery(
+						ddlQueries.generated(draft, schemaId, includeComments, includePositions),
+					),
 				);
 
 				if (result.unavailable) {
@@ -363,7 +379,13 @@ export function useSchemaSync({
 				// The dialog says the rest itself. A script that was asked for as a
 				// file but could not be written opens the same way, so the errors in
 				// the way can be read.
-				setGenerated({ ddl: result.ddl, diagnostics: result.diagnostics, includeComments, file });
+				setGenerated({
+					ddl: result.ddl,
+					diagnostics: result.diagnostics,
+					includeComments,
+					includePositions,
+					file,
+				});
 				if (!download) return;
 
 				// An empty script with errors beside it is how a broken diagram
@@ -386,7 +408,55 @@ export function useSchemaSync({
 				setGenerating(false);
 			}
 		},
-		[draftOrReport, track, queryClient, schemaId, name, failed],
+		[draftOrReport, track, queryClient, schemaId, name, positions, failed],
+	);
+
+	const exportJson = useCallback(async () => {
+		const draft = draftOrReport();
+		if (!draft) return;
+
+		notify.waiting({ title: "Exporting" });
+
+		try {
+			const file = await track(
+				exportSchema({
+					data: { draft: { ...EMPTY_SCHEMA, ...draft, id: schemaId }, includePositions: positions },
+				}),
+			);
+
+			downloadText(file.fileName, file.content, file.contentType);
+			notify.success({ title: "Exported", description: file.fileName });
+		} catch (error) {
+			failed("Could not export", error);
+		}
+	}, [draftOrReport, track, schemaId, positions, failed]);
+
+	const importFile = useCallback(
+		async (content: string, format: ImportFormat): Promise<Schema | undefined> => {
+			notify.waiting({ title: "Importing" });
+
+			try {
+				const result = await track(
+					importSchema({ data: { content, format, includePositions: positions } }),
+				);
+				const skipped = result.diagnostics.length;
+
+				if (skipped === 0) {
+					notify.success({ title: "Imported", description: result.draft.name });
+				} else {
+					notify.warning({
+						title: `Imported with ${skipped} part${skipped === 1 ? "" : "s"} skipped`,
+						description: result.diagnostics[0].message,
+					});
+				}
+
+				return result.draft;
+			} catch (error) {
+				failed("Could not import", error);
+				return undefined;
+			}
+		},
+		[track, positions, failed],
 	);
 
 	const closeGenerated = useCallback(() => setGenerated(null), []);
@@ -417,5 +487,7 @@ export function useSchemaSync({
 		validate,
 		generate,
 		prefetch,
+		exportJson,
+		importFile,
 	};
 }

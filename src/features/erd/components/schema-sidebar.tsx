@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
+import { AnimatePresence, motion } from "motion/react";
 import {
 	ChevronDownIcon,
 	ChevronRightIcon,
@@ -13,7 +14,6 @@ import {
 	Table2Icon,
 	XIcon,
 } from "lucide-react";
-import { usePanelRef } from "react-resizable-panels";
 import { useHotkey } from "@tanstack/react-hotkeys";
 
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,6 @@ import {
 	InputGroupButton,
 	InputGroupInput,
 } from "@/components/ui/input-group";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +47,7 @@ import { SCHEMA_LIST_WIDTH } from "../lib/canvas-preferences";
 import { HOTKEYS } from "../lib/hotkeys";
 import { TOUR } from "../lib/tour";
 import { DEFAULT_SCHEMA } from "../lib/schema-adapter";
+import { PANEL_IN, PANEL_OUT, panelReach } from "../lib/side-panel";
 import { schemaGroups, schemaLabel } from "../lib/schema-groups";
 import type { SchemaGroup } from "../lib/schema-groups";
 import type { ErdNode, ErdTableNode, SchemaAccent } from "../types/erd";
@@ -124,36 +124,16 @@ export type SchemaSidebarProps = {
 	onOpenChange: (open: boolean) => void;
 	width: number;
 	onWidthChange: (width: number) => void;
-	/** The canvas, which is the other half of the split. */
+	/** The canvas, which the list lies over. */
 	children: React.ReactNode;
+	/** What sits in the canvas's bottom-left corner and steps right of the list. */
+	corner?: React.ReactNode;
 };
 
 /**
  * The same tables as the canvas, listed the way a database client lists them.
  * Reading a wide diagram means panning around it; reading this means scrolling.
  */
-// Safari only lately got the real thing, and a frame's wait is close enough.
-function whenIdle(run: () => void, options: { timeout: number }): () => void {
-	if (typeof window.requestIdleCallback === "function") {
-		const handle = window.requestIdleCallback(run, options);
-		return () => window.cancelIdleCallback(handle);
-	}
-
-	const handle = window.setTimeout(run, 16);
-	return () => window.clearTimeout(handle);
-}
-
-// A press wants its answer now; only the slide on a fresh load waits.
-function rightAway(run: () => void): () => void {
-	const handle = window.setTimeout(run, 0);
-	return () => window.clearTimeout(handle);
-}
-
-// The library makes each panel scroll with a style of its own, which a class
-// cannot beat. The toolbar sliding down past the bottom edge was enough to give
-// the canvas a scrollbar.
-const CLIPPED = { overflow: "hidden" } as const;
-
 // One row per table, kept apart so selecting a table on the canvas redraws
 // the two rows that changed rather than every row in the list.
 const TableRow = memo(function TableRow({
@@ -216,18 +196,9 @@ const TableRow = memo(function TableRow({
 type SchemaListProps = {
 	name: string;
 	nodes: ErdNode[];
-	showing: boolean;
-	sliding: boolean;
-	held: number;
 };
 
-const SchemaList = memo(function SchemaList({
-	name,
-	nodes,
-	showing,
-	sliding,
-	held,
-}: SchemaListProps) {
+const SchemaList = memo(function SchemaList({ name, nodes }: SchemaListProps) {
 	const { setNodes } = useReactFlow();
 	const { goTo, frame } = useReveal();
 	const groups = useMemo(() => schemaGroups(nodes), [nodes]);
@@ -314,20 +285,10 @@ const SchemaList = memo(function SchemaList({
 	);
 
 	// The filter is the one thing in here worth reaching for without the mouse.
-	useHotkey(HOTKEYS.findTable, () => box.current?.select(), {
-		enabled: showing,
-	});
+	useHotkey(HOTKEYS.findTable, () => box.current?.select());
 
 	return (
-		<aside
-			aria-hidden={!showing}
-			style={sliding ? { width: held } : undefined}
-			className={cn(
-				"absolute inset-y-0 right-0 flex flex-col bg-sidebar text-sidebar-foreground",
-				!sliding && "left-0",
-				!showing && "pointer-events-none",
-			)}
-		>
+		<div className="flex min-h-0 flex-1 flex-col">
 			{/* Left clear for the button, which stays put while this moves. */}
 			<header className="flex h-15.75 shrink-0 items-center border-b border-sidebar-border pr-2 pl-14.5">
 				<Popover open={picking} onOpenChange={setPicking}>
@@ -492,7 +453,7 @@ const SchemaList = memo(function SchemaList({
 					)}
 				</div>
 			</ScrollArea>
-		</aside>
+		</div>
 	);
 });
 
@@ -527,134 +488,123 @@ export function SchemaSidebar({
 	width,
 	onWidthChange,
 	children,
+	corner,
 }: SchemaSidebarProps) {
 	const listed = useListed(nodes);
-	const panel = usePanelRef();
-	const measured = useRef(width);
-	const [held, setHeld] = useState(width);
-	const [sliding, setSliding] = useState(false);
-	const [dragging, setDragging] = useState(false);
-	// Starts out folded whatever the saved state says, so a list that should
-	// be open slides open on a fresh load the way it does from the button.
-	const was = useRef(false);
-	const first = useRef(true);
+	// The width while the edge is being dragged, and the saved one otherwise.
+	const [dragWidth, setDragWidth] = useState<number | null>(null);
+	// Where the list's edge really is, read off the panel, since the saved
+	// width can be held back by the cap. Zero once the panel has gone.
+	const [edge, setEdge] = useState(0);
+	const watcher = useRef<ResizeObserver | null>(null);
+	const watch = useCallback((aside: HTMLElement | null) => {
+		watcher.current?.disconnect();
+		watcher.current = null;
+
+		if (!aside) {
+			setEdge(0);
+			return;
+		}
+
+		setEdge(aside.offsetWidth);
+		watcher.current = new ResizeObserver(() => setEdge(aside.offsetWidth));
+		watcher.current.observe(aside);
+	}, []);
+
+	// A list open from a saved setting slides in on a fresh load the way it
+	// does from the button, but only once the browser is free: a slide begun
+	// while the tables are still being measured drops its first frames.
+	const [settled, setSettled] = useState(false);
+	useEffect(() => {
+		if (typeof window.requestIdleCallback !== "function") {
+			const handle = window.setTimeout(() => setSettled(true), 100);
+			return () => window.clearTimeout(handle);
+		}
+
+		const handle = window.requestIdleCallback(() => setSettled(true), { timeout: 1500 });
+		return () => window.cancelIdleCallback(handle);
+	}, []);
 
 	// Open only counts while the list is the chosen grouping, so a panel left
 	// open is not still holding a column once the boxes have the canvas.
-	const showing = active && open;
+	const showing = active && open && settled;
 
-	// The library puts the new size on at once, so the fold is a transition
-	// left to run on its own. The flag that turns it on is only up for as long
-	// as that takes, so a drag straight after is not fighting it.
-	useEffect(() => {
-		if (was.current === showing) return;
+	// The right edge drags to resize. The width is kept here while the hand is
+	// on it and written to the preferences once it lets go.
+	const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+		const handle = event.currentTarget;
+		const startX = event.clientX;
+		const startWidth = dragWidth ?? width;
+		let next = startWidth;
 
-		// The size has to change after the transition is on the panels, or it
-		// is put on in one step, and on a fresh load it has to wait for the
-		// browser to be free, since a slide begun while the tables are still
-		// being measured drops its first frames. What was shown is only settled
-		// once the slide is under way, so an effect run that is cut short before
-		// then, as the first one is in development, is done over rather than
-		// counted.
-		let tick = 0;
-		const wait = first.current ? whenIdle : rightAway;
-		const idle = wait(
-			() => {
-				tick = requestAnimationFrame(() =>
-					requestAnimationFrame(() => {
-						was.current = showing;
-						first.current = false;
-						if (showing) {
-							measured.current = width;
-							setHeld(width);
-						} else {
-							setHeld(measured.current);
-						}
-						setSliding(true);
-						if (showing) panel.current?.resize(width);
-						else panel.current?.collapse();
-						done = window.setTimeout(() => setSliding(false), 550);
-					}),
-				);
-			},
-			{ timeout: 1500 },
-		);
-		let done = 0;
-
-		return () => {
-			idle();
-			cancelAnimationFrame(tick);
-			window.clearTimeout(done);
-		};
-	}, [showing, width, panel]);
-
-	// The pointer is off the handle as soon as the drag gets going, so the
-	// cursor goes on everything until the button comes up.
-	useEffect(() => {
-		if (!dragging) return;
-
+		event.preventDefault();
+		handle.setPointerCapture(event.pointerId);
 		document.body.classList.add("resizing-columns");
-		const drop = () => setDragging(false);
-		window.addEventListener("pointerup", drop);
-		window.addEventListener("pointercancel", drop);
 
-		return () => {
-			document.body.classList.remove("resizing-columns");
-			window.removeEventListener("pointerup", drop);
-			window.removeEventListener("pointercancel", drop);
+		const reach = panelReach(handle.parentElement?.parentElement);
+
+		const move = (e: PointerEvent) => {
+			next = Math.min(
+				SCHEMA_LIST_WIDTH.max,
+				reach,
+				Math.max(SCHEMA_LIST_WIDTH.min, startWidth + (e.clientX - startX)),
+			);
+			setDragWidth(next);
 		};
-	}, [dragging]);
+		const stop = () => {
+			handle.removeEventListener("pointermove", move);
+			handle.removeEventListener("pointerup", stop);
+			handle.removeEventListener("pointercancel", stop);
+			document.body.classList.remove("resizing-columns");
+			onWidthChange(Math.round(next));
+			setDragWidth(null);
+		};
+
+		handle.addEventListener("pointermove", move);
+		handle.addEventListener("pointerup", stop);
+		handle.addEventListener("pointercancel", stop);
+	};
 
 	return (
 		<>
-			<ResizablePanelGroup
-				orientation="horizontal"
-				// The library takes presses this far either side of the handle from
-				// the document, while the canvas underneath gets the same press and
-				// starts a selection box. The handle is drawn this wide and raised
-				// above the canvas, so every press the library takes lands on it.
-				resizeTargetMinimumSize={{ coarse: 8, fine: 8 }}
-				disableCursor
-				className={cn(sliding && "panel-glide")}
-				onLayoutChanged={(_, meta) => {
-					if (!meta.isUserInteraction || !panel.current) return;
+			<div className="h-full w-full">{children}</div>
 
-					if (panel.current.isCollapsed()) onOpenChange(false);
-					else onWidthChange(Math.round(panel.current.getSize().inPixels));
-				}}
-			>
-				<ResizablePanel
-					panelRef={panel}
-					collapsible
-					collapsedSize={0}
-					defaultSize={0}
-					minSize={SCHEMA_LIST_WIDTH.min}
-					maxSize={SCHEMA_LIST_WIDTH.max}
-					groupResizeBehavior="preserve-pixel-size"
-					// Sizes are reported while the fold plays out too, and following
-					// those would shrink the panel's contents along with it.
-					onResize={(size) => {
-						if (!sliding && size.inPixels > 0) measured.current = size.inPixels;
-					}}
-					className="relative h-full"
-					style={CLIPPED}
+			<AnimatePresence>
+				{showing && (
+					<motion.aside
+						key="list"
+						ref={watch}
+						initial={{ x: "-100%" }}
+						animate={{ x: 0, transition: PANEL_IN }}
+						exit={{ x: "-100%", transition: PANEL_OUT }}
+						style={{ width: dragWidth ?? width }}
+						aria-label="Schema list"
+						className="absolute inset-y-0 left-0 z-30 flex max-w-(--side-panel-reach) flex-col overflow-hidden rounded-r-lg border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl will-change-transform"
+					>
+						<div
+							role="separator"
+							aria-orientation="vertical"
+							aria-label="Resize the schema list"
+							onPointerDown={startResize}
+							className="absolute inset-y-0 right-0 z-10 w-px cursor-col-resize touch-none bg-border transition-colors delay-75 after:absolute after:inset-y-0 after:left-1/2 after:w-2 after:-translate-x-1/2 hover:bg-primary active:bg-primary"
+						/>
+						<SchemaList name={name} nodes={listed} />
+					</motion.aside>
+				)}
+			</AnimatePresence>
+
+			{corner && (
+				<motion.div
+					initial={false}
+					animate={{ left: (showing ? edge : 0) + 15 }}
+					// Rides the panel's slide on the same curve either way, and sits
+					// under the hand while the edge is being dragged.
+					transition={dragWidth !== null ? { duration: 0 } : showing ? PANEL_IN : PANEL_OUT}
+					className="absolute bottom-3.75 z-20"
 				>
-					{/* While the fold plays out this is pinned to the panel's right edge
-              at its open width, so it slides out whole instead of squeezing
-              what is in it. The rest of the time it simply fills the panel,
-              so a drag moves it with the pointer and no render in between. */}
-					<SchemaList name={name} nodes={listed} showing={showing} sliding={sliding} held={held} />
-				</ResizablePanel>
-
-				<ResizableHandle
-					onPointerDown={() => setDragging(true)}
-					className={cn("z-10 cursor-col-resize after:w-2", !showing && "hidden")}
-				/>
-
-				<ResizablePanel className="h-full" style={CLIPPED}>
-					{children}
-				</ResizablePanel>
-			</ResizablePanelGroup>
+					{corner}
+				</motion.div>
+			)}
 
 			{active && (
 				<div id={TOUR.sidebarToggle} className="absolute top-3.75 left-3.75 z-30">

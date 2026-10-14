@@ -58,6 +58,8 @@
 	--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 	--ease-back: cubic-bezier(0.485, -0.05, 0.285, 1.505);
 	--ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+	/* Half the canvas less the bar in the middle of its bottom edge and a gap. */
+	--side-panel-reach: calc(50% - 9.5rem);
 	--shadow-toolbar:
 		0px 1px 2px 0px rgb(19 21 26 / 0.29), 0px 4px 4px 0px rgb(19 21 26 / 0.26),
 		0px 10px 6px 0px rgb(19 21 26 / 0.15), 0px 17px 7px 0px rgb(19 21 26 / 0.04),
@@ -284,4 +286,208 @@ body.resizing-columns * {
 .react-flow__selection,
 .react-flow__nodesselection-rect {
 	border-radius: var(--radius-lg);
+}
+
+/* The SQL editor's findings: the card on hover, the underline, and the mark
+   in the gutter. Shape and size live here; the colours come from the editor's
+   own theme, which reaches the card through the wrapper it is hung off.
+
+   Over the text the list sits inside a hover host that the editor positions,
+   so the frame goes on the list and the list is what scales in: the host's
+   box never changes, and the editor never has to move a card it has placed.
+   Over the gutter the list is the tooltip itself, so it only fades. */
+body .cm-tooltip-hover:has(.cm-tooltip-lint) {
+	width: max-content;
+	max-width: min(24rem, 80vw);
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	font-family: var(--font-sans);
+}
+
+body .cm-tooltip-hover .cm-tooltip-lint {
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	transform-origin: top left;
+	animation: sf-card-in 120ms ease-out;
+}
+
+body .cm-tooltip-above .cm-tooltip-lint {
+	transform-origin: bottom left;
+}
+
+body .cm-tooltip.cm-tooltip-lint {
+	width: max-content;
+	max-width: min(24rem, 80vw);
+	border: 0;
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	font-family: var(--font-sans);
+	animation: sf-card-fade 110ms ease-out;
+}
+
+body .cm-tooltip .cm-tooltip-lint {
+	margin: 0;
+	padding: 0.25rem;
+	list-style: none;
+}
+
+body .cm-tooltip .cm-diagnostic {
+	margin: 0;
+	padding: 0;
+	border-left: 0;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+body .cm-tooltip .cm-diagnostic + .cm-diagnostic {
+	margin-top: 0.25rem;
+}
+
+body .cm-tooltip .cm-diagnosticText {
+	display: block;
+}
+
+@keyframes sf-card-in {
+	from {
+		opacity: 0;
+		transform: scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes sf-card-fade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body .cm-tooltip-hover .cm-tooltip-lint,
+	body .cm-tooltip.cm-tooltip-lint {
+		animation: none;
+	}
+}
+
+.sf-finding {
+	display: flex;
+	flex-direction: column;
+	border-radius: 0.5rem;
+	font-size: 0.875rem;
+	line-height: 1.6;
+}
+
+.sf-finding-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.5rem 0.5rem 0 0.75rem;
+}
+
+.sf-finding-actions {
+	display: inline-flex;
+	gap: 0.25rem;
+}
+
+.sf-finding-go {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border-radius: 9999px;
+	cursor: pointer;
+	transition: background-color 120ms ease-out;
+}
+
+.sf-finding-go svg {
+	width: 0.85rem;
+	height: 0.85rem;
+}
+
+.sf-finding-text {
+	padding: 0.25rem 0.875rem 0.75rem 0.75rem;
+}
+
+.sf-finding-title {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.sf-finding-icon {
+	display: inline-flex;
+}
+
+.sf-finding-icon svg {
+	width: 0.9rem;
+	height: 0.9rem;
+}
+
+.sf-finding-chip {
+	margin: 0 0.0625rem;
+	padding: 0.0625rem 0.375rem;
+	border-radius: 0.25rem;
+	font-family: var(--font-mono, ui-monospace, monospace);
+	font-size: 0.75rem;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+/* The tint stays on the text. The wave is the layer's, so it runs unbroken
+   across the spans the text is split into. */
+.cm-editor .cm-lintRange {
+	background-image: none;
+	text-decoration: none;
+}
+
+/* The layer sits over the text, so it must let the pointer through or the
+   editor cannot find the text under it and the cards never open. */
+.cm-editor .sf-waves {
+	pointer-events: none;
+}
+
+.cm-editor .sf-wave {
+	mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 1.5Q1.5 0 3 1.5T6 1.5' fill='none' stroke='black' stroke-width='1.3'/%3E%3C/svg%3E");
+	mask-repeat: repeat-x;
+	mask-position: left bottom;
+	mask-size: 6px 3px;
+}
+
+.cm-editor .cm-gutter-lint {
+	width: 1.3em;
+}
+
+/* Each mark sits in the middle of its line, across and down. */
+.cm-editor .cm-gutter-lint .cm-gutterElement {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+}
+
+.cm-editor .cm-lint-marker {
+	width: 1em;
+	height: 1em;
+	margin: 0;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+}
+
+.cm-editor .cm-lint-marker-warning,
+.cm-editor .cm-lint-marker-error {
+	content: "";
 }
