@@ -4,11 +4,14 @@ import { env } from "../env";
 
 export type Tokens = { token: string; refreshToken: string };
 
+/** How the person signed in. The backend does not say, so the cookie remembers. */
+export type SignInMethod = "google" | "password";
+
 /**
  * What a visitor's cookie holds: the backend's token pair once they are in,
  * and the state of a sign-in that is under way until then.
  */
-type SessionData = Partial<Tokens> & { pending?: string };
+type SessionData = Partial<Tokens> & { pending?: string; via?: SignInMethod };
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 

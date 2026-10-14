@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { v1 } from "../rpc/client";
 import { session } from "./session";
+import type { SignInMethod } from "./session";
 
 /**
  * Signing in with Google, in two halves. The first asks the backend for the
@@ -43,6 +44,7 @@ export const finishGoogleLogin = createServerFn({ method: "POST" })
 			token: tokens.token,
 			refreshToken: tokens.refreshToken,
 			pending: undefined,
+			via: "google",
 		});
 	});
 
@@ -53,12 +55,15 @@ export type Account = {
 	avatarUrl: string;
 	roles: string[];
 	permissions: { module: string; name: string }[];
+	/** Missing for a session from before this was remembered. */
+	signedInWith?: SignInMethod;
 };
 
 export const currentUser = createServerFn({ method: "GET" }).handler(async (): Promise<Account> => {
-	const me = await v1.AuthService.getCurrentUser();
+	const [me, current] = await Promise.all([v1.AuthService.getCurrentUser(), session()]);
 
 	return {
+		signedInWith: current.data.via,
 		id: me.id,
 		email: me.email,
 		name: me.name,

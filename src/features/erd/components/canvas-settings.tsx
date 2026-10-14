@@ -20,6 +20,7 @@ import {
 	SearchIcon,
 	RouteIcon,
 	InfoIcon,
+	KeyRoundIcon,
 	ServerIcon,
 	ShieldCheckIcon,
 	SunIcon,
@@ -737,7 +738,7 @@ const COVER_CLASSES =
 
 const coverColor = (color: string | null) => color ?? "var(--color-muted)";
 
-function BannerHeader({ me, leaveButton, provider }: AccountView & { provider?: boolean }) {
+function BannerHeader({ me, leaveButton }: AccountView) {
 	const cover = useCover();
 
 	return (
@@ -754,7 +755,7 @@ function BannerHeader({ me, leaveButton, provider }: AccountView & { provider?: 
 			<div className="flex items-end gap-4 px-4 pb-4">
 				<span className="-mt-8 flex rounded-full ring-4 ring-background">
 					<Avatar className="size-16">
-						<AvatarImage src={me.avatarUrl || undefined} alt="" />
+						<AvatarImage src={me.avatarUrl || undefined} alt="" referrerPolicy="no-referrer" />
 						<AvatarFallback>{initials(me.name || me.email)}</AvatarFallback>
 					</Avatar>
 				</span>
@@ -764,10 +765,16 @@ function BannerHeader({ me, leaveButton, provider }: AccountView & { provider?: 
 						<RoleChips roles={me.roles} />
 					</span>
 					<span className="truncate text-sm text-muted-foreground">{me.email}</span>
-					{provider && (
+					{me.signedInWith === "google" && (
 						<span className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
 							<img src="/google.svg" alt="" className="size-3" />
 							Signed in with Google
+						</span>
+					)}
+					{me.signedInWith === "password" && (
+						<span className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+							<KeyRoundIcon className="size-3" />
+							Signed in with a password
 						</span>
 					)}
 				</div>
@@ -1025,7 +1032,7 @@ function PermissionTabs({ permissions }: PermissionViewProps) {
 function AccountCustom({ me, leaveButton }: AccountView) {
 	return (
 		<div className="flex min-w-0 flex-col gap-6">
-			<BannerHeader me={me} leaveButton={leaveButton} provider />
+			<BannerHeader me={me} leaveButton={leaveButton} />
 			<PermissionTabs permissions={me.permissions} />
 		</div>
 	);

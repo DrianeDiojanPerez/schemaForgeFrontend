@@ -25,5 +25,6 @@ export const registerWithPassword = createServerFn({ method: "POST" })
 			token: tokens.token,
 			refreshToken: tokens.refreshToken,
 			pending: undefined,
+			via: "password",
 		});
 	});
