@@ -75,6 +75,41 @@ function capitalize(side: Side): Capitalize<Side> {
 	return side === "left" ? "Left" : "Right";
 }
 
+export type SideCosts = Record<Pair, { distance: number; hidden: number }>;
+
+/** The side costs when nothing is hidden, so only how close the edges sit counts. */
+export function sideDistances(
+	sourceLeft: number,
+	sourceRight: number,
+	targetLeft: number,
+	targetRight: number,
+): SideCosts {
+	return {
+		leftToLeft: { distance: Math.abs(sourceLeft - targetLeft), hidden: 0 },
+		leftToRight: { distance: Math.abs(sourceLeft - targetRight), hidden: 0 },
+		rightToLeft: { distance: Math.abs(sourceRight - targetLeft), hidden: 0 },
+		rightToRight: { distance: Math.abs(sourceRight - targetRight), hidden: 0 },
+	};
+}
+
+/**
+ * The sides to run between when the route from each pair is known: the
+ * pair that hides the least of the line, and of those the pair whose edges
+ * sit closest. A clean line that runs round the far side beats a short one
+ * that goes under a table. Nothing is held, so the same layout gets the
+ * same line whether a table is in hand or has just been put down.
+ */
+export function bestSides(costs: SideCosts): Sides {
+	const pairs = Object.keys(costs) as Pair[];
+	const better = (a: Pair, b: Pair) =>
+		costs[a].hidden < costs[b].hidden ||
+		(costs[a].hidden === costs[b].hidden && costs[a].distance < costs[b].distance);
+
+	return PAIRS[pairs.reduce((top, pair) => (better(pair, top) ? pair : top))];
+}
+
+export type Box = { left: number; right: number; top: number; bottom: number };
+
 type Ends = {
 	sourceX: number;
 	sourceY: number;
@@ -82,6 +117,8 @@ type Ends = {
 	targetY: number;
 	sourcePosition: Position;
 	targetPosition: Position;
+	/** The tables the line must not run under, the two it joins as a rule. */
+	clear?: Box[];
 };
 
 // How far apart the lanes sit when several relationships run between the same
@@ -106,9 +143,9 @@ function twoVerticalPath(
 	{ sourceX, sourceY, targetX, targetY }: Ends,
 	firstX: number,
 	secondX: number,
+	crossY: number,
 	radius: number,
 ): [string, number, number] {
-	const crossY = (sourceY + targetY) / 2;
 	const points: Point[] = [
 		{ x: sourceX, y: sourceY },
 		{ x: firstX, y: sourceY },
@@ -164,22 +201,110 @@ function towards(from: Point, to: Point, by: number): Point {
 const LOOP_REACH = 2 * LANE;
 const ACROSS_REACH = LANE;
 
-/** The path to draw, with the point the relationship badge sits on. */
-export function linePath(
-	line: EdgeLine,
-	ends: Ends,
+// How far below or above a table the crossing line runs when it has to get
+// round it rather than through it.
+const CLEARANCE = LANE;
+
+// A line that reaches this little way over a table's edge is a sliver at
+// the join, not a run under the table, and is not counted.
+const SLIVER = END_GAP;
+
+/** Where the crossing line runs: halfway, or past the near end of one of the tables. */
+export type Crossing = "middle" | `below-${number}` | `above-${number}`;
+
+export type Route = {
+	path: string;
+	labelX: number;
+	labelY: number;
+	crossing: Crossing;
+	/** How much of the line is hidden under a table or spent on a detour, in pixels. */
+	cost: number;
+};
+
+/** How much of the stretch from `a` to `b` lies inside `from` to `to`, less the sliver. */
+function hiddenRun(a: number, b: number, from: number, to: number): number {
+	const overlap = Math.min(Math.max(a, b), to) - Math.max(Math.min(a, b), from);
+
+	return Math.max(0, overlap - SLIVER);
+}
+
+/**
+ * Where the crossing line runs. Halfway between the rows as a rule, but
+ * when the tables overlap sideways the line has to come back round, and
+ * halfway can be under one of them. Each table's near end is tried as
+ * well, and the crossing goes where the least of the line is hidden,
+ * counting a detour past the rows against it, and nearest the middle when
+ * that is a tie. Each lane runs a step further out.
+ */
+function crossingAt(
+	{ sourceY, targetY, clear = [] }: Ends,
+	firstX: number,
+	secondX: number,
 	lane: number,
-	radius = RADIUS,
-): [string, number, number] {
+): { crossY: number; crossing: Crossing; cost: number } {
+	const middle = (sourceY + targetY) / 2;
+	const low = Math.min(sourceY, targetY);
+	const high = Math.max(sourceY, targetY);
+	const step = CLEARANCE + lane * LANE;
+
+	const hidden = (crossY: number) =>
+		clear.reduce((sum, box) => {
+			const under = crossY >= box.top && crossY <= box.bottom;
+			const across = under ? hiddenRun(firstX, secondX, box.left, box.right) : 0;
+			const first =
+				firstX >= box.left && firstX <= box.right
+					? hiddenRun(sourceY, crossY, box.top, box.bottom)
+					: 0;
+			const second =
+				secondX >= box.left && secondX <= box.right
+					? hiddenRun(crossY, targetY, box.top, box.bottom)
+					: 0;
+
+			return sum + across + first + second;
+		}, 0);
+
+	const detour = (crossY: number) => Math.max(0, low - crossY, crossY - high);
+
+	// With the verticals together the line is one straight run, and a
+	// crossing anywhere but on it only folds the run back on itself.
+	if (firstX === secondX) return { crossY: middle, crossing: "middle", cost: hidden(middle) };
+
+	const candidates = [
+		{ crossing: "middle" as Crossing, crossY: middle },
+		...clear.flatMap((box, index) => [
+			{ crossing: `below-${index}` as Crossing, crossY: box.bottom + step },
+			{ crossing: `above-${index}` as Crossing, crossY: box.top - step },
+		]),
+	].map((candidate) => ({
+		...candidate,
+		cost: hidden(candidate.crossY) + detour(candidate.crossY),
+	}));
+
+	return candidates.reduce((top, candidate) => {
+		const gain = top.cost - candidate.cost;
+		const nearer = Math.abs(candidate.crossY - middle) < Math.abs(top.crossY - middle);
+
+		return gain > 0 || (gain === 0 && nearer) ? candidate : top;
+	});
+}
+
+/** The route to draw, the point the badge sits on, and what the route costs. */
+export function planRoute(line: EdgeLine, ends: Ends, lane: number, radius = RADIUS): Route {
 	if (line === "square") radius = 0;
 	const { sourceX, targetX, sourcePosition, targetPosition } = ends;
 	const out = sourcePosition === Position.Right ? 1 : -1;
 	const shift = lane * LANE * out;
+	const route = (firstX: number, secondX: number): Route => {
+		const { crossY, crossing, cost } = crossingAt(ends, firstX, secondX, lane);
+		const [path, labelX, labelY] = twoVerticalPath(ends, firstX, secondX, crossY, radius);
+
+		return { path, labelX, labelY, crossing, cost };
+	};
 
 	if (sourcePosition === targetPosition) {
 		const edge = out > 0 ? Math.max(sourceX, targetX) : Math.min(sourceX, targetX);
 		const verticalX = edge + out * LOOP_REACH + shift;
-		return twoVerticalPath(ends, verticalX, verticalX, radius);
+		return route(verticalX, verticalX);
 	}
 
 	const firstX = sourceX + out * ACROSS_REACH + shift;
@@ -188,10 +313,22 @@ export function linePath(
 	// Room for both reaches between the tables is room for the S.
 	if ((secondX - firstX) * out >= 0) {
 		const middle = (sourceX + targetX) / 2 + shift;
-		return twoVerticalPath(ends, middle, middle, radius);
+		return route(middle, middle);
 	}
 
-	return twoVerticalPath(ends, firstX, secondX, radius);
+	return route(firstX, secondX);
+}
+
+/** The path to draw, with the point the relationship badge sits on. */
+export function linePath(
+	line: EdgeLine,
+	ends: Ends,
+	lane: number,
+	radius = RADIUS,
+): [string, number, number] {
+	const { path, labelX, labelY } = planRoute(line, ends, lane, radius);
+
+	return [path, labelX, labelY];
 }
 
 /**

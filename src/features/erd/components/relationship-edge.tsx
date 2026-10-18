@@ -18,13 +18,19 @@ import {
 import { cn } from "@/lib/utils";
 
 import { useHeldSides } from "../hooks/use-held-sides";
-import { edgeDash, linePath, END_GAP } from "../lib/edge-lines";
+import { edgeDash, planRoute, END_GAP } from "../lib/edge-lines";
+import type { Side } from "../lib/edge-lines";
 import type { ErdEdge, RelationshipType } from "../types/erd";
 import { DescriptionDialog } from "./details-dialogs";
 import { useCanvasPreferences } from "../lib/canvas-preferences";
 import { useEdgeStyle } from "./edge-line-context";
 
 const FALLBACK_TABLE_WIDTH = 160;
+
+// What a line cut across by a loop costs, as pixels of hidden line. A
+// crossing is worse than a short run under a table and better than a long
+// one, which this is pitched between.
+const CROSSING = 30;
 
 const RELATIONSHIPS: Record<
 	RelationshipType,
@@ -191,6 +197,42 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	const targetNode = useStore(useCallback((state) => state.nodeLookup.get(target), [target]));
 	const edges = useStore((state) => state.edges);
 
+	// Which side of each of the two tables the other lines come in on, read
+	// off where their far tables sit. A loop round the left of a table cuts
+	// across every line arriving from the left, so that side costs more.
+	const arrivals = useStore(
+		useCallback(
+			(state) => {
+				const centreOf = (nodeId: string) => {
+					const node = state.nodeLookup.get(nodeId);
+					return node
+						? node.internals.positionAbsolute.x + (node.measured.width ?? 0) / 2
+						: undefined;
+				};
+				const counts = { left: 0, right: 0 };
+
+				for (const edge of state.edges) {
+					if (edge.id === id) continue;
+
+					for (const end of [source, target]) {
+						const far =
+							edge.source === end ? edge.target : edge.target === end ? edge.source : undefined;
+						if (!far || far === source || far === target) continue;
+
+						const here = centreOf(end);
+						const there = centreOf(far);
+						if (here === undefined || there === undefined) continue;
+
+						counts[there < here ? "left" : "right"]++;
+					}
+				}
+
+				return `${counts.left}:${counts.right}`;
+			},
+			[id, source, target],
+		),
+	);
+
 	// Parallel edges between the same two tables would draw on top of each
 	// other, so each one gets its own lane by index.
 	const edgeNumber = useMemo(() => {
@@ -220,12 +262,12 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	const targetLeftX = targetPosX;
 	const targetRightX = targetPosX + targetWidth;
 
-	const { sourceSide, targetSide } = useHeldSides(
-		sourceLeftX,
-		sourceRightX,
-		targetLeftX,
-		targetRightX,
-	);
+	// The tables as boxes for the route to keep out from under, a pixel wider
+	// all round for the ring drawn outside each one.
+	const sourceTop = sourceNode?.internals.positionAbsolute.y ?? sourceY;
+	const sourceBottom = sourceTop + (sourceNode?.measured.height ?? 0);
+	const targetTop = targetNode?.internals.positionAbsolute.y ?? targetY;
+	const targetBottom = targetTop + (targetNode?.measured.height ?? 0);
 
 	const { line, dash, labels } = useEdgeStyle();
 
@@ -239,36 +281,86 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	// a time behind the table.
 	const settled = !sourceNode?.dragging && !targetNode?.dragging;
 
-	// Each route hands back the label anchor along with the path, so the badge
+	// Every pair of sides is routed, so the sides can be picked by what each
+	// route would hide rather than by how close the edges sit alone. Each
+	// route hands back the label anchor along with the path, so the badge
 	// follows the line even when both ends leave from the same side.
-	const [edgePath, labelX, labelY] = useMemo(() => {
+	const plans = useMemo(() => {
 		const snap = settled ? Math.round : (value: number) => value;
-
-		return linePath(
-			line,
+		const clear = [
 			{
-				sourceX: snap(sourceSide === "left" ? sourceLeftX - END_GAP : sourceRightX + END_GAP),
-				sourceY: snap(sourceY),
-				targetX: snap(targetSide === "left" ? targetLeftX - END_GAP : targetRightX + END_GAP),
-				targetY: snap(targetY),
-				sourcePosition: sourceSide === "left" ? Position.Left : Position.Right,
-				targetPosition: targetSide === "left" ? Position.Left : Position.Right,
+				left: sourceLeftX - 1,
+				right: sourceRightX + 1,
+				top: sourceTop - 1,
+				bottom: sourceBottom + 1,
 			},
-			edgeNumber,
-		);
+			{
+				left: targetLeftX - 1,
+				right: targetRightX + 1,
+				top: targetTop - 1,
+				bottom: targetBottom + 1,
+			},
+		];
+		const plan = (sourceSide: Side, targetSide: Side) => {
+			const fromX = sourceSide === "left" ? sourceLeftX - END_GAP : sourceRightX + END_GAP;
+			const toX = targetSide === "left" ? targetLeftX - END_GAP : targetRightX + END_GAP;
+			const route = planRoute(
+				line,
+				{
+					sourceX: snap(fromX),
+					sourceY: snap(sourceY),
+					targetX: snap(toX),
+					targetY: snap(targetY),
+					sourcePosition: sourceSide === "left" ? Position.Left : Position.Right,
+					targetPosition: targetSide === "left" ? Position.Left : Position.Right,
+					clear,
+				},
+				edgeNumber,
+			);
+
+			return { ...route, distance: Math.abs(fromX - toX) };
+		};
+
+		return {
+			leftToLeft: plan("left", "left"),
+			leftToRight: plan("left", "right"),
+			rightToLeft: plan("right", "left"),
+			rightToRight: plan("right", "right"),
+		};
 	}, [
 		line,
 		sourceLeftX,
 		sourceRightX,
 		targetLeftX,
 		targetRightX,
+		sourceTop,
+		sourceBottom,
+		targetTop,
+		targetBottom,
 		sourceY,
 		targetY,
-		sourceSide,
-		targetSide,
 		edgeNumber,
 		settled,
 	]);
+
+	// A loop round one side is charged for every line it would cut across.
+	const [fromLeft, fromRight] = arrivals.split(":").map(Number);
+	const { sourceSide, targetSide } = useHeldSides({
+		leftToLeft: {
+			distance: plans.leftToLeft.distance,
+			hidden: plans.leftToLeft.cost + fromLeft * CROSSING,
+		},
+		leftToRight: { distance: plans.leftToRight.distance, hidden: plans.leftToRight.cost },
+		rightToLeft: { distance: plans.rightToLeft.distance, hidden: plans.rightToLeft.cost },
+		rightToRight: {
+			distance: plans.rightToRight.distance,
+			hidden: plans.rightToRight.cost + fromRight * CROSSING,
+		},
+	});
+
+	const classic = plans[`${sourceSide}To${targetSide === "left" ? "Left" : "Right"}`];
+
+	const { path: edgePath, labelX, labelY } = classic;
 
 	const relationship = RELATIONSHIPS[relationshipType];
 
@@ -280,10 +372,11 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	const sourceIsOne = relationshipType !== "many-to-many";
 	const targetIsOne = relationshipType === "one-to-one";
 
-	// The line stops at the set-back, and the toes carry on across it to rest
-	// on the outer face of the table's outline. A rounded cap reaches half a
-	// stroke past its point, so the toes end that much short of the line.
-	const reach = END_GAP - 1.6;
+	// The line stops at the set-back, and the toes carry on across most of it
+	// and stop half a pixel short of the table's outline, so they are seen to
+	// meet the table rather than to run into it. A rounded cap reaches half
+	// a stroke past its point, which is counted in.
+	const reach = END_GAP - 2.1;
 	const crowsFoot = (pointing: "left" | "right") => {
 		// The outer end stays on the table, so a shorter toe pulls its tip in
 		// towards the line rather than lifting the foot off the edge.
@@ -324,11 +417,11 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 		);
 	};
 
-	// The path ends at the bar; this is the solid run from it to the outer
-	// face of the table's outline.
+	// The path ends at the bar; this is the solid run from it towards the
+	// table, stopping the same half pixel short of its outline.
 	const singleBar = (
 		<>
-			<line x1="8" y1="8" x2={7 + END_GAP} y2="8" stroke={stroke} strokeWidth="1.5" />
+			<line x1="8" y1="8" x2={6.5 + END_GAP} y2="8" stroke={stroke} strokeWidth="1.5" />
 			<line
 				x1="8"
 				y1="4.5"

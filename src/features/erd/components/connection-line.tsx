@@ -2,7 +2,7 @@ import { Position } from "@xyflow/react";
 import type { ConnectionLineComponentProps } from "@xyflow/react";
 
 import { useHeldSides } from "../hooks/use-held-sides";
-import { edgeDash, linePath } from "../lib/edge-lines";
+import { edgeDash, linePath, sideDistances } from "../lib/edge-lines";
 import { stripHandleSide } from "../lib/foreign-keys";
 import type { ErdNode } from "../types/erd";
 import { useEdgeStyle } from "./edge-line-context";
@@ -42,7 +42,9 @@ export function ConnectionLine({ fromNode, fromHandle, fromY, toNode, toHandle, 
 	const targetLeft = toNode ? toNode.internals.positionAbsolute.x : toX;
 	const targetRight = toNode ? targetLeft + (toNode.measured.width ?? FALLBACK_TABLE_WIDTH) : toX;
 
-	const { sourceSide, targetSide } = useHeldSides(sourceLeft, sourceRight, targetLeft, targetRight);
+	const { sourceSide, targetSide } = useHeldSides(
+		sideDistances(sourceLeft, sourceRight, targetLeft, targetRight),
+	);
 
 	const [path] = linePath(
 		line,

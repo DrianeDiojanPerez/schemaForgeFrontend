@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { Position } from "@xyflow/react";
 
-import { linePath, nearestSides } from "./lib/edge-lines";
+import { bestSides, linePath, nearestSides } from "./lib/edge-lines";
 
 // Two tables 160 wide. The source sits at 0; the target is moved about.
 const source = { left: 0, right: 160 };
@@ -80,6 +80,34 @@ describe("linePath", () => {
 		);
 	});
 
+	test("runs the crossing line below a table it would otherwise go under", () => {
+		// The line leaves the right of a low table for a row in a tall one
+		// above and to the right of it. Halfway between the rows is inside the
+		// tall table, so the crossing moves to just above the low table, where
+		// only a dozen pixels of the climb are still under the tall one. The
+		// few pixels it reaches over an edge at a join are not counted.
+		const [path, , labelY] = linePath(
+			"square",
+			{
+				sourceX: 149,
+				sourceY: 632,
+				targetX: 156,
+				targetY: 300,
+				sourcePosition: Position.Right,
+				targetPosition: Position.Left,
+				clear: [
+					{ left: -201, right: 146, top: 524, bottom: 801 },
+					{ left: 159, right: 681, top: 69, bottom: 526 },
+				],
+			},
+			0,
+		);
+
+		expect(labelY).toBe(510);
+		expect(path).toContain("L163 510");
+		expect(path).toContain("L142 300");
+	});
+
 	test("rounds both corners the same going round a table", () => {
 		const [path] = linePath(
 			"rounded",
@@ -97,5 +125,20 @@ describe("linePath", () => {
 		expect(path).toBe(
 			"M200 250L182 250Q172 250 172 240L172 175Q172 175 172 175L172 175Q172 175 172 175L172 110Q172 100 182 100L260 100",
 		);
+	});
+});
+
+describe("bestSides", () => {
+	const clean = { hidden: 0 };
+
+	test("leaves from the far side when the near pair would run under a table", () => {
+		expect(
+			bestSides({
+				leftToLeft: { distance: 500, ...clean },
+				leftToRight: { distance: 900, ...clean },
+				rightToLeft: { distance: 7, hidden: 81 },
+				rightToRight: { distance: 360, ...clean },
+			}),
+		).toEqual({ sourceSide: "right", targetSide: "right" });
 	});
 });

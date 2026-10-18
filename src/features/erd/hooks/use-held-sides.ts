@@ -1,22 +1,39 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { nearestSides } from "../lib/edge-lines";
-import type { Sides } from "../lib/edge-lines";
+import { bestSides } from "../lib/edge-lines";
+import type { SideCosts, Sides } from "../lib/edge-lines";
 
-/** The sides a line runs between, remembered so they only change for a
-    clear reason rather than on every pixel of a drag. */
-export function useHeldSides(
-	sourceLeft: number,
-	sourceRight: number,
-	targetLeft: number,
-	targetRight: number,
-): Sides {
-	const [held, setHeld] = useState<Sides>();
-	const sides = nearestSides(sourceLeft, sourceRight, targetLeft, targetRight, held);
+// The least time between one swap of ends and the next. A table dragged
+// through another can have the two routes trade places several times in a
+// second, and a line that follows every trade reads as a flicker.
+const COOLDOWN = 400;
 
-	if (held?.sourceSide !== sides.sourceSide || held.targetSide !== sides.targetSide) {
-		setHeld(sides);
-	}
+/**
+ * The sides a line runs between: always the best pair for where the tables
+ * are now, so what is seen during a drag is what stays after the drop,
+ * only never swapped twice in quick succession. A swap that was put off is
+ * made as soon as the wait is over.
+ */
+export function useHeldSides(costs: SideCosts): Sides {
+	const [shown, setShown] = useState<Sides>();
+	const swappedAt = useRef(0);
+	const wanted = bestSides(costs);
+	const changed =
+		!shown || shown.sourceSide !== wanted.sourceSide || shown.targetSide !== wanted.targetSide;
 
-	return sides;
+	useEffect(() => {
+		if (!changed) return;
+
+		const timer = setTimeout(
+			() => {
+				swappedAt.current = Date.now();
+				setShown(wanted);
+			},
+			Math.max(0, swappedAt.current + COOLDOWN - Date.now()),
+		);
+
+		return () => clearTimeout(timer);
+	}, [changed, wanted]);
+
+	return shown ?? wanted;
 }
