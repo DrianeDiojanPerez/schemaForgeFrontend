@@ -7,12 +7,17 @@ import {
 	ReactFlowProvider,
 	useReactFlow,
 } from "@xyflow/react";
-import type { NodeChange } from "@xyflow/react";
+import type { NodeChange, Viewport } from "@xyflow/react";
 import { ClientOnly } from "@tanstack/react-router";
 
 import { TourProvider, useTour } from "@/components/tour";
 
 import { schemaKeys } from "@/features/schema/api/keys";
+import { useDeleteSchema } from "@/features/schema/api/mutations";
+import { schemaQueries } from "@/features/schema/api/queries";
+import type { Latest } from "@/features/schema/api/queries";
+import { EMPTY_SCHEMA } from "@/features/schema/types/schema";
+import type { Schema, SchemaDraft } from "@/features/schema/types/schema";
 import { useBackendWatch } from "@/features/schema/hooks/use-backend-status";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +30,7 @@ import { useSchemaSync } from "../hooks/use-schema-sync";
 import type { GenerateOptions } from "../hooks/use-schema-sync";
 import type { ImportFormat } from "@/server/rpc/schema";
 import { toDiagram } from "../lib/schema-adapter";
+import { rememberViewport, savedViewport } from "../lib/viewport-store";
 import { HOTKEYS } from "../lib/hotkeys";
 import { setCanvasPreference, useCanvasPreferences } from "../lib/canvas-preferences";
 import type { SchemaGrouping, TableStyle } from "../lib/canvas-preferences";
@@ -43,6 +49,7 @@ import type { LoadingPhase } from "./canvas-skeleton";
 import { CanvasTour } from "./canvas-tour";
 import { ConnectionLine } from "./connection-line";
 import { ConnectorArrowProvider } from "./connector-arrow-context";
+import { CreateSchemaDialog } from "./create-schema-dialog";
 import { EdgeLineProvider } from "./edge-line-context";
 import { GeneratedSqlPanel } from "./generated-sql-panel";
 import { GraphActionsProvider } from "./graph-actions-context";
@@ -61,6 +68,9 @@ const nodeTypes = { table: TableNode, schema: SchemaNode };
 
 const GLASS_LINGER = 900;
 const LOADER_FADE = 700;
+// How long the loader takes to fade in over a canvas being switched, which
+// is also how long the old tables stay before the new ones replace them.
+const VEIL_IN = 350;
 const edgeTypes = { relationship: RelationshipEdge };
 
 // Same reason, one step down. React Flow holds the node renderer still while a
@@ -126,7 +136,7 @@ const BackendWatch = memo(function BackendWatch({
 	return null;
 });
 
-function Canvas({ diagram, schema }: ErdCanvasProps) {
+function Canvas({ diagram, schema, askForSchema = false }: ErdCanvasProps) {
 	const {
 		nodes,
 		edges,
@@ -145,7 +155,8 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 		setEdges,
 	} = useErdGraph(diagram);
 	const theme = useTheme();
-	const { screenToFlowPosition, fitView, setCenter, getZoom, getNodes } = useReactFlow<ErdNode>();
+	const { screenToFlowPosition, fitView, setViewport, setCenter, getZoom, getNodes } =
+		useReactFlow<ErdNode>();
 	const tour = useTour();
 	const { bringCloser } = useReveal();
 	const [settingsOpen, setSettingsOpen] = useState(false);
@@ -202,13 +213,18 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 
 	const [schemaId, setSchemaId] = useState(schema.id);
 	const [name, setName] = useState(schema.name);
+	// The canvas that stands in while there is nothing to show has the
+	// placeholder for a name. Saving it as it is would store a schema called
+	// that, so it asks for a name on its first save instead and is never
+	// saved on its own.
+	const unnamed = schemaId === "" && name === EMPTY_SCHEMA.name;
 	const stopAutoValidate = useCallback(() => setValidateStopped(true), []);
 	const sync = useSchemaSync({
 		schemaId,
 		name,
 		nodes,
 		edges,
-		autoSave,
+		autoSave: autoSave && !unnamed,
 		autoValidate,
 		includePositions: sqlPositions,
 		onSaved: setSchemaId,
@@ -242,18 +258,81 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 	// Work done while the backend was away is written up rather than thrown
 	// over for whatever the backend holds. An untouched canvas gives way to
 	// the stored schema.
+	const [creating, setCreating] = useState(askForSchema);
+
+	// The drawing goes to the dialog as it stands, and the dialog saves it
+	// under whatever name is typed.
+	const [naming, setNaming] = useState<SchemaDraft>();
+	const askName = useCallback(() => {
+		const draft = latest.current.draft();
+		if (!draft) return;
+
+		setNaming(draft);
+		setCreating(true);
+	}, []);
+
 	const reconnected = useCallback(async () => {
 		const { isDirty, save } = latest.current;
 
 		if (isDirty()) {
-			await save(true);
+			if (unnamed) askName();
+			else await save(true);
 			return;
 		}
 
 		if (!schemaId) {
 			await queryClient.invalidateQueries({ queryKey: schemaKeys.latest() });
 		}
-	}, [schemaId, queryClient]);
+	}, [schemaId, unnamed, askName, queryClient]);
+
+	// Work on the current schema is written up before the canvas moves on to
+	// the new one. The route keys the canvas on the schema id, so handing the
+	// new schema to the latest query is what opens it.
+	const openCreate = useCallback(() => setCreating(true), []);
+	const created = useCallback(
+		async (next: Schema) => {
+			const { isDirty, save } = latest.current;
+			if (isDirty()) await save(true);
+
+			queryClient.setQueryData<Latest>(schemaKeys.latest(), { schema: next, reachable: true });
+		},
+		[queryClient],
+	);
+
+	// Dropping the schema on the canvas leaves the latest query to pick the
+	// next one, or to find nothing and ask for a first schema again.
+	const { mutateAsync: remove } = useDeleteSchema();
+	const deleteSchema = useCallback(
+		async (id: string) => {
+			try {
+				await remove(id);
+				notify.success({ title: "Deleted" });
+				if (id === schemaId) {
+					await queryClient.invalidateQueries({ queryKey: schemaKeys.latest() });
+				}
+			} catch (error) {
+				notify.error({
+					title: "Could not delete schema",
+					description: error instanceof Error ? error.message : "Something went wrong",
+				});
+			}
+		},
+		[remove, schemaId, queryClient],
+	);
+
+	const openSchema = useCallback(
+		async (id: string) => {
+			try {
+				await created(await queryClient.fetchQuery(schemaQueries.detail(id)));
+			} catch (error) {
+				notify.error({
+					title: "Could not open schema",
+					description: error instanceof Error ? error.message : "Something went wrong",
+				});
+			}
+		},
+		[queryClient, created],
+	);
 
 	const edgeStyle = useMemo(
 		() => ({ line: edgeLine, dash: edgeDash, labels: edgeLabels }),
@@ -420,7 +499,12 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 		{ preventDefault: false, stopPropagation: false },
 	);
 
-	useHotkey(HOTKEYS.save, () => void sync.save(), {
+	const saveNow = useCallback(() => {
+		if (unnamed) askName();
+		else void latest.current.save();
+	}, [unnamed, askName]);
+
+	useHotkey(HOTKEYS.save, () => saveNow(), {
 		enabled: !sync.busy,
 		ignoreInputs: true,
 	});
@@ -441,7 +525,6 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 		paste.current(screenToFlowPosition(clickPoint.current));
 	}, [screenToFlowPosition]);
 
-	const saveNow = useCallback(() => void latest.current.save(), []);
 	const fitAll = useCallback(() => void fitView({ duration: 300 }), [fitView]);
 
 	const trackPointer = useCallback((event: React.PointerEvent) => {
@@ -518,25 +601,83 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 
 	// A file opens as a new diagram rather than over the stored one, so the
 	// first save writes a schema of its own and leaves the old one as it was.
+	// Puts another diagram on the canvas in place, so the list and the rest of
+	// the page stay where they are. A stored one is taken as already saved; a
+	// file just opened is not, so the first save writes it up as a new schema.
+	// A schema opens where it was left, at the same zoom and place, and only
+	// one never seen before is fitted to the window. Every pan or zoom that
+	// ends is what gets remembered.
+	const frame = useCallback(
+		(id: string) => {
+			const saved = savedViewport(id);
+			return saved ? setViewport(saved) : fitView();
+		},
+		[setViewport, fitView],
+	);
+	const rememberView = useCallback(
+		(_event: unknown, viewport: Viewport) => rememberViewport(schemaId, viewport),
+		[schemaId],
+	);
+
+	// Whether the loader is coming back over a canvas that is already showing,
+	// which it fades in over rather than landing on in one frame.
+	const [switching, setSwitching] = useState(false);
+	// Counted up on every swap, so the list down the side can fade the old
+	// tables out and the new ones in together instead of a table at a time.
+	const [swaps, setSwaps] = useState(0);
+
+	const show = useCallback(
+		(next: { id: string; name: string }, picture: ErdDiagram) => {
+			// The loader fades in first and the tables are swapped only once it is
+			// opaque, so the old ones are not seen jumping into the new ones. The
+			// new tables have no size until they have been drawn once, and fitting
+			// before that frames nothing, so the fit waits two frames and the
+			// cover lifts once it has run.
+			setSwitching(true);
+			setLoaderShown(true);
+			setLoading("covering");
+
+			window.setTimeout(() => {
+				setSchemaId(next.id);
+				setName(next.name);
+				setSwaps((count) => count + 1);
+				setNodes(picture.nodes);
+				setEdges(picture.edges);
+				if (next.id) latest.current.loaded(next.name, picture.nodes, picture.edges);
+
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						void frame(next.id).then(() => setLoading("glass"));
+					});
+				});
+			}, VEIL_IN);
+		},
+		[setNodes, setEdges, frame],
+	);
+
+	const shown = useRef(schema.id);
+
+	useEffect(() => {
+		if (shown.current === schema.id) return;
+
+		shown.current = schema.id;
+		show(schema, diagram);
+	}, [schema, diagram, show]);
+
+	// Deleting the last schema leaves nothing to show and brings the question
+	// back, the same one a fresh account is asked.
+	const [askedBefore, setAskedBefore] = useState(askForSchema);
+	if (askForSchema !== askedBefore) {
+		setAskedBefore(askForSchema);
+		if (askForSchema) setCreating(true);
+	}
+
 	const importFile = useCallback(
 		async (content: string, format: ImportFormat) => {
 			const read = await latest.current.importFile(content, format);
-			if (!read) return;
-
-			const next = toDiagram(read);
-
-			setSchemaId("");
-			setName(read.name);
-			setNodes(next.nodes);
-			setEdges(next.edges);
-
-			// The new tables have no size until they have been drawn once, and
-			// fitting before that frames nothing.
-			requestAnimationFrame(() => {
-				requestAnimationFrame(() => void fitView({ duration: 300 }));
-			});
+			if (read) show({ id: "", name: read.name }, toDiagram(read));
 		},
-		[setNodes, setEdges, fitView],
+		[show],
 	);
 
 	// Held back on a fresh load until the loader is gone, since coming in
@@ -580,8 +721,8 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 			onEdgesChange={onEdgesChange}
 			onConnect={onConnect}
 			colorMode={theme}
-			fitView
-			onInit={() => setLoading("glass")}
+			onInit={() => void frame(schemaId).then(() => setLoading("glass"))}
+			onMoveEnd={rememberView}
 			deleteKeyCode={DELETE_KEYS}
 			snapToGrid={snapToGrid}
 			// Waiting a pixel before the drag starts costs the table the ground
@@ -660,7 +801,12 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 				/>
 
 				{loaderShown && (
-					<CanvasSkeleton aria-hidden phase={loading} className="absolute inset-0 z-10" />
+					<CanvasSkeleton
+						aria-hidden
+						phase={loading}
+						entering={switching}
+						className="absolute inset-0 z-10"
+					/>
 				)}
 
 				{/* Flush with the edge, since the bar keeps the gap itself and
@@ -676,6 +822,7 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 						onExportSql={exportSql}
 						onExportJson={exportJson}
 						onImport={importFile}
+						onNewSchema={openCreate}
 						settingsOpen={settingsOpen}
 						onSettingsOpenChange={openSettings}
 						raised={tour.active}
@@ -715,12 +862,17 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 								<SchemaSidebar
 									name={name}
 									nodes={nodes}
+									swap={swaps}
 									active={listChosen}
 									open={schemaListOpen}
 									onOpenChange={(open) => setCanvasPreference("schemaListOpen", open)}
 									width={schemaListWidth}
 									onWidthChange={(width) => setCanvasPreference("schemaListWidth", width)}
 									corner={showControls && <CanvasControls />}
+									schemaId={schemaId}
+									onOpenSchema={openSchema}
+									onNewSchema={openCreate}
+									onDeleteSchema={(id) => void deleteSchema(id)}
 								>
 									{graph}
 								</SchemaSidebar>
@@ -757,6 +909,16 @@ function Canvas({ diagram, schema }: ErdCanvasProps) {
 							onEdgeDashChange={setEdgeDash}
 						/>
 
+						<CreateSchemaDialog
+							open={creating}
+							onOpenChange={(open) => {
+								setCreating(open);
+								if (!open) setNaming(undefined);
+							}}
+							onCreated={(next) => void created(next)}
+							first={askForSchema}
+							draft={naming}
+						/>
 						<CanvasTour />
 						<BackendWatch onReconnect={reconnected} />
 					</GraphActionsProvider>
@@ -770,9 +932,11 @@ export type ErdCanvasProps = {
 	diagram: ErdDiagram;
 	/** Identity and name of the stored schema the diagram came from. */
 	schema: { id: string; name: string };
+	/** Opens on the create dialog, for someone who has no schema yet. */
+	askForSchema?: boolean;
 };
 
-export function ErdCanvas({ diagram, schema }: ErdCanvasProps) {
+export function ErdCanvas({ diagram, schema, askForSchema }: ErdCanvasProps) {
 	const { schemaGrouping, schemaListOpen } = useCanvasPreferences();
 
 	// Three of the stops are on the list, and a list that is folded away would
@@ -790,7 +954,7 @@ export function ErdCanvas({ diagram, schema }: ErdCanvasProps) {
 	return (
 		<ReactFlowProvider>
 			<TourProvider storageKey="erd-tour" prepare={showList}>
-				<Canvas diagram={diagram} schema={schema} />
+				<Canvas diagram={diagram} schema={schema} askForSchema={askForSchema} />
 			</TourProvider>
 		</ReactFlowProvider>
 	);

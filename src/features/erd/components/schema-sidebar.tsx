@@ -5,6 +5,7 @@ import {
 	ChevronDownIcon,
 	ChevronRightIcon,
 	DatabaseIcon,
+	FilePlusIcon,
 	KeyIcon,
 	LayersIcon,
 	LinkIcon,
@@ -12,10 +13,22 @@ import {
 	PanelLeftOpenIcon,
 	SearchIcon,
 	Table2Icon,
+	Trash2Icon,
 	XIcon,
 } from "lucide-react";
 import { useHotkey } from "@tanstack/react-hotkeys";
+import { useQuery } from "@tanstack/react-query";
 
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -24,6 +37,7 @@ import {
 	CommandInput,
 	CommandItem,
 	CommandList,
+	CommandSeparator,
 } from "@/components/ui/command";
 import {
 	Empty,
@@ -40,6 +54,7 @@ import {
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { schemaQueries } from "@/features/schema/api/queries";
 import { cn } from "@/lib/utils";
 
 import { useReveal } from "../hooks/use-reveal";
@@ -50,8 +65,12 @@ import { DEFAULT_SCHEMA } from "../lib/schema-adapter";
 import { PANEL_IN, PANEL_OUT, panelReach } from "../lib/side-panel";
 import { schemaGroups, schemaLabel } from "../lib/schema-groups";
 import type { SchemaGroup } from "../lib/schema-groups";
-import type { ErdNode, ErdTableNode, SchemaAccent } from "../types/erd";
+import type { ErdNode, ErdTableNode } from "../types/erd";
 import { schemaAccentText } from "./schema-node";
+
+// The list crossfades over the same curve the panels slide on, quick out
+// and soft in, short enough to be over before the loader lifts.
+const LIST_SWAP = { duration: 0.2, ease: [0.16, 1, 0.3, 1] } as const;
 
 const CARET = "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200";
 
@@ -59,16 +78,13 @@ const ROW =
 	"flex h-8 min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none";
 
 type Choice = {
-	schema: string;
+	id: string;
 	label: string;
 	count: number;
-	accent: SchemaAccent;
 };
 
 function Count({ children }: { children: React.ReactNode }) {
-	return (
-		<span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">{children}</span>
-	);
+	return <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{children}</span>;
 }
 
 function Columns({ table }: { table: ErdTableNode }) {
@@ -128,6 +144,14 @@ export type SchemaSidebarProps = {
 	children: React.ReactNode;
 	/** What sits in the canvas's bottom-left corner and steps right of the list. */
 	corner?: React.ReactNode;
+	/** Id of the stored schema on the canvas. Empty for one not saved yet. */
+	schemaId: string;
+	/** Goes up each time another diagram is put on the canvas. */
+	swap: number;
+	onOpenSchema?: (id: string) => void;
+	onNewSchema?: () => void;
+	/** Deletes the stored schema on the canvas, once the person has agreed to it. */
+	onDeleteSchema?: (id: string) => void;
 };
 
 /**
@@ -196,17 +220,33 @@ const TableRow = memo(function TableRow({
 type SchemaListProps = {
 	name: string;
 	nodes: ErdNode[];
+	schemaId: string;
+	swap: number;
+	onOpenSchema?: (id: string) => void;
+	onNewSchema?: () => void;
+	onDeleteSchema?: (id: string) => void;
 };
 
-const SchemaList = memo(function SchemaList({ name, nodes }: SchemaListProps) {
+const SchemaList = memo(function SchemaList({
+	name,
+	nodes,
+	schemaId,
+	swap,
+	onOpenSchema,
+	onNewSchema,
+	onDeleteSchema,
+}: SchemaListProps) {
 	const { setNodes } = useReactFlow();
 	const { goTo, frame } = useReveal();
 	const groups = useMemo(() => schemaGroups(nodes), [nodes]);
 	const [folded, setFolded] = useState<string[]>([]);
 	const [openTable, setOpenTable] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
-	const [picked, setPicked] = useState<string | null>(null);
 	const [picking, setPicking] = useState(false);
+	// The schema a delete is being asked about stays known after the answer,
+	// so the dialog still has a name to show while it fades out.
+	const [asked, setAsked] = useState<Choice | null>(null);
+	const [confirming, setConfirming] = useState(false);
 	const box = useRef<HTMLInputElement>(null);
 
 	const toggleSchema = (schema: string) => {
@@ -237,31 +277,19 @@ const SchemaList = memo(function SchemaList({ name, nodes }: SchemaListProps) {
 		frame(group.tables.map((table) => table.id));
 	};
 
-	// The list always shows one schema. Until one is picked, or once the picked
-	// one has been emptied off the canvas, that is the first schema there is.
-	const current = groups.some((group) => group.name === picked)
-		? picked
-		: (groups[0]?.name ?? null);
-
-	const pick = (schema: string) => {
-		setPicked(schema);
+	const pick = (id: string) => {
 		setPicking(false);
-		setFolded((list) => list.filter((item) => item !== schema));
+		if (id !== schemaId) onOpenSchema?.(id);
 	};
 
 	const term = query.trim().toLowerCase();
 
-	const scope = useMemo(
-		() => (current ? groups.filter((group) => group.name === current) : groups),
-		[current, groups],
-	);
-
 	// A table matches on its own name or on any column's, so searching for a
 	// field finds the table holding it.
 	const found = useMemo(() => {
-		if (!term) return scope;
+		if (!term) return groups;
 
-		return scope
+		return groups
 			.map((group) => ({
 				...group,
 				tables: group.tables.filter(
@@ -271,18 +299,24 @@ const SchemaList = memo(function SchemaList({ name, nodes }: SchemaListProps) {
 				),
 			}))
 			.filter((group) => group.tables.length > 0);
-	}, [scope, term]);
+	}, [groups, term]);
 
-	const choices: Choice[] = useMemo(
-		() =>
-			groups.map((group) => ({
-				schema: group.name,
-				label: schemaLabel(group.name, name),
-				count: group.tables.length,
-				accent: group.accent,
-			})),
-		[groups, name],
-	);
+	// Every schema stored, with the open one counted from the canvas since it
+	// can hold tables the backend has not been sent yet. One not stored at
+	// all, such as a file just opened, is known to the canvas alone.
+	const { data: stored } = useQuery(schemaQueries.list(1, 50));
+	const tables = groups.reduce((sum, group) => sum + group.tables.length, 0);
+
+	const choices: Choice[] = useMemo(() => {
+		const listed = (stored?.schemas ?? []).map((summary) => ({
+			id: summary.id,
+			label: summary.name,
+			count: summary.id === schemaId ? tables : summary.entityCount,
+		}));
+		return listed.some((choice) => choice.id === schemaId)
+			? listed
+			: [{ id: schemaId, label: name, count: tables }, ...listed];
+	}, [stored, schemaId, name, tables]);
 
 	// The filter is the one thing in here worth reaching for without the mouse.
 	useHotkey(HOTKEYS.findTable, () => box.current?.select());
@@ -305,12 +339,12 @@ const SchemaList = memo(function SchemaList({ name, nodes }: SchemaListProps) {
 						}
 					>
 						<DatabaseIcon className="size-4 shrink-0 text-primary" />
-						<span className="flex-1 truncate">{current ? schemaLabel(current, name) : name}</span>
+						<span className="flex-1 truncate">{name}</span>
+						{/* Turns without a transition. Animating it put the icon on a
+                compositor layer of its own for the turn, and the panel's
+                own layer was redrawn around it, which flashed the text. */}
 						<ChevronDownIcon
-							className={cn(
-								"size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-								picking && "rotate-180",
-							)}
+							className={cn("size-3.5 shrink-0 text-muted-foreground", picking && "rotate-180")}
 						/>
 					</PopoverTrigger>
 
@@ -323,25 +357,123 @@ const SchemaList = memo(function SchemaList({ name, nodes }: SchemaListProps) {
 							<CommandList className={cn("max-h-55", choices.length > 4 && "mt-1")}>
 								<CommandEmpty className="py-4">No schema found.</CommandEmpty>
 
+								{/* Keyed by id, since two schemas can share a name. The name
+                    is what the search reads. */}
 								{choices.map((choice) => (
 									<CommandItem
-										key={choice.schema}
-										value={choice.label}
-										data-checked={choice.schema === current}
-										onSelect={() => pick(choice.schema)}
+										key={choice.id}
+										value={choice.id || "unsaved"}
+										keywords={[choice.label]}
+										onSelect={() => pick(choice.id)}
 										className="h-8"
 									>
-										<DatabaseIcon className={schemaAccentText(choice.accent)} />
-										<span className="flex-1 truncate">{choice.label}</span>
-										<Count>
+										{/* The open one is told by its colour and weight, the way the
+                        button above shows it, rather than by a tick. */}
+										<DatabaseIcon
+											className={cn(
+												choice.id === schemaId ? "text-primary!" : "text-muted-foreground",
+											)}
+										/>
+										<span
+											className={cn(
+												"min-w-0 flex-1 truncate",
+												choice.id === schemaId && "font-medium",
+											)}
+										>
+											{choice.label}
+										</span>
+										{onDeleteSchema && choice.id && (
+											<button
+												type="button"
+												aria-label={`Delete ${choice.label}`}
+												title="Delete"
+												onClick={(event) => {
+													event.stopPropagation();
+													setPicking(false);
+													setAsked(choice);
+													setConfirming(true);
+												}}
+												className="-my-1 -ml-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/command-item:opacity-100 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none"
+											>
+												<Trash2Icon className="size-3.5" />
+											</button>
+										)}
+										{/* The shortcut slot, so the row's own tick stays out of the end. */}
+										<span
+											data-slot="command-shortcut"
+											className="shrink-0 text-xs text-muted-foreground tabular-nums"
+										>
 											{choice.count} {choice.count === 1 ? "table" : "tables"}
-										</Count>
+										</span>
 									</CommandItem>
 								))}
+
+								{onNewSchema && (
+									<>
+										<CommandSeparator className="my-1" />
+										{/* Stays put while the search is on, since it is a way out
+                    of the list rather than one of its entries. */}
+										<CommandItem
+											forceMount
+											value="new-schema"
+											onSelect={() => {
+												setPicking(false);
+												onNewSchema();
+											}}
+											className="h-8"
+										>
+											<FilePlusIcon className="text-muted-foreground" />
+											<span className="flex-1 truncate">New schema</span>
+										</CommandItem>
+									</>
+								)}
 							</CommandList>
 						</Command>
 					</PopoverContent>
 				</Popover>
+
+				{onDeleteSchema && (
+					<AlertDialog open={confirming} onOpenChange={setConfirming}>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>Delete this schema?</AlertDialogTitle>
+								<AlertDialogDescription>
+									The schema and every table in it are removed for everyone. There is no undo.
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+
+							{/* What is about to go, named, so a slip of the pointer in the
+                  list is caught here rather than found out later. */}
+							<div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+								<span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary shadow-xs ring-1 ring-foreground/10">
+									<DatabaseIcon className="size-4" />
+								</span>
+								<span className="flex min-w-0 flex-1 flex-col">
+									<span className="truncate text-sm font-medium">{asked?.label}</span>
+									<span className="text-xs text-muted-foreground">
+										{asked?.count === 0
+											? "No tables yet"
+											: `${asked?.count} table${asked?.count === 1 ? "" : "s"}`}
+									</span>
+								</span>
+							</div>
+
+							<AlertDialogFooter>
+								<AlertDialogCancel>Keep it</AlertDialogCancel>
+								<AlertDialogAction
+									variant="destructive"
+									onClick={() => {
+										setConfirming(false);
+										if (asked) onDeleteSchema(asked.id);
+									}}
+								>
+									<Trash2Icon />
+									Delete schema
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				)}
 			</header>
 
 			<div className="shrink-0 border-b border-sidebar-border p-2">
@@ -372,86 +504,98 @@ const SchemaList = memo(function SchemaList({ name, nodes }: SchemaListProps) {
 			</div>
 
 			<ScrollArea id={TOUR.tableList} className="min-h-0 flex-1">
-				<div className="flex flex-col gap-1 p-2">
-					{found.map((group, index) => {
-						const label = schemaLabel(group.name, name);
+				{/* Keyed on the swap, so another diagram arriving fades the whole
+				    list out and in with the loader, while a table added or taken
+				    away on its own just appears in place. */}
+				<AnimatePresence mode="wait" initial={false}>
+					<motion.div
+						key={swap}
+						initial={{ opacity: 0, y: 6 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -6 }}
+						transition={LIST_SWAP}
+						className="flex flex-col gap-1 p-2"
+					>
+						{found.map((group, index) => {
+							const label = schemaLabel(group.name, name);
 
-						// The picker above already names the diagram, so the row for
-						// the tables that carry no schema of their own says what it
-						// holds instead of saying that name a second time.
-						const heading = group.name === DEFAULT_SCHEMA ? "Tables" : label;
-						const unfolded = Boolean(term) || !folded.includes(group.name);
+							// The picker above already names the diagram, so the row for
+							// the tables that carry no schema of their own says what it
+							// holds instead of saying that name a second time.
+							const heading = group.name === DEFAULT_SCHEMA ? "Tables" : label;
+							const unfolded = Boolean(term) || !folded.includes(group.name);
 
-						return (
-							<div key={group.name}>
-								{index > 0 && <div className="mx-2 my-1 h-px bg-sidebar-border" />}
+							return (
+								<div key={group.name}>
+									{index > 0 && <div className="mx-2 my-1 h-px bg-sidebar-border" />}
 
-								<Collapsible open={unfolded} onOpenChange={() => toggleSchema(group.name)}>
-									<div className="sticky top-0 z-10 flex h-8 items-center rounded-md bg-sidebar pr-2 transition-colors hover:bg-sidebar-accent">
-										<CollapsibleTrigger
-											aria-label={unfolded ? `Hide ${label} tables` : `Show ${label} tables`}
-											render={
-												<button
-													type="button"
-													className="group/schema flex h-full shrink-0 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+									<Collapsible open={unfolded} onOpenChange={() => toggleSchema(group.name)}>
+										<div className="sticky top-0 z-10 flex h-8 items-center rounded-md bg-sidebar pr-2 transition-colors hover:bg-sidebar-accent">
+											<CollapsibleTrigger
+												aria-label={unfolded ? `Hide ${label} tables` : `Show ${label} tables`}
+												render={
+													<button
+														type="button"
+														className="group/schema flex h-full shrink-0 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+													/>
+												}
+											>
+												<ChevronRightIcon
+													className={cn(CARET, "group-data-panel-open/schema:rotate-90")}
 												/>
-											}
-										>
-											<ChevronRightIcon
-												className={cn(CARET, "group-data-panel-open/schema:rotate-90")}
-											/>
-										</CollapsibleTrigger>
+											</CollapsibleTrigger>
 
-										<button
-											type="button"
-											onClick={() => revealSchema(group)}
-											title={`Show ${label} on the canvas`}
-											className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-										>
-											<LayersIcon
-												className={cn("size-4 shrink-0", schemaAccentText(group.accent))}
-											/>
-											<span className="truncate text-sm font-medium text-muted-foreground">
-												{heading}
-											</span>
-											<Count>{group.tables.length}</Count>
-										</button>
-									</div>
-
-									<CollapsibleContent>
-										<div className="flex flex-col gap-0.5 pt-0.5">
-											{group.tables.map((table) => (
-												<TableRow
-													key={table.id}
-													table={table}
-													open={openTable === table.id}
-													onToggle={toggleTable}
-													onReveal={reveal}
+											<button
+												type="button"
+												onClick={() => revealSchema(group)}
+												title={`Show ${label} on the canvas`}
+												className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+											>
+												<LayersIcon
+													className={cn("size-4 shrink-0", schemaAccentText(group.accent))}
 												/>
-											))}
+												<span className="truncate text-sm font-medium text-muted-foreground">
+													{heading}
+												</span>
+												<Count>{group.tables.length}</Count>
+											</button>
 										</div>
-									</CollapsibleContent>
-								</Collapsible>
-							</div>
-						);
-					})}
 
-					{found.length === 0 && (
-						<Empty size="sm">
-							<EmptyHeader>
-								<EmptyMedia variant="icon" className="mb-1 size-9">
-									{term ? <SearchIcon /> : <Table2Icon />}
-								</EmptyMedia>
-								<EmptyTitle>{term ? "Nothing found" : "No tables yet"}</EmptyTitle>
-								<EmptyDescription>
-									{term
-										? `No table or column matches ${query.trim()}.`
-										: "Right-click the canvas to make one."}
-								</EmptyDescription>
-							</EmptyHeader>
-						</Empty>
-					)}
-				</div>
+										<CollapsibleContent>
+											<div className="flex flex-col gap-0.5 pt-0.5">
+												{group.tables.map((table) => (
+													<TableRow
+														key={table.id}
+														table={table}
+														open={openTable === table.id}
+														onToggle={toggleTable}
+														onReveal={reveal}
+													/>
+												))}
+											</div>
+										</CollapsibleContent>
+									</Collapsible>
+								</div>
+							);
+						})}
+
+						{found.length === 0 && (
+							<Empty size="sm">
+								<EmptyHeader>
+									<EmptyMedia variant="icon" className="mb-1 size-9">
+										{term ? <SearchIcon /> : <Table2Icon />}
+									</EmptyMedia>
+									<EmptyTitle>{term ? "Nothing found" : "No tables yet"}</EmptyTitle>
+									<EmptyDescription>
+										{term
+											? `No table or column matches ${query.trim()}.`
+											: "Right-click the canvas to make one."}
+									</EmptyDescription>
+								</EmptyHeader>
+							</Empty>
+						)}
+					</motion.div>
+				</AnimatePresence>
 			</ScrollArea>
 		</div>
 	);
@@ -489,6 +633,11 @@ export function SchemaSidebar({
 	onWidthChange,
 	children,
 	corner,
+	schemaId,
+	swap,
+	onOpenSchema,
+	onNewSchema,
+	onDeleteSchema,
 }: SchemaSidebarProps) {
 	const listed = useListed(nodes);
 	// The width while the edge is being dragged, and the saved one otherwise.
@@ -588,7 +737,15 @@ export function SchemaSidebar({
 							onPointerDown={startResize}
 							className="absolute inset-y-0 right-0 z-10 w-px cursor-col-resize touch-none bg-border transition-colors delay-75 after:absolute after:inset-y-0 after:left-1/2 after:w-2 after:-translate-x-1/2 hover:bg-primary active:bg-primary"
 						/>
-						<SchemaList name={name} nodes={listed} />
+						<SchemaList
+							name={name}
+							nodes={listed}
+							schemaId={schemaId}
+							swap={swap}
+							onOpenSchema={onOpenSchema}
+							onNewSchema={onNewSchema}
+							onDeleteSchema={onDeleteSchema}
+						/>
 					</motion.aside>
 				)}
 			</AnimatePresence>

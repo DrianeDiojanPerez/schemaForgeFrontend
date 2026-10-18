@@ -7,6 +7,7 @@ import {
 	DownloadIcon,
 	FileArchiveIcon,
 	FileCodeIcon,
+	FilePlusIcon,
 	FolderOpenIcon,
 	ImageIcon,
 	SettingsIcon,
@@ -44,6 +45,7 @@ export type SchemaToolbarProps = {
 	onExportSql: () => void;
 	onExportJson: () => void;
 	onImport: (content: string, format: ImportFormat) => void;
+	onNewSchema: () => void;
 	settingsOpen: boolean;
 	onSettingsOpenChange: (open: boolean, byKeyboard?: boolean) => void;
 	/** Holds the bar up for as long as something is pointing at it. */
@@ -95,6 +97,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 	onExportSql,
 	onExportJson,
 	onImport,
+	onNewSchema,
 	settingsOpen,
 	onSettingsOpenChange,
 	raised = false,
@@ -291,6 +294,11 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 								<FolderOpenIcon />
 								Import
 								<DropdownMenuShortcut>.json .sql</DropdownMenuShortcut>
+							</DropdownMenuItem>
+
+							<DropdownMenuItem onClick={onNewSchema}>
+								<FilePlusIcon />
+								New schema
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
