@@ -30,14 +30,20 @@ function keepTurning(node: SVGSVGElement | null) {
 /** The canvas as it will be laid out, shown while React Flow cannot render. */
 export function CanvasSkeleton({
 	phase = "covering",
+	entering = false,
 	className,
 	...props
-}: React.ComponentProps<"div"> & { phase?: LoadingPhase }) {
+}: React.ComponentProps<"div"> & {
+	phase?: LoadingPhase;
+	/** Fade in over a canvas already on screen, instead of being there from the start. */
+	entering?: boolean;
+}) {
 	return (
 		<div
 			className={cn(
 				"overflow-hidden transition-veil duration-700",
 				EASE,
+				entering && "animate-in animation-duration-350 fade-in",
 				// React Flow paints its own dark grey over the theme background, so
 				// the same grey is used here or the fade would step through a darker
 				// shade on the way.

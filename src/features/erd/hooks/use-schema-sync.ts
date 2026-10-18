@@ -467,6 +467,21 @@ export function useSchemaSync({
 		setAnswered(false);
 	}, []);
 
+	// A stored diagram arriving on the canvas counts as already written, the
+	// same as the one it opened with, and nothing said about the last one
+	// holds for it.
+	const loaded = useCallback(
+		(diagramName: string, loadedNodes: ErdNode[], loadedEdges: ErdEdge[]) => {
+			sent.current = draftKey(diagramName, loadedNodes, loadedEdges);
+			checked.current = null;
+			setDiagnostics([]);
+			setProblems(new Map());
+			setAnswered(false);
+			setGenerated(null);
+		},
+		[],
+	);
+
 	/** Whether the diagram on screen differs from what the backend holds. */
 	const isDirty = useCallback(
 		() => draftKey(name, nodes, edges) !== sent.current,
@@ -489,5 +504,7 @@ export function useSchemaSync({
 		prefetch,
 		exportJson,
 		importFile,
+		loaded,
+		draft: draftOrReport,
 	};
 }
