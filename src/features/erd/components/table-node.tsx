@@ -435,7 +435,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 					<div
 						id={nodeAnchor(id)}
 						className={cn(
-							"flex w-max flex-col rounded-lg bg-card text-sm text-card-foreground shadow-lg ring-1 ring-foreground/10 transition-all hover:shadow-xl",
+							"flex w-max flex-col rounded-lg bg-card text-sm text-card-foreground shadow-lg ring-1 ring-table-ring transition-all hover:shadow-xl",
 							OUTLINE_CARD,
 						)}
 						style={{ minWidth: TABLE_NODE_WIDTH / 2 }}
