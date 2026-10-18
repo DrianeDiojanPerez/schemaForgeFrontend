@@ -140,6 +140,30 @@ function findingsTheme(c: Palette) {
 	});
 }
 
+// The scroll area's bar, drawn by the browser instead: a thin rounded thumb
+// in the flavour's chip colour on no track, shown only while the pointer is
+// over the editor. Chromium reads the webkit rules and Firefox the standard
+// ones; setting both at once makes Chromium drop the webkit rules.
+function scrollbarTheme(c: Palette) {
+	return EditorView.theme({
+		".cm-scroller::-webkit-scrollbar": { width: "10px", height: "10px" },
+		".cm-scroller::-webkit-scrollbar-track, .cm-scroller::-webkit-scrollbar-corner": {
+			backgroundColor: "transparent",
+		},
+		".cm-scroller::-webkit-scrollbar-thumb": {
+			backgroundColor: "transparent",
+			backgroundClip: "padding-box",
+			border: "2px solid transparent",
+			borderRadius: "9999px",
+		},
+		"&:hover .cm-scroller::-webkit-scrollbar-thumb": { backgroundColor: c.chip },
+		"@supports (-moz-appearance: none)": {
+			".cm-scroller": { scrollbarWidth: "thin", scrollbarColor: "transparent transparent" },
+			"&:hover .cm-scroller": { scrollbarColor: `${c.chip} transparent` },
+		},
+	});
+}
+
 const isVimMode = (mode: string): mode is VimMode => mode in MODES;
 
 /**
@@ -408,6 +432,7 @@ export function SqlEditor({
 				if (update.selectionSet || update.focusChanged) report(update.view);
 			}),
 			EditorView.domEventHandlers({ scroll: (_event, view) => report(view) }),
+			scrollbarTheme(look.palette),
 		];
 		return vimOn ? [vim(), language, ...watch, ...findings] : [language, ...watch, ...findings];
 	}, [vimOn, tables, hasProblems, look, onCaret]);

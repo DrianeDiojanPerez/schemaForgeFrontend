@@ -345,7 +345,7 @@ export const GeneratedSqlPanel = memo(function GeneratedSqlPanel({
 										id="sql-positions"
 										icon={MapPinIcon}
 										label="Table positions"
-										hint="Where each table sits, as comments at the end."
+										hint="A comment above each table saying where it sits."
 										checked={result.includePositions}
 										disabled={generating}
 										onCheckedChange={(includePositions) => {
