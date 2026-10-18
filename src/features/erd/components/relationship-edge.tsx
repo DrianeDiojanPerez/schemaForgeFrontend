@@ -7,7 +7,9 @@ import { FileTextIcon, Trash2Icon } from "lucide-react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
@@ -62,6 +64,7 @@ const EdgeBadge = memo(function EdgeBadge({
 	open,
 	onOpenChange,
 	onEditDetails,
+	anchor,
 }: {
 	id: string;
 	relationshipType: RelationshipType;
@@ -73,6 +76,8 @@ const EdgeBadge = memo(function EdgeBadge({
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onEditDetails: () => void;
+	/** Where the menu hangs from when it was not the badge that opened it. */
+	anchor?: React.ComponentProps<typeof DropdownMenuContent>["anchor"];
 }) {
 	const { updateEdgeData, deleteElements } = useReactFlow();
 	const relationship = RELATIONSHIPS[relationshipType];
@@ -98,25 +103,32 @@ const EdgeBadge = memo(function EdgeBadge({
 				{relationship.symbol}
 				{name && <span className="ml-1 font-normal text-muted-foreground">{name}</span>}
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="center" className="min-w-40">
-				<DropdownMenuRadioGroup
-					value={relationshipType}
-					onValueChange={(value) =>
-						updateEdgeData(id, {
-							relationshipType: value as RelationshipType,
-						})
-					}
-				>
-					{RELATIONSHIP_ORDER.map((type) => {
-						const option = RELATIONSHIPS[type];
-						return (
-							<DropdownMenuRadioItem key={type} value={type}>
-								<span className={cn("font-bold", option.text)}>{option.symbol}</span>
-								<span className="text-muted-foreground">{option.label}</span>
-							</DropdownMenuRadioItem>
-						);
-					})}
-				</DropdownMenuRadioGroup>
+			{/* Wide enough that no name or action wraps, with the symbols in a
+          column of their own so the names line up under each other. */}
+			<DropdownMenuContent align="center" anchor={anchor} className="w-56">
+				<DropdownMenuGroup>
+					<DropdownMenuLabel>Relationship</DropdownMenuLabel>
+					<DropdownMenuRadioGroup
+						value={relationshipType}
+						onValueChange={(value) =>
+							updateEdgeData(id, {
+								relationshipType: value as RelationshipType,
+							})
+						}
+					>
+						{RELATIONSHIP_ORDER.map((type) => {
+							const option = RELATIONSHIPS[type];
+							return (
+								<DropdownMenuRadioItem key={type} value={type}>
+									<span className={cn("w-8 shrink-0 font-bold tabular-nums", option.text)}>
+										{option.symbol}
+									</span>
+									<span className="whitespace-nowrap">{option.label}</span>
+								</DropdownMenuRadioItem>
+							);
+						})}
+					</DropdownMenuRadioGroup>
+				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem onClick={onEditDetails}>
 					<FileTextIcon />
@@ -151,11 +163,28 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	const [editingDetails, setEditingDetails] = useState(false);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const openDetails = useCallback(() => setEditingDetails(true), []);
+	// A right-click on the line opens the menu where the pointer is, since the
+	// badge it would otherwise hang from can be a long way along the line.
+	const [menuAt, setMenuAt] = useState<{ x: number; y: number }>();
 	const openMenu = useCallback((event: React.MouseEvent) => {
 		event.preventDefault();
 		event.stopPropagation();
+		setMenuAt({ x: event.clientX, y: event.clientY });
 		setMenuOpen(true);
 	}, []);
+	// The point is kept while the menu closes, or the fade-out would jump
+	// back to the badge. Only the badge opening the menu lets go of it.
+	const changeMenuOpen = useCallback((open: boolean) => {
+		setMenuOpen(open);
+		if (open) setMenuAt(undefined);
+	}, []);
+	const menuAnchor = useMemo(
+		() =>
+			menuAt && {
+				getBoundingClientRect: () => new DOMRect(menuAt.x, menuAt.y, 0, 0),
+			},
+		[menuAt],
+	);
 	const relationshipType = data?.relationshipType ?? "one-to-many";
 
 	const sourceNode = useStore(useCallback((state) => state.nodeLookup.get(source), [source]));
@@ -383,7 +412,8 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 						selected={selected}
 						shown={labels}
 						open={menuOpen}
-						onOpenChange={setMenuOpen}
+						onOpenChange={changeMenuOpen}
+						anchor={menuAnchor}
 						onEditDetails={openDetails}
 					/>
 				</div>
