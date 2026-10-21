@@ -64,7 +64,7 @@ const STORAGE_KEY = "erd-canvas";
 const DEFAULTS: CanvasPreferences = {
 	background: DEFAULT_BACKGROUND,
 	tableStyle: "filled",
-	schemaGrouping: "boxes",
+	schemaGrouping: "list",
 	schemaListOpen: true,
 	schemaListWidth: SCHEMA_LIST_WIDTH.start,
 	edgeLine: DEFAULT_EDGE_LINE,
@@ -103,7 +103,12 @@ function width(value: unknown, bounds: { min: number; max: number }, fallback: n
 /** Settings saved when the two were a switch each, which allowed both and
     neither. Only the list on its own meant the list. */
 function grouping(saved: Record<string, unknown>): SchemaGrouping {
-	const legacy = saved.schemaList === true && saved.schemaBoxes !== true ? "list" : "boxes";
+	const legacy =
+		saved.schemaBoxes === true
+			? "boxes"
+			: saved.schemaList === true
+				? "list"
+				: DEFAULTS.schemaGrouping;
 
 	return known(saved.schemaGrouping, SCHEMA_GROUPINGS, legacy);
 }
