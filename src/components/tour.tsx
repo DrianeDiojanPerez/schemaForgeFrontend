@@ -455,12 +455,8 @@ export function TourWelcome({
 					<AlertDialogMedia className="bg-primary/10 text-primary">
 						<motion.div
 							initial={{ scale: 0.7, filter: "blur(8px)" }}
-							animate={{ scale: 1, filter: "blur(0px)", y: [0, -4, 0] }}
-							transition={{
-								duration: 0.4,
-								ease: "easeOut",
-								y: { duration: 2.5, repeat: Infinity, ease: "easeInOut" },
-							}}
+							animate={{ scale: 1, filter: "blur(0px)" }}
+							transition={{ duration: 0.4, ease: "easeOut" }}
 							className="flex"
 						>
 							{icon}
