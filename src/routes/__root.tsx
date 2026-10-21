@@ -7,7 +7,6 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { Toaster } from "sileo";
 
-import { BrowserNotice } from "@/components/browser-notice";
 import { CookieNotice } from "@/components/cookie-notice";
 import { NotFound } from "@/components/not-found";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -82,7 +81,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<TooltipProvider>{children}</TooltipProvider>
 				<Toaster position={toastPosition} theme={theme} />
 				<CookieNotice />
-				<BrowserNotice />
 				{import.meta.env.DEV && (
 					<TanStackDevtools
 						config={{

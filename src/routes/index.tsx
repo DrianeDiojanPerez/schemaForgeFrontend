@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { BrowserNotice } from "@/components/browser-notice";
 import { ErdCanvas } from "@/features/erd/components/erd-canvas";
 import { toDiagram } from "@/features/erd/lib/schema-adapter";
 import { schemaQueries } from "@/features/schema/api/queries";
@@ -39,6 +40,7 @@ function SchemaBuilderPage() {
 	return (
 		<main className="h-svh w-full">
 			<ErdCanvas diagram={diagram} schema={schema} askForSchema={askForSchema} />
+			<BrowserNotice />
 		</main>
 	);
 }
