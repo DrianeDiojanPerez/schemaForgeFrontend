@@ -919,7 +919,7 @@ function Canvas({ diagram, schema, askForSchema = false }: ErdCanvasProps) {
 							first={askForSchema}
 							draft={naming}
 						/>
-						<CanvasTour />
+						<CanvasTour held={creating} />
 						<BackendWatch onReconnect={reconnected} />
 					</GraphActionsProvider>
 				</EdgeLineProvider>

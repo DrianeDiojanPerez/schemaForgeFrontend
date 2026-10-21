@@ -75,7 +75,12 @@ const STEPS: TourStep[] = [
 	},
 ];
 
-export const CanvasTour = memo(function CanvasTour() {
+export type CanvasTourProps = {
+	/** Something else has the screen, like naming a first schema, so the welcome waits. */
+	held?: boolean;
+};
+
+export const CanvasTour = memo(function CanvasTour({ held = false }: CanvasTourProps) {
 	const { setSteps, done } = useTour();
 	const [open, setOpen] = useState(false);
 
@@ -83,12 +88,12 @@ export const CanvasTour = memo(function CanvasTour() {
 
 	// A beat after the canvas is up, so it is not the first thing to appear.
 	useEffect(() => {
-		if (done) return;
+		if (done || held) return;
 
 		const wait = window.setTimeout(() => setOpen(true), 1000);
 
 		return () => window.clearTimeout(wait);
-	}, [done]);
+	}, [done, held]);
 
 	return (
 		<TourWelcome
