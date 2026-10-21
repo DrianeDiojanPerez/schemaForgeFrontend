@@ -69,7 +69,7 @@ const DEFAULTS: CanvasPreferences = {
 	schemaListWidth: SCHEMA_LIST_WIDTH.start,
 	edgeLine: DEFAULT_EDGE_LINE,
 	edgeDash: DEFAULT_EDGE_DASH,
-	edgeLabels: true,
+	edgeLabels: false,
 	autoSave: true,
 	autoValidate: false,
 	sqlVim: false,
