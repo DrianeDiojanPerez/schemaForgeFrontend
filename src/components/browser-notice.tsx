@@ -47,13 +47,13 @@ export function BrowserNotice() {
 		<AlertDialog open={elsewhere && !seen} onOpenChange={(open) => !open && dismissBrowserNotice()}>
 			{/* Opens on its own rather than from a click, so moving focus would
 			    draw a keyboard ring on whichever button took it. */}
-			<AlertDialogContent size="sm" className="sm:max-w-lg!" initialFocus={false}>
+			<AlertDialogContent size="sm" className="sm:max-w-sm!" initialFocus={false}>
 				<AlertDialogHeader>
 					<AlertDialogMedia className="bg-primary/10 text-primary">
 						<MonitorSmartphoneIcon className="size-8" />
 					</AlertDialogMedia>
 					<AlertDialogTitle>Works best in Chrome</AlertDialogTitle>
-					<AlertDialogDescription>
+					<AlertDialogDescription className="text-pretty">
 						Your browser is missing some of what the canvas relies on, so a few things will not
 						work. For the full experience open this in{" "}
 						{browserLink("https://www.google.com/chrome/", "Chrome")} or{" "}
