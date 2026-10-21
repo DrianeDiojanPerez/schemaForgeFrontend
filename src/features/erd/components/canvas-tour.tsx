@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { DatabaseZapIcon } from "lucide-react";
 
 import { TourWelcome, useTour } from "@/components/tour";
@@ -87,10 +87,18 @@ export const CanvasTour = memo(function CanvasTour({ held = false }: CanvasTourP
 	useEffect(() => setSteps(STEPS), [setSteps]);
 
 	// A beat after the canvas is up, so it is not the first thing to appear.
+	// After a hold the canvas has been there a while already, so only the
+	// closing dialog is waited for.
+	const wasHeld = useRef(false);
+
+	useEffect(() => {
+		if (held) wasHeld.current = true;
+	}, [held]);
+
 	useEffect(() => {
 		if (done || held) return;
 
-		const wait = window.setTimeout(() => setOpen(true), 1000);
+		const wait = window.setTimeout(() => setOpen(true), wasHeld.current ? 250 : 1000);
 
 		return () => window.clearTimeout(wait);
 	}, [done, held]);
