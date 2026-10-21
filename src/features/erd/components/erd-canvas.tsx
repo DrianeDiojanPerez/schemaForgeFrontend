@@ -136,7 +136,7 @@ const BackendWatch = memo(function BackendWatch({
 	return null;
 });
 
-function Canvas({ diagram, schema, askForSchema = false }: ErdCanvasProps) {
+function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanvasProps) {
 	const {
 		nodes,
 		edges,
@@ -910,7 +910,7 @@ function Canvas({ diagram, schema, askForSchema = false }: ErdCanvasProps) {
 						/>
 
 						<CreateSchemaDialog
-							open={creating}
+							open={creating && !held}
 							onOpenChange={(open) => {
 								setCreating(open);
 								if (!open) setNaming(undefined);
@@ -919,7 +919,7 @@ function Canvas({ diagram, schema, askForSchema = false }: ErdCanvasProps) {
 							first={askForSchema}
 							draft={naming}
 						/>
-						<CanvasTour held={creating} />
+						<CanvasTour held={creating || held} />
 						<BackendWatch onReconnect={reconnected} />
 					</GraphActionsProvider>
 				</EdgeLineProvider>
@@ -934,9 +934,11 @@ export type ErdCanvasProps = {
 	schema: { id: string; name: string };
 	/** Opens on the create dialog, for someone who has no schema yet. */
 	askForSchema?: boolean;
+	/** Something else has the screen first, so the dialog and the tour wait. */
+	held?: boolean;
 };
 
-export function ErdCanvas({ diagram, schema, askForSchema }: ErdCanvasProps) {
+export function ErdCanvas({ diagram, schema, askForSchema, held }: ErdCanvasProps) {
 	const { schemaGrouping, schemaListOpen } = useCanvasPreferences();
 
 	// Three of the stops are on the list, and a list that is folded away would
@@ -954,7 +956,7 @@ export function ErdCanvas({ diagram, schema, askForSchema }: ErdCanvasProps) {
 	return (
 		<ReactFlowProvider>
 			<TourProvider storageKey="erd-tour" prepare={showList}>
-				<Canvas diagram={diagram} schema={schema} askForSchema={askForSchema} />
+				<Canvas diagram={diagram} schema={schema} askForSchema={askForSchema} held={held} />
 			</TourProvider>
 		</ReactFlowProvider>
 	);

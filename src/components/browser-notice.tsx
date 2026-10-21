@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { CopyIcon, MonitorSmartphoneIcon } from "lucide-react";
 
 import {
@@ -11,7 +10,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { dismissBrowserNotice, isChromium, useBrowserNoticeSeen } from "@/lib/browser-notice";
+import { dismissBrowserNotice, useBrowserNoticeOpen } from "@/lib/browser-notice";
 import { notify } from "@/lib/toast";
 
 function browserLink(href: string, label: string) {
@@ -29,10 +28,7 @@ function browserLink(href: string, label: string) {
 
 /** Opens once on a browser that is not Chromium, and stays away after Continue. */
 export function BrowserNotice() {
-	const seen = useBrowserNoticeSeen();
-	const [elsewhere, setElsewhere] = useState(false);
-
-	useEffect(() => setElsewhere(!isChromium(navigator.userAgent)), []);
+	const open = useBrowserNoticeOpen();
 
 	const copyLink = async () => {
 		try {
@@ -44,7 +40,7 @@ export function BrowserNotice() {
 	};
 
 	return (
-		<AlertDialog open={elsewhere && !seen} onOpenChange={(open) => !open && dismissBrowserNotice()}>
+		<AlertDialog open={open} onOpenChange={(next) => !next && dismissBrowserNotice()}>
 			{/* Opens on its own rather than from a click, so moving focus would
 			    draw a keyboard ring on whichever button took it. */}
 			<AlertDialogContent size="sm" className="sm:max-w-sm!" initialFocus={false}>

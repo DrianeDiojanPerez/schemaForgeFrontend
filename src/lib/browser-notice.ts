@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "browser-notice";
 
@@ -39,4 +39,14 @@ function subscribe(listener: () => void) {
     says yes, so the dialog only ever opens on the client. */
 export function useBrowserNoticeSeen(): boolean {
 	return useSyncExternalStore(subscribe, readSeen, () => true);
+}
+
+/** Whether the notice is on screen, so what comes after it can wait its turn. */
+export function useBrowserNoticeOpen(): boolean {
+	const seen = useBrowserNoticeSeen();
+	const [elsewhere, setElsewhere] = useState(false);
+
+	useEffect(() => setElsewhere(!isChromium(navigator.userAgent)), []);
+
+	return elsewhere && !seen;
 }

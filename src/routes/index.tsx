@@ -5,6 +5,7 @@ import { BrowserNotice } from "@/components/browser-notice";
 import { ErdCanvas } from "@/features/erd/components/erd-canvas";
 import { toDiagram } from "@/features/erd/lib/schema-adapter";
 import { schemaQueries } from "@/features/schema/api/queries";
+import { useBrowserNoticeOpen } from "@/lib/browser-notice";
 import { EMPTY_SCHEMA } from "@/features/schema/types/schema";
 import { currentSession } from "@/server/auth/google";
 
@@ -36,10 +37,11 @@ function SchemaBuilderPage() {
 	// that is away gets the empty canvas alone, since there is nothing to
 	// create against.
 	const askForSchema = !latest.schema && latest.reachable;
+	const noticeOpen = useBrowserNoticeOpen();
 
 	return (
 		<main className="h-svh w-full">
-			<ErdCanvas diagram={diagram} schema={schema} askForSchema={askForSchema} />
+			<ErdCanvas diagram={diagram} schema={schema} askForSchema={askForSchema} held={noticeOpen} />
 			<BrowserNotice />
 		</main>
 	);
