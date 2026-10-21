@@ -45,21 +45,22 @@ export function BrowserNotice() {
 
 	return (
 		<AlertDialog open={elsewhere && !seen} onOpenChange={(open) => !open && dismissBrowserNotice()}>
-			<AlertDialogContent size="sm">
+			{/* Opens on its own rather than from a click, so moving focus would
+			    draw a keyboard ring on whichever button took it. */}
+			<AlertDialogContent size="sm" className="sm:max-w-lg!" initialFocus={false}>
 				<AlertDialogHeader>
 					<AlertDialogMedia className="bg-primary/10 text-primary">
 						<MonitorSmartphoneIcon className="size-8" />
 					</AlertDialogMedia>
-					<AlertDialogTitle>Works best in a Chromium browser</AlertDialogTitle>
+					<AlertDialogTitle>Works best in Chrome</AlertDialogTitle>
 					<AlertDialogDescription>
 						Your browser is missing some of what the canvas relies on, so a few things will not
-						work. For the full experience use{" "}
-						{browserLink("https://www.google.com/chrome/", "Chrome")},{" "}
-						{browserLink("https://www.microsoft.com/edge/download", "Edge")} or another Chromium
-						based browser.
+						work. For the full experience open this in{" "}
+						{browserLink("https://www.google.com/chrome/", "Chrome")} or{" "}
+						{browserLink("https://www.microsoft.com/edge/download", "Edge")}.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				<AlertDialogFooter>
+				<AlertDialogFooter className="*:flex-1">
 					<Button variant="outline" onClick={() => void copyLink()}>
 						<CopyIcon />
 						Copy link
