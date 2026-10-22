@@ -3,9 +3,10 @@
 #   fly secrets set SCHEMAFORGE_SESSION_SECRET=<32+ random characters>
 #   fly secrets set SCHEMAFORGE_GRPC_ADDRESS=<backend host>:50051
 #
-# The backend address should be its private Fly name, such as
-# schemaforge-backend.internal:50051, since the gRPC client speaks plain
-# HTTP/2 without TLS.
+# The backend address should be its Flycast name, such as
+# schemaforge-api.flycast:50051, since the gRPC client speaks plain
+# HTTP/2 without TLS. The .internal name stops resolving while the backend
+# machine is suspended, while Flycast goes through Fly's proxy and wakes it.
 
 app = "schemaforge-app"
 primary_region = "dfw"
