@@ -18,16 +18,13 @@ import { useSaveSchema } from "@/features/schema/api/mutations";
 import type { Schema, SchemaDraft } from "@/features/schema/types/schema";
 import { notify } from "@/lib/toast";
 
-import { exampleSchema1 } from "../data/examples";
-import { toDraft } from "../lib/schema-adapter";
+import { sampleDraft } from "../data/examples";
 
 export type CreateSchemaDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	/** The schema the backend made, ready to draw on. */
 	onCreated: (schema: Schema) => void;
-	/** Someone with nothing yet cannot put it off: no close, and Escape is ignored. */
-	first?: boolean;
 	/** A drawing to save under the name, instead of starting empty or from the sample. */
 	draft?: SchemaDraft;
 };
@@ -36,7 +33,7 @@ type Start = "empty" | "sample";
 
 const STARTS: { id: Start; label: string; detail: string }[] = [
 	{ id: "empty", label: "Empty canvas", detail: "Right-click to add your first table." },
-	{ id: "sample", label: "Sample tables", detail: "A small shop: users, orders, products." },
+	{ id: "sample", label: "Sample tables", detail: "A small blog: users, posts, comments." },
 ];
 
 // ConnectKit's modal, timing for timing. The box opens at 150ms from a
@@ -61,19 +58,15 @@ const PAGE = {
 const FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } };
 
 function draftFor(name: string, start: Start): SchemaDraft {
-	if (start === "sample") {
-		const result = toDraft(name, "", exampleSchema1.nodes, exampleSchema1.edges);
-		if (result.ok) return result.draft;
-	}
-
-	return { name, description: "", entities: [], relationships: [] };
+	return start === "sample"
+		? sampleDraft(name)
+		: { name, description: "", entities: [], relationships: [] };
 }
 
 export function CreateSchemaDialog({
 	open,
 	onOpenChange,
 	onCreated,
-	first = false,
 	draft,
 }: CreateSchemaDialogProps) {
 	const [name, setName] = useState("");
@@ -93,14 +86,7 @@ export function CreateSchemaDialog({
 	};
 
 	const trimmed = name.trim();
-	const heading =
-		step === 1
-			? draft
-				? "Name this schema"
-				: first
-					? "Your first schema"
-					: "New schema"
-			: "Start with";
+	const heading = step === 1 ? (draft ? "Name this schema" : "New schema") : "Start with";
 
 	const submit = async (event: React.FormEvent) => {
 		event.preventDefault();
@@ -129,9 +115,8 @@ export function CreateSchemaDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={(next) => (next || !first) && onOpenChange(next)}>
+		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
-				showCloseButton={!first}
 				className="gap-0 p-0 duration-150 data-open:zoom-in-97 data-closed:zoom-out-97"
 			>
 				<form onSubmit={(event) => void submit(event)}>
@@ -196,9 +181,7 @@ export function CreateSchemaDialog({
 										<DialogDescription>
 											{draft
 												? "What is on the canvas is saved under this name from now on."
-												: first
-													? "You have no schemas yet. Name one to get going."
-													: "Opens a canvas under this name. Your current schema stays as it is."}
+												: "Opens a canvas under this name. Your current schema stays as it is."}
 										</DialogDescription>
 
 										<FieldGroup>
@@ -215,7 +198,7 @@ export function CreateSchemaDialog({
 											</Field>
 										</FieldGroup>
 
-										<DialogFooter showCloseButton={!first}>
+										<DialogFooter>
 											<Button type="submit" disabled={!trimmed || isPending}>
 												{draft ? "Save" : "Next"}
 											</Button>

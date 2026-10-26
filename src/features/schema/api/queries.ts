@@ -47,7 +47,7 @@ export const schemaQueries = {
 	/**
 	 * The most recently updated schema, or null when the backend holds none.
 	 * `reachable` says whether the backend answered at all, so the canvas can
-	 * open on the example for a fresh backend and on nothing for one that is
+	 * ask for a schema on a fresh backend and show nothing for one that is
 	 * away. The connection itself is reported by the status query.
 	 *
 	 * Never stale: the canvas takes the diagram once and owns it from there, so
