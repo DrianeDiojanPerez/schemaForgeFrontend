@@ -1,10 +1,38 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { DatabaseZapIcon } from "lucide-react";
 
-import { TourWelcome, useTour } from "@/components/tour";
+import { TourWelcome, find, useTour } from "@/components/tour";
 import type { TourStep } from "@/components/tour";
 
 import { TOUR } from "../lib/tour";
+
+const picker = () => document.getElementById(TOUR.schemaPicker);
+
+const shown = (id: string) =>
+	new Promise<void>((resolve) => {
+		const started = performance.now();
+		const look = () => {
+			if (find(id) || performance.now() - started > 600) resolve();
+			else requestAnimationFrame(look);
+		};
+		look();
+	});
+
+// Opens the picker so its last row can be pointed at, and hands back the
+// closing of it. The trigger is toggled rather than the state, since the
+// list owns that and is a long way from here.
+async function openPicker() {
+	const trigger = picker();
+	if (!trigger || trigger.hasAttribute("data-popup-open")) return undefined;
+
+	trigger.click();
+	await shown(TOUR.newSchema);
+	await new Promise((resolve) => setTimeout(resolve, 150));
+
+	return () => {
+		if (picker()?.hasAttribute("data-popup-open")) picker()?.click();
+	};
+}
 
 function Step({ title, children }: { title: string; children: string }) {
 	return (
@@ -32,6 +60,17 @@ const STEPS: TourStep[] = [
 		content: (
 			<Step title="Pick a schema">
 				The list shows one schema at a time. Switch between them here.
+			</Step>
+		),
+	},
+	{
+		target: TOUR.newSchema,
+		side: "right",
+		reveal: openPicker,
+		content: (
+			<Step title="Start a new schema">
+				The last row of the picker opens a fresh canvas. Name it, then choose an empty start or
+				the sample tables.
 			</Step>
 		),
 	},
@@ -68,8 +107,9 @@ const STEPS: TourStep[] = [
 		side: "center",
 		content: (
 			<Step title="Your canvas">
-				Right-click anywhere for a new table. Drag from a column's arrow onto another table to draw
-				a relationship. Changes save on their own.
+				The sample blog is yours to change: rename it, add tables or delete it. Right-click anywhere
+				for a new table. Drag from a column's arrow onto another table to draw a relationship.
+				Changes save on their own.
 			</Step>
 		),
 	},
@@ -108,7 +148,7 @@ export const CanvasTour = memo(function CanvasTour({ held = false }: CanvasTourP
 			open={open}
 			onOpenChange={setOpen}
 			title="Welcome to SchemaForge"
-			description="A quick walk round the canvas and the table list. Six stops, under a minute."
+			description="A sample blog is on the canvas to start from. Seven stops show you the way round, under a minute."
 			icon={<DatabaseZapIcon className="size-8" />}
 		/>
 	);

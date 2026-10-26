@@ -70,13 +70,15 @@ function subscribe(listener: () => void) {
 export type TourSide = "top" | "bottom" | "left" | "right" | "center";
 
 export type TourStep = {
-	/** The id of the element the step points at. */
+	/** The id of the element the step points at, or its data-tour value when
+	    the id is not the page's to give. */
 	target: string;
 	content: ReactNode;
 	side?: TourSide;
 	/** Brings the target on screen before it is measured, for one that has to
-	    be travelled to. The step waits for it to finish. */
-	reveal?: () => Promise<unknown> | void;
+	    be travelled to or a menu that has to be opened. The step waits for it
+	    to finish, and calls back whatever function it resolves to on leaving. */
+	reveal?: () => Promise<unknown> | unknown;
 };
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -107,10 +109,14 @@ const GLIDE = { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const };
 
 const REVEAL_LIMIT = 1500;
 
+export function find(target: string): HTMLElement | null {
+	return document.getElementById(target) ?? document.querySelector(`[data-tour="${target}"]`);
+}
+
 /** Where the element is, with a little room around it, or nothing when it is
     not on screen to be pointed at. */
 function measure(id: string): Box | null {
-	const element = document.getElementById(id);
+	const element = find(id);
 	if (!element) return null;
 
 	const rect = element.getBoundingClientRect();
@@ -229,11 +235,12 @@ export function TourProvider({
 	}, [storageKey]);
 
 	// Only the steps whose target is on screen are walked, so a panel that is
-	// folded away or a button the page does not have are passed over.
+	// folded away or a button the page does not have are passed over. One that
+	// reveals its own target is trusted to bring it.
 	const start = useCallback(async () => {
 		restore.current = await ready.current?.();
 
-		const here = steps.filter((item) => measure(item.target));
+		const here = steps.filter((item) => item.reveal || measure(item.target));
 		if (here.length === 0) {
 			settle();
 			return;
@@ -274,6 +281,7 @@ export function TourProvider({
 
 		let gone = false;
 		let settled = 0;
+		let put: unknown;
 
 		const update = () => {
 			if (!gone) setBox(measure(current.target));
@@ -285,7 +293,8 @@ export function TourProvider({
 		const trip = Promise.resolve(current.reveal?.());
 		const limit = new Promise((resolve) => setTimeout(resolve, REVEAL_LIMIT));
 
-		void Promise.race([trip, limit]).then(() => {
+		void Promise.race([trip, limit]).then((result) => {
+			put = result;
 			update();
 
 			// The toolbar rises and the panel slides to meet the tour, so one
@@ -298,6 +307,7 @@ export function TourProvider({
 
 		return () => {
 			gone = true;
+			if (typeof put === "function") put();
 			window.clearTimeout(settled);
 			window.removeEventListener("resize", update);
 			window.removeEventListener("scroll", update, true);
@@ -344,7 +354,7 @@ export function TourProvider({
 								animate={{ opacity: 1 }}
 								exit={{ opacity: 0 }}
 								transition={{ duration: 0.25 }}
-								className="fixed inset-0 z-50"
+								className="fixed inset-0 z-60"
 							>
 								<motion.div
 									initial={false}

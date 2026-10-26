@@ -1,6 +1,7 @@
 export const TOUR = {
 	sidebarToggle: "tour-sidebar-toggle",
 	schemaPicker: "tour-schema-picker",
+	newSchema: "tour-new-schema",
 	search: "tour-search",
 	tableList: "tour-table-list",
 	toolbar: "tour-toolbar",

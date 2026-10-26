@@ -414,6 +414,7 @@ const SchemaList = memo(function SchemaList({
 										{/* Stays put while the search is on, since it is a way out
                     of the list rather than one of its entries. */}
 										<CommandItem
+											data-tour={TOUR.newSchema}
 											forceMount
 											value="new-schema"
 											onSelect={() => {
