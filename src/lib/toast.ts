@@ -65,6 +65,23 @@ function fillFor(state: keyof typeof STATE_COLOURS): string | undefined {
 	);
 }
 
+const SHORTEST_MS = 2000;
+const LONGEST_MS = 7000;
+const PER_WORD_MS = 320;
+
+function words(text: SileoOptions["description"]): number {
+	return typeof text === "string" ? text.split(/\s+/).filter(Boolean).length : 0;
+}
+
+function lifetime(options: SileoOptions): number {
+	const count = words(options.title) + words(options.description);
+	return Math.min(LONGEST_MS, SHORTEST_MS + count * PER_WORD_MS);
+}
+
+function timed(options: SileoOptions): SileoOptions {
+	return { ...options, duration: options.duration ?? lifetime(options) };
+}
+
 /**
  * Raise toasts through here rather than through sileo.
  *
@@ -72,8 +89,9 @@ function fillFor(state: keyof typeof STATE_COLOURS): string | undefined {
  * which reads as the position setting having been ignored. Naming the position
  * on every call is what stops that.
  *
- * `waiting` never expires on its own. It is meant to be replaced by the toast
- * that reports how the work ended.
+ * Every toast stays on screen for as long as its wording takes to read unless
+ * the caller names a duration. `waiting` never expires on its own. It is meant
+ * to be replaced by the toast that reports how the work ended.
  */
 export const notify = {
 	waiting: (options: SileoOptions) =>
@@ -85,9 +103,11 @@ export const notify = {
 			fill: fillFor("loading"),
 		}),
 	success: (options: SileoOptions) =>
-		sileo.success({ ...options, position, fill: fillFor("success") }),
+		sileo.success({ ...timed(options), position, fill: fillFor("success") }),
 	warning: (options: SileoOptions) =>
-		sileo.warning({ ...options, position, fill: fillFor("warning") }),
-	info: (options: SileoOptions) => sileo.info({ ...options, position, fill: fillFor("info") }),
-	error: (options: SileoOptions) => sileo.error({ ...options, position, fill: fillFor("error") }),
+		sileo.warning({ ...timed(options), position, fill: fillFor("warning") }),
+	info: (options: SileoOptions) =>
+		sileo.info({ ...timed(options), position, fill: fillFor("info") }),
+	error: (options: SileoOptions) =>
+		sileo.error({ ...timed(options), position, fill: fillFor("error") }),
 };
