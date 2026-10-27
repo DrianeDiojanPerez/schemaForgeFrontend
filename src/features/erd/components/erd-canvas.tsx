@@ -95,6 +95,7 @@ const EDGE_DEFAULTS = { type: "relationship", animated: true };
 const setBackground = (next: BackgroundStyle) => setCanvasPreference("background", next);
 const setTableStyle = (next: TableStyle) => setCanvasPreference("tableStyle", next);
 const setAutoSave = (next: boolean) => setCanvasPreference("autoSave", next);
+const setToolbarHides = (next: boolean) => setCanvasPreference("toolbarHides", next);
 const setEdgeLine = (next: EdgeLine) => setCanvasPreference("edgeLine", next);
 const setEdgeDash = (next: EdgeDash) => setCanvasPreference("edgeDash", next);
 const setEdgeLabels = (next: boolean) => setCanvasPreference("edgeLabels", next);
@@ -202,6 +203,7 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 		edgeLabels,
 		autoSave,
 		autoValidate: validateWanted,
+		toolbarHides,
 		sqlPositions,
 	} = useCanvasPreferences();
 	const listChosen = schemaGrouping === "list";
@@ -826,6 +828,7 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 						settingsOpen={settingsOpen}
 						onSettingsOpenChange={openSettings}
 						raised={tour.active}
+						hides={toolbarHides}
 						diagnostics={problemsMenu}
 					/>
 				</div>
@@ -887,6 +890,8 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 							onShowMiniMapChange={setShowMiniMap}
 							showControls={showControls}
 							onShowControlsChange={setShowControls}
+							toolbarHides={toolbarHides}
+							onToolbarHidesChange={setToolbarHides}
 							background={background}
 							onBackgroundChange={setBackground}
 							tableStyle={tableStyle}

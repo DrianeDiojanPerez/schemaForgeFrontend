@@ -118,6 +118,8 @@ export type CanvasSettingsProps = {
 	onShowMiniMapChange: (show: boolean) => void;
 	showControls: boolean;
 	onShowControlsChange: (show: boolean) => void;
+	toolbarHides: boolean;
+	onToolbarHidesChange: (hides: boolean) => void;
 	background: BackgroundStyle;
 	onBackgroundChange: (background: BackgroundStyle) => void;
 	tableStyle: TableStyle;
@@ -1102,6 +1104,8 @@ export const CanvasSettings = memo(function CanvasSettings({
 	onShowMiniMapChange,
 	showControls,
 	onShowControlsChange,
+	toolbarHides,
+	onToolbarHidesChange,
 	background,
 	onBackgroundChange,
 	tableStyle,
@@ -1312,6 +1316,13 @@ export const CanvasSettings = memo(function CanvasSettings({
 										hint="Zoom buttons on the canvas itself"
 										checked={showControls}
 										onCheckedChange={onShowControlsChange}
+									/>
+									<SwitchRow
+										id="setting-toolbar-hides"
+										label="Tuck the toolbar away"
+										hint="Drops out of the way until the pointer comes near the bottom"
+										checked={toolbarHides}
+										onCheckedChange={onToolbarHidesChange}
 									/>
 									<SchemaGroupingRow
 										value={schemaGrouping}

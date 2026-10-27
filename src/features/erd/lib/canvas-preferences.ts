@@ -29,6 +29,8 @@ export type CanvasPreferences = {
 	edgeLabels: boolean;
 	autoSave: boolean;
 	autoValidate: boolean;
+	/** Whether the bar at the foot of the canvas drops out of the way until the pointer comes near. */
+	toolbarHides: boolean;
 	sqlVim: boolean;
 	sqlPositions: boolean;
 	sqlTheme: SqlTheme;
@@ -72,6 +74,7 @@ const DEFAULTS: CanvasPreferences = {
 	edgeLabels: false,
 	autoSave: true,
 	autoValidate: false,
+	toolbarHides: false,
 	sqlVim: false,
 	sqlPositions: true,
 	sqlTheme: "mocha",
@@ -134,6 +137,7 @@ function snapshot(): CanvasPreferences {
 			edgeLabels: flag(saved.edgeLabels, DEFAULTS.edgeLabels),
 			autoSave: flag(saved.autoSave, DEFAULTS.autoSave),
 			autoValidate: flag(saved.autoValidate, DEFAULTS.autoValidate),
+			toolbarHides: flag(saved.toolbarHides, DEFAULTS.toolbarHides),
 			sqlVim: flag(saved.sqlVim, DEFAULTS.sqlVim),
 			sqlPositions: flag(saved.sqlPositions, DEFAULTS.sqlPositions),
 			sqlTheme: known(saved.sqlTheme, SQL_THEMES, DEFAULTS.sqlTheme),

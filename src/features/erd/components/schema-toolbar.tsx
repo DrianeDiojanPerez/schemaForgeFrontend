@@ -50,6 +50,8 @@ export type SchemaToolbarProps = {
 	onSettingsOpenChange: (open: boolean, byKeyboard?: boolean) => void;
 	/** Holds the bar up for as long as something is pointing at it. */
 	raised?: boolean;
+	/** Lets the bar drop out of the way between uses. Off, it stays put. */
+	hides?: boolean;
 	/** Left out while there is nothing to show. */
 	diagnostics?: Pick<DiagnosticsMenuProps, "diagnostics" | "checked" | "onDismiss">;
 };
@@ -101,6 +103,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 	settingsOpen,
 	onSettingsOpenChange,
 	raised = false,
+	hides = false,
 	diagnostics,
 }: SchemaToolbarProps) {
 	const picker = useRef<HTMLInputElement>(null);
@@ -161,7 +164,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 
 	// The menu and the dialog stand away from the bar, so the pointer is off it
 	// the whole time they are open and it would drop out from under them.
-	const up = wanted || opened || raised;
+	const up = !hides || wanted || opened || raised;
 
 	// What one of them hands back on the way out is let past. Focus returns to
 	// the button that opened it, which is the menu tidying up rather than the
