@@ -8,6 +8,7 @@
 		"start": "node server.mjs",
 		"preview": "vite preview",
 		"test": "vitest run",
+		"test:backend": "SCHEMAFORGE_TEST_BACKEND=\"${SCHEMAFORGE_TEST_BACKEND:-127.0.0.1:50051}\" vitest run src/server/rpc/backend.test.ts",
 		"lint": "oxlint && eslint",
 		"format": "prettier --write \"**/*.{ts,tsx,js,jsx}\"",
 		"check": "prettier --check \"**/*.{ts,tsx,js,jsx}\"",

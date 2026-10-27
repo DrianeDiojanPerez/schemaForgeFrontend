@@ -46,3 +46,14 @@ npm test
 npm run lint
 npm run typecheck
 ```
+
+## Against a running backend
+
+```bash
+npm run test:backend
+```
+
+Runs `src/server/rpc/backend.test.ts` through the real gRPC boundary: it
+registers a throwaway account on the backend named in `SCHEMAFORGE_TEST_BACKEND`
+(`127.0.0.1:50051` unless set) and saves, validates, generates, exports and
+imports a schema. Plain `npm test` skips it when that variable is unset.
