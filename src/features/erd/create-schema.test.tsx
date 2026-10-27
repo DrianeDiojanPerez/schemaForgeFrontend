@@ -33,12 +33,11 @@ test("names a schema and hands back the one the backend made", async () => {
 
 	render(
 		<QueryClientProvider client={new QueryClient()}>
-			<CreateSchemaDialog open onOpenChange={onOpenChange} onCreated={onCreated} first />
+			<CreateSchemaDialog open onOpenChange={onOpenChange} onCreated={onCreated} />
 		</QueryClientProvider>,
 	);
 
-	expect(screen.getByText("Your first schema")).toBeTruthy();
-	expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+	expect(screen.getByText("New schema")).toBeTruthy();
 
 	const next = screen.getByRole<HTMLButtonElement>("button", { name: "Next" });
 	expect(next.disabled).toBe(true);

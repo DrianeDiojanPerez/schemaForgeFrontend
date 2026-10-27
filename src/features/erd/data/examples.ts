@@ -1,3 +1,6 @@
+import type { SchemaDraft } from "@/features/schema/types/schema";
+
+import { toDraft } from "../lib/schema-adapter";
 import type { ErdDiagram } from "../types/erd";
 
 export const exampleSchema1: ErdDiagram = {
@@ -436,3 +439,13 @@ export const exampleEcommerce: ErdDiagram = {
 	],
 	timestamp: "2024-01-01T00:00:00.000Z",
 };
+
+export const SAMPLE_NAME = "Sample blog";
+
+/** The blog as a draft the backend can store. */
+export function sampleDraft(name = SAMPLE_NAME): SchemaDraft {
+	const result = toDraft(name, "", exampleSchema1.nodes, exampleSchema1.edges);
+	if (!result.ok) throw new Error("The sample schema uses a type the backend has no name for");
+
+	return result.draft;
+}

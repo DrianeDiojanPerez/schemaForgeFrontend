@@ -33,9 +33,9 @@ function SchemaBuilderPage() {
 			}
 		: EMPTY;
 
-	// Someone with nothing stored is asked to name a schema first. A backend
-	// that is away gets the empty canvas alone, since there is nothing to
-	// create against.
+	// Someone with nothing stored is offered a schema to name. A backend that
+	// is away gets the empty canvas alone, since there is nothing to create
+	// against.
 	const askForSchema = !latest.schema && latest.reachable;
 	const noticeOpen = useBrowserNoticeOpen();
 

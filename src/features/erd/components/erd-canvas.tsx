@@ -300,7 +300,7 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 	);
 
 	// Dropping the schema on the canvas leaves the latest query to pick the
-	// next one, or to find nothing and ask for a first schema again.
+	// next one, or to find nothing and offer a new schema again.
 	const { mutateAsync: remove } = useDeleteSchema();
 	const deleteSchema = useCallback(
 		async (id: string) => {
@@ -664,8 +664,8 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 		show(schema, diagram);
 	}, [schema, diagram, show]);
 
-	// Deleting the last schema leaves nothing to show and brings the question
-	// back, the same one a fresh account is asked.
+	// Deleting the last schema leaves nothing to show and brings the offer
+	// back, the same one a fresh account gets.
 	const [askedBefore, setAskedBefore] = useState(askForSchema);
 	if (askForSchema !== askedBefore) {
 		setAskedBefore(askForSchema);
@@ -916,7 +916,6 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 								if (!open) setNaming(undefined);
 							}}
 							onCreated={(next) => void created(next)}
-							first={askForSchema}
 							draft={naming}
 						/>
 						<CanvasTour held={creating || held} />
