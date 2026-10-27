@@ -2,6 +2,8 @@
 
 import type * as grpc from '@grpc/grpc-js'
 import type { MethodDefinition } from '@grpc/proto-loader'
+import type { CompareSchemasRequest as _schemaforge_v1_CompareSchemasRequest, CompareSchemasRequest__Output as _schemaforge_v1_CompareSchemasRequest__Output } from '../../schemaforge/v1/CompareSchemasRequest';
+import type { CompareSchemasResponse as _schemaforge_v1_CompareSchemasResponse, CompareSchemasResponse__Output as _schemaforge_v1_CompareSchemasResponse__Output } from '../../schemaforge/v1/CompareSchemasResponse';
 import type { CreateSchemaRequest as _schemaforge_v1_CreateSchemaRequest, CreateSchemaRequest__Output as _schemaforge_v1_CreateSchemaRequest__Output } from '../../schemaforge/v1/CreateSchemaRequest';
 import type { CreateSchemaResponse as _schemaforge_v1_CreateSchemaResponse, CreateSchemaResponse__Output as _schemaforge_v1_CreateSchemaResponse__Output } from '../../schemaforge/v1/CreateSchemaResponse';
 import type { DeleteSchemaRequest as _schemaforge_v1_DeleteSchemaRequest, DeleteSchemaRequest__Output as _schemaforge_v1_DeleteSchemaRequest__Output } from '../../schemaforge/v1/DeleteSchemaRequest';
@@ -22,6 +24,15 @@ import type { ValidateSchemaRequest as _schemaforge_v1_ValidateSchemaRequest, Va
 import type { ValidateSchemaResponse as _schemaforge_v1_ValidateSchemaResponse, ValidateSchemaResponse__Output as _schemaforge_v1_ValidateSchemaResponse__Output } from '../../schemaforge/v1/ValidateSchemaResponse';
 
 export interface SchemaServiceClient extends grpc.Client {
+  CompareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  CompareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  CompareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  CompareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  compareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  compareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  compareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  compareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
+  
   CreateSchema(argument: _schemaforge_v1_CreateSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CreateSchemaResponse__Output>): grpc.ClientUnaryCall;
   CreateSchema(argument: _schemaforge_v1_CreateSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_CreateSchemaResponse__Output>): grpc.ClientUnaryCall;
   CreateSchema(argument: _schemaforge_v1_CreateSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CreateSchemaResponse__Output>): grpc.ClientUnaryCall;
@@ -106,6 +117,8 @@ export interface SchemaServiceClient extends grpc.Client {
 }
 
 export interface SchemaServiceHandlers extends grpc.UntypedServiceImplementation {
+  CompareSchemas: grpc.handleUnaryCall<_schemaforge_v1_CompareSchemasRequest__Output, _schemaforge_v1_CompareSchemasResponse>;
+  
   CreateSchema: grpc.handleUnaryCall<_schemaforge_v1_CreateSchemaRequest__Output, _schemaforge_v1_CreateSchemaResponse>;
   
   DeleteSchema: grpc.handleUnaryCall<_schemaforge_v1_DeleteSchemaRequest__Output, _schemaforge_v1_DeleteSchemaResponse>;
@@ -127,6 +140,7 @@ export interface SchemaServiceHandlers extends grpc.UntypedServiceImplementation
 }
 
 export interface SchemaServiceDefinition extends grpc.ServiceDefinition {
+  CompareSchemas: MethodDefinition<_schemaforge_v1_CompareSchemasRequest, _schemaforge_v1_CompareSchemasResponse, _schemaforge_v1_CompareSchemasRequest__Output, _schemaforge_v1_CompareSchemasResponse__Output>
   CreateSchema: MethodDefinition<_schemaforge_v1_CreateSchemaRequest, _schemaforge_v1_CreateSchemaResponse, _schemaforge_v1_CreateSchemaRequest__Output, _schemaforge_v1_CreateSchemaResponse__Output>
   DeleteSchema: MethodDefinition<_schemaforge_v1_DeleteSchemaRequest, _schemaforge_v1_DeleteSchemaResponse, _schemaforge_v1_DeleteSchemaRequest__Output, _schemaforge_v1_DeleteSchemaResponse__Output>
   ExportSchema: MethodDefinition<_schemaforge_v1_ExportSchemaRequest, _schemaforge_v1_ExportSchemaResponse, _schemaforge_v1_ExportSchemaRequest__Output, _schemaforge_v1_ExportSchemaResponse__Output>

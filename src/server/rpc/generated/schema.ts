@@ -2,6 +2,9 @@ import type * as grpc from '@grpc/grpc-js';
 import type { EnumTypeDefinition, MessageTypeDefinition } from '@grpc/proto-loader';
 
 import type { Attribute as _schemaforge_v1_Attribute, Attribute__Output as _schemaforge_v1_Attribute__Output } from './schemaforge/v1/Attribute';
+import type { CompareSchemasRequest as _schemaforge_v1_CompareSchemasRequest, CompareSchemasRequest__Output as _schemaforge_v1_CompareSchemasRequest__Output } from './schemaforge/v1/CompareSchemasRequest';
+import type { CompareSchemasResponse as _schemaforge_v1_CompareSchemasResponse, CompareSchemasResponse__Output as _schemaforge_v1_CompareSchemasResponse__Output } from './schemaforge/v1/CompareSchemasResponse';
+import type { ComparisonCounts as _schemaforge_v1_ComparisonCounts, ComparisonCounts__Output as _schemaforge_v1_ComparisonCounts__Output } from './schemaforge/v1/ComparisonCounts';
 import type { CreateSchemaRequest as _schemaforge_v1_CreateSchemaRequest, CreateSchemaRequest__Output as _schemaforge_v1_CreateSchemaRequest__Output } from './schemaforge/v1/CreateSchemaRequest';
 import type { CreateSchemaResponse as _schemaforge_v1_CreateSchemaResponse, CreateSchemaResponse__Output as _schemaforge_v1_CreateSchemaResponse__Output } from './schemaforge/v1/CreateSchemaResponse';
 import type { DataType as _schemaforge_v1_DataType, DataType__Output as _schemaforge_v1_DataType__Output } from './schemaforge/v1/DataType';
@@ -23,6 +26,7 @@ import type { ListSchemasResponse as _schemaforge_v1_ListSchemasResponse, ListSc
 import type { Position as _schemaforge_v1_Position, Position__Output as _schemaforge_v1_Position__Output } from './schemaforge/v1/Position';
 import type { Relationship as _schemaforge_v1_Relationship, Relationship__Output as _schemaforge_v1_Relationship__Output } from './schemaforge/v1/Relationship';
 import type { Schema as _schemaforge_v1_Schema, Schema__Output as _schemaforge_v1_Schema__Output } from './schemaforge/v1/Schema';
+import type { SchemaDifference as _schemaforge_v1_SchemaDifference, SchemaDifference__Output as _schemaforge_v1_SchemaDifference__Output } from './schemaforge/v1/SchemaDifference';
 import type { SchemaServiceClient as _schemaforge_v1_SchemaServiceClient, SchemaServiceDefinition as _schemaforge_v1_SchemaServiceDefinition } from './schemaforge/v1/SchemaService';
 import type { SchemaSummary as _schemaforge_v1_SchemaSummary, SchemaSummary__Output as _schemaforge_v1_SchemaSummary__Output } from './schemaforge/v1/SchemaSummary';
 import type { UpdateSchemaRequest as _schemaforge_v1_UpdateSchemaRequest, UpdateSchemaRequest__Output as _schemaforge_v1_UpdateSchemaRequest__Output } from './schemaforge/v1/UpdateSchemaRequest';
@@ -39,6 +43,10 @@ export interface ProtoGrpcType {
     v1: {
       Attribute: MessageTypeDefinition<_schemaforge_v1_Attribute, _schemaforge_v1_Attribute__Output>
       Cardinality: EnumTypeDefinition
+      CompareSchemasRequest: MessageTypeDefinition<_schemaforge_v1_CompareSchemasRequest, _schemaforge_v1_CompareSchemasRequest__Output>
+      CompareSchemasResponse: MessageTypeDefinition<_schemaforge_v1_CompareSchemasResponse, _schemaforge_v1_CompareSchemasResponse__Output>
+      ComparisonCategory: EnumTypeDefinition
+      ComparisonCounts: MessageTypeDefinition<_schemaforge_v1_ComparisonCounts, _schemaforge_v1_ComparisonCounts__Output>
       CreateSchemaRequest: MessageTypeDefinition<_schemaforge_v1_CreateSchemaRequest, _schemaforge_v1_CreateSchemaRequest__Output>
       CreateSchemaResponse: MessageTypeDefinition<_schemaforge_v1_CreateSchemaResponse, _schemaforge_v1_CreateSchemaResponse__Output>
       DataType: MessageTypeDefinition<_schemaforge_v1_DataType, _schemaforge_v1_DataType__Output>
@@ -47,6 +55,7 @@ export interface ProtoGrpcType {
       DeleteSchemaResponse: MessageTypeDefinition<_schemaforge_v1_DeleteSchemaResponse, _schemaforge_v1_DeleteSchemaResponse__Output>
       Diagnostic: MessageTypeDefinition<_schemaforge_v1_Diagnostic, _schemaforge_v1_Diagnostic__Output>
       Dialect: EnumTypeDefinition
+      DifferenceKind: EnumTypeDefinition
       Entity: MessageTypeDefinition<_schemaforge_v1_Entity, _schemaforge_v1_Entity__Output>
       ExportFormat: EnumTypeDefinition
       ExportSchemaRequest: MessageTypeDefinition<_schemaforge_v1_ExportSchemaRequest, _schemaforge_v1_ExportSchemaRequest__Output>
@@ -64,6 +73,7 @@ export interface ProtoGrpcType {
       Position: MessageTypeDefinition<_schemaforge_v1_Position, _schemaforge_v1_Position__Output>
       Relationship: MessageTypeDefinition<_schemaforge_v1_Relationship, _schemaforge_v1_Relationship__Output>
       Schema: MessageTypeDefinition<_schemaforge_v1_Schema, _schemaforge_v1_Schema__Output>
+      SchemaDifference: MessageTypeDefinition<_schemaforge_v1_SchemaDifference, _schemaforge_v1_SchemaDifference__Output>
       SchemaService: SubtypeConstructor<typeof grpc.Client, _schemaforge_v1_SchemaServiceClient> & { service: _schemaforge_v1_SchemaServiceDefinition }
       SchemaSummary: MessageTypeDefinition<_schemaforge_v1_SchemaSummary, _schemaforge_v1_SchemaSummary__Output>
       Severity: EnumTypeDefinition
