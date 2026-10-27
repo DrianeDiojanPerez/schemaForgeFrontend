@@ -220,15 +220,44 @@ type Call<TResponse> = (
 ) => ClientUnaryCall;
 
 /**
- * A call made as the visitor. The token comes out of their session cookie,
- * and a visitor without one is sent to sign in: the redirect is thrown here
- * so every server function gets it without each one asking.
+ * Where the token pair for a call comes from. A page request reads the
+ * visitor's cookie; a test against a running backend holds a pair in memory.
  */
-async function authed<TResponse>(call: Call<TResponse>, requestId?: string): Promise<TResponse> {
-	const current = await session();
-	const { token, refreshToken } = current.data;
+export type Credentials = {
+	tokens: () => Promise<Partial<Tokens>>;
+	/** A renewed pair, kept for the calls after this one. */
+	update: (tokens: Tokens) => Promise<void>;
+	/** No token, or a refresh the backend refused: the sign-in is over. */
+	signedOut: () => Promise<never>;
+};
 
-	if (!token) throw redirect({ to: "/login" });
+// A visitor without a token is sent to sign in. The redirect is thrown here
+// so every server function gets it without each one asking.
+const cookie: Credentials = {
+	tokens: async () => (await session()).data,
+	update: async (tokens) => {
+		await (await session()).update(tokens);
+	},
+	signedOut: async () => {
+		await (await session()).clear();
+		throw redirect({ to: "/login" });
+	},
+};
+
+const refresh = (request: RefreshTokenRequest): Promise<RefreshTokenResponse__Output> =>
+	unary((metadata, options, callback) =>
+		clients().auth.RefreshToken(request, metadata, options, callback),
+	);
+
+/** A call made as the person the tokens belong to. */
+async function authedAs<TResponse>(
+	holder: Credentials,
+	call: Call<TResponse>,
+	requestId?: string,
+): Promise<TResponse> {
+	const { token, refreshToken } = await holder.tokens();
+
+	if (!token) return holder.signedOut();
 
 	try {
 		return await unary(call, requestId, `Bearer ${token}`);
@@ -243,13 +272,12 @@ async function authed<TResponse>(call: Call<TResponse>, requestId?: string): Pro
 
 		try {
 			if (!refreshToken) throw error;
-			renewed = await v1.AuthService.refreshToken({ refreshToken });
+			renewed = await refresh({ refreshToken });
 		} catch {
-			await current.clear();
-			throw redirect({ to: "/login" });
+			return holder.signedOut();
 		}
 
-		await current.update(renewed);
+		await holder.update(renewed);
 
 		return unary(call, requestId, `Bearer ${renewed.token}`);
 	}
@@ -289,137 +317,142 @@ function unary<TResponse>(
 	});
 }
 
-/** The calls the `schemaforge.v1` package declares, wrapped for the server functions. */
-export const v1 = {
-	SchemaService: {
-		listSchemas: (
-			request: ListSchemasRequest,
-			requestId?: string,
-		): Promise<ListSchemasResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.ListSchemas(request, metadata, options, callback),
-				requestId,
-			),
+/** The calls the `schemaforge.v1` package declares, made as whoever holds the tokens. */
+export function calls(holder: Credentials) {
+	const authed = <TResponse>(call: Call<TResponse>, requestId?: string) =>
+		authedAs(holder, call, requestId);
 
-		getSchema: (
-			request: GetSchemaRequest,
-			requestId?: string,
-		): Promise<GetSchemaResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.GetSchema(request, metadata, options, callback),
-				requestId,
-			),
+	return {
+		SchemaService: {
+			listSchemas: (
+				request: ListSchemasRequest,
+				requestId?: string,
+			): Promise<ListSchemasResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ListSchemas(request, metadata, options, callback),
+					requestId,
+				),
 
-		createSchema: (
-			request: CreateSchemaRequest,
-			requestId?: string,
-		): Promise<CreateSchemaResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.CreateSchema(request, metadata, options, callback),
-				requestId,
-			),
+			getSchema: (
+				request: GetSchemaRequest,
+				requestId?: string,
+			): Promise<GetSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.GetSchema(request, metadata, options, callback),
+					requestId,
+				),
 
-		updateSchema: (
-			request: UpdateSchemaRequest,
-			requestId?: string,
-		): Promise<UpdateSchemaResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.UpdateSchema(request, metadata, options, callback),
-				requestId,
-			),
+			createSchema: (
+				request: CreateSchemaRequest,
+				requestId?: string,
+			): Promise<CreateSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.CreateSchema(request, metadata, options, callback),
+					requestId,
+				),
 
-		deleteSchema: (
-			request: DeleteSchemaRequest,
-			requestId?: string,
-		): Promise<DeleteSchemaResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.DeleteSchema(request, metadata, options, callback),
-				requestId,
-			),
+			updateSchema: (
+				request: UpdateSchemaRequest,
+				requestId?: string,
+			): Promise<UpdateSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.UpdateSchema(request, metadata, options, callback),
+					requestId,
+				),
 
-		validateSchema: (
-			request: ValidateSchemaRequest,
-			requestId?: string,
-		): Promise<ValidateSchemaResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.ValidateSchema(request, metadata, options, callback),
-				requestId,
-			),
+			deleteSchema: (
+				request: DeleteSchemaRequest,
+				requestId?: string,
+			): Promise<DeleteSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.DeleteSchema(request, metadata, options, callback),
+					requestId,
+				),
 
-		generateDdl: (
-			request: GenerateDdlRequest,
-			requestId?: string,
-		): Promise<GenerateDdlResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.GenerateDdl(request, metadata, options, callback),
-				requestId,
-			),
+			validateSchema: (
+				request: ValidateSchemaRequest,
+				requestId?: string,
+			): Promise<ValidateSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ValidateSchema(request, metadata, options, callback),
+					requestId,
+				),
 
-		exportSchema: (
-			request: ExportSchemaRequest,
-			requestId?: string,
-		): Promise<ExportSchemaResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.ExportSchema(request, metadata, options, callback),
-				requestId,
-			),
+			generateDdl: (
+				request: GenerateDdlRequest,
+				requestId?: string,
+			): Promise<GenerateDdlResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.GenerateDdl(request, metadata, options, callback),
+					requestId,
+				),
 
-		importSchema: (
-			request: ImportSchemaRequest,
-			requestId?: string,
-		): Promise<ImportSchemaResponse__Output> =>
-			authed(
-				(metadata, options, callback) =>
-					clients().schema.ImportSchema(request, metadata, options, callback),
-				requestId,
-			),
-	},
+			exportSchema: (
+				request: ExportSchemaRequest,
+				requestId?: string,
+			): Promise<ExportSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ExportSchema(request, metadata, options, callback),
+					requestId,
+				),
 
-	HealthService: {
-		check: (): Promise<CheckResponse__Output> =>
-			unary((metadata, options, callback) =>
-				clients().health.Check({}, metadata, options, callback),
-			),
-	},
+			importSchema: (
+				request: ImportSchemaRequest,
+				requestId?: string,
+			): Promise<ImportSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ImportSchema(request, metadata, options, callback),
+					requestId,
+				),
+		},
 
-	// Signing in needs no token, so these go out bare.
-	AuthService: {
-		login: (request: LoginRequest): Promise<LoginResponse__Output> =>
-			unary((metadata, options, callback) =>
-				clients().auth.Login(request, metadata, options, callback),
-			),
+		HealthService: {
+			check: (): Promise<CheckResponse__Output> =>
+				unary((metadata, options, callback) =>
+					clients().health.Check({}, metadata, options, callback),
+				),
+		},
 
-		googleLoginUrl: (request: GoogleLoginUrlRequest): Promise<GoogleLoginUrlResponse__Output> =>
-			unary((metadata, options, callback) =>
-				clients().auth.GoogleLoginUrl(request, metadata, options, callback),
-			),
+		// Signing in needs no token, so these go out bare.
+		AuthService: {
+			login: (request: LoginRequest): Promise<LoginResponse__Output> =>
+				unary((metadata, options, callback) =>
+					clients().auth.Login(request, metadata, options, callback),
+				),
 
-		loginWithGoogle: (request: LoginWithGoogleRequest): Promise<LoginResponse__Output> =>
-			unary((metadata, options, callback) =>
-				clients().auth.LoginWithGoogle(request, metadata, options, callback),
-			),
+			googleLoginUrl: (request: GoogleLoginUrlRequest): Promise<GoogleLoginUrlResponse__Output> =>
+				unary((metadata, options, callback) =>
+					clients().auth.GoogleLoginUrl(request, metadata, options, callback),
+				),
 
-		register: (request: RegisterRequest): Promise<LoginResponse__Output> =>
-			unary((metadata, options, callback) =>
-				clients().auth.Register(request, metadata, options, callback),
-			),
+			loginWithGoogle: (request: LoginWithGoogleRequest): Promise<LoginResponse__Output> =>
+				unary((metadata, options, callback) =>
+					clients().auth.LoginWithGoogle(request, metadata, options, callback),
+				),
 
-		refreshToken: (request: RefreshTokenRequest): Promise<RefreshTokenResponse__Output> =>
-			unary((metadata, options, callback) =>
-				clients().auth.RefreshToken(request, metadata, options, callback),
-			),
+			register: (request: RegisterRequest): Promise<LoginResponse__Output> =>
+				unary((metadata, options, callback) =>
+					clients().auth.Register(request, metadata, options, callback),
+				),
 
-		getCurrentUser: (): Promise<GetCurrentUserResponse__Output> =>
-			authed((metadata, options, callback) =>
-				clients().auth.GetCurrentUser({}, metadata, options, callback),
-			),
-	},
-};
+			refreshToken: refresh,
+
+			getCurrentUser: (): Promise<GetCurrentUserResponse__Output> =>
+				authed((metadata, options, callback) =>
+					clients().auth.GetCurrentUser({}, metadata, options, callback),
+				),
+		},
+	};
+}
+
+/** The calls as the visitor whose cookie came with the request. */
+export const v1 = calls(cookie);
