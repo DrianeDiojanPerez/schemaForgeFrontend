@@ -24,6 +24,9 @@ import type { ErdEdge, RelationshipType } from "../types/erd";
 import { DescriptionDialog } from "./details-dialogs";
 import { useCanvasPreferences } from "../lib/canvas-preferences";
 import { useEdgeStyle } from "./edge-line-context";
+import { ProblemCount } from "./problem-text";
+import { useElementProblems } from "./problems-context";
+import type { Diagnostic } from "@/features/schema/types/schema";
 
 const FALLBACK_TABLE_WIDTH = 160;
 
@@ -57,6 +60,11 @@ const RELATIONSHIPS: Record<
 };
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["one-to-one", "one-to-many", "many-to-many"];
+
+/** A line with an error is drawn in red. A warning only gets the count, like a table. */
+export function problemStroke(problems: Diagnostic[], own: string): string {
+	return problems.some((problem) => problem.severity === "ERROR") ? "var(--destructive)" : own;
+}
 
 // The badge and its menu are the costly part of an edge to draw, and nothing
 // in them moves: the wrapper outside carries the position, so a table being
@@ -192,6 +200,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 		[menuAt],
 	);
 	const relationshipType = data?.relationshipType ?? "one-to-many";
+	const problems = useElementProblems(id);
 
 	const sourceNode = useStore(useCallback((state) => state.nodeLookup.get(source), [source]));
 	const targetNode = useStore(useCallback((state) => state.nodeLookup.get(target), [target]));
@@ -366,7 +375,10 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 
 	// Outline mode draws the tables in the text colour, so the lines that
 	// join them follow rather than staying in their own.
-	const stroke = tableStyle === "outline" ? "var(--color-foreground)" : relationship.stroke;
+	const stroke = problemStroke(
+		problems,
+		tableStyle === "outline" ? "var(--color-foreground)" : relationship.stroke,
+	);
 	const sourceMarkerId = `source-${id}-${relationshipType}`;
 	const targetMarkerId = `target-${id}-${relationshipType}`;
 	const sourceIsOne = relationshipType !== "many-to-many";
@@ -494,8 +506,8 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 						transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
 					}}
 					className={cn(
-						"nodrag nopan absolute text-4xs",
-						labels ? "pointer-events-auto" : "pointer-events-none",
+						"nodrag nopan absolute flex items-center gap-1 text-4xs",
+						labels || problems.length > 0 ? "pointer-events-auto" : "pointer-events-none",
 					)}
 				>
 					<EdgeBadge
@@ -509,6 +521,11 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 						anchor={menuAnchor}
 						onEditDetails={openDetails}
 					/>
+					{problems.length > 0 && (
+						<span className="rounded-full bg-card shadow-sm">
+							<ProblemCount problems={problems} align="center" />
+						</span>
+					)}
 				</div>
 
 				{editingDetails && (
