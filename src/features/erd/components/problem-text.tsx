@@ -1,4 +1,6 @@
-import { CircleAlertIcon, TriangleAlertIcon } from "lucide-react";
+import { BugIcon, CircleAlertIcon, TriangleAlertIcon } from "lucide-react";
+
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import type { Diagnostic } from "@/features/schema/types/schema";
 import { cn } from "@/lib/utils";
@@ -85,5 +87,76 @@ export function ProblemMark({ severity }: { severity: Diagnostic["severity"] }) 
 		>
 			<Icon className="size-3.5 text-current! *:text-inherit!" />
 		</span>
+	);
+}
+
+function plural(count: number) {
+	return `${count} ${count === 1 ? "problem" : "problems"}`;
+}
+
+/**
+ * The count of problems on a table or a line. Hover to glance, click to
+ * hold it open while working.
+ */
+export function ProblemCount({
+	problems,
+	align = "end",
+}: {
+	problems: Diagnostic[];
+	align?: React.ComponentProps<typeof PopoverContent>["align"];
+}) {
+	const failing = problems.some((problem) => problem.severity === "ERROR");
+	const Icon = failing ? CircleAlertIcon : TriangleAlertIcon;
+
+	return (
+		<Popover>
+			{/* The click stays here, or the canvas would zoom in on the table. */}
+			<PopoverTrigger
+				openOnHover
+				delay={150}
+				onClick={(event) => event.stopPropagation()}
+				aria-label={plural(problems.length)}
+				render={
+					<button
+						type="button"
+						className={cn(
+							"nodrag flex h-4 shrink-0 items-center gap-0.5 rounded-full pr-1.5 pl-1 tabular-nums transition-colors",
+							failing
+								? "text-destructive hover:bg-destructive/10 data-popup-open:bg-destructive/10"
+								: "text-warning hover:bg-warning/10 data-popup-open:bg-warning/10",
+						)}
+					/>
+				}
+			>
+				<Icon strokeWidth={2} size={10} />
+				{problems.length}
+			</PopoverTrigger>
+
+			<PopoverContent align={align} sideOffset={6} className="w-80 gap-0 p-0">
+				<header className="flex items-center gap-2 border-b border-border px-3 py-2">
+					<span className="flex items-center gap-1.5 text-sm font-medium">
+						<BugIcon className="size-3.5" />
+						Diagnostics
+					</span>
+					<span className="ml-auto text-xs text-muted-foreground">{plural(problems.length)}</span>
+				</header>
+				<ul className="flex flex-col gap-0.5 p-1">
+					{problems.map((problem) => (
+						<li
+							key={problem.code + problem.message}
+							className="flex items-start gap-3 rounded-sm px-2.5 py-2.5"
+						>
+							<ProblemMark severity={problem.severity} />
+							<span className="flex min-w-0 flex-1 flex-col gap-1">
+								<span className="text-sm font-medium">{problemTitle(problem.code)}</span>
+								<span className="text-xs leading-relaxed text-muted-foreground">
+									<ProblemMessage text={problem.message} />
+								</span>
+							</span>
+						</li>
+					))}
+				</ul>
+			</PopoverContent>
+		</Popover>
 	);
 }
