@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ImportFormat } from "@/server/rpc/schema";
 
@@ -44,6 +43,8 @@ export type SchemaToolbarProps = {
 	onPrefetchSql: () => void;
 	onExportSql: () => void;
 	onExportJson: () => void;
+	onExportSvg: () => void;
+	onExportHtml: () => void;
 	onImport: (content: string, format: ImportFormat) => void;
 	onNewSchema: () => void;
 	settingsOpen: boolean;
@@ -84,13 +85,6 @@ const FILES = [
 	{ id: "json", label: "JSON", extension: ".json", icon: BracesIcon },
 ] as const;
 
-function soon(extension: string) {
-	notify.info({
-		title: "Not built yet",
-		description: `Exporting as ${extension} is not wired up yet.`,
-	});
-}
-
 export const SchemaToolbar = memo(function SchemaToolbar({
 	generating,
 	onAddTable,
@@ -98,6 +92,8 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 	onPrefetchSql,
 	onExportSql,
 	onExportJson,
+	onExportSvg,
+	onExportHtml,
 	onImport,
 	onNewSchema,
 	settingsOpen,
@@ -273,7 +269,8 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 										onClick={() => {
 											if (file.id === "sql") onExportSql();
 											else if (file.id === "json") onExportJson();
-											else soon(file.extension);
+											else if (file.id === "svg") onExportSvg();
+											else onExportHtml();
 										}}
 									>
 										<file.icon />

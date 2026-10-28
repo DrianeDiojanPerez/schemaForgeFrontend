@@ -38,6 +38,9 @@ import type { BackgroundStyle } from "../lib/backgrounds";
 import type { EdgeDash, EdgeLine } from "../lib/edge-lines";
 import { DEFAULT_CONNECTOR_ARROW } from "../lib/connector-arrows";
 import type { ConnectorArrow } from "../lib/connector-arrows";
+import { downloadText, fileSlug } from "../lib/download";
+import { diagramSvg } from "../lib/export-diagram";
+import { diagramHtml } from "../lib/export-html";
 import { isTableNode } from "../lib/node-guards";
 import { schemaBoxes as boxesFor, isSchemaBoxId } from "../lib/schema-groups";
 import { TOUR } from "../lib/tour";
@@ -156,8 +159,15 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 		setEdges,
 	} = useErdGraph(diagram);
 	const theme = useTheme();
-	const { screenToFlowPosition, fitView, setViewport, setCenter, getZoom, getNodes } =
-		useReactFlow<ErdNode>();
+	const {
+		screenToFlowPosition,
+		fitView,
+		setViewport,
+		setCenter,
+		getZoom,
+		getNodes,
+		getNodesBounds,
+	} = useReactFlow<ErdNode>();
 	const tour = useTour();
 	const { bringCloser } = useReveal();
 	const [settingsOpen, setSettingsOpen] = useState(false);
@@ -596,6 +606,44 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 	const prefetchSql = useCallback(() => latest.current.prefetch(), []);
 	const exportSql = useCallback(() => void latest.current.generate({ download: true }), []);
 	const exportJson = useCallback(() => void latest.current.exportJson(), []);
+
+	// Both pictures come off the drawn canvas, which has to exist by the time
+	// the menu does, so the lookup by id is enough.
+	const capture = useCallback(async () => {
+		const flow = document.getElementById(TOUR.canvas);
+		if (!flow) throw new Error("The canvas has not drawn yet.");
+
+		return diagramSvg(flow, getNodesBounds(getNodes().filter(isTableNode)), getZoom());
+	}, [getNodes, getNodesBounds, getZoom]);
+
+	const exportSvg = useCallback(async () => {
+		try {
+			downloadText(`${fileSlug(name)}.svg`, await capture(), "image/svg+xml");
+		} catch (error) {
+			notify.error({
+				title: "Could not export the diagram",
+				description: error instanceof Error ? error.message : "Something went wrong",
+			});
+		}
+	}, [capture, name]);
+
+	const exportHtml = useCallback(async () => {
+		try {
+			const page = diagramHtml({
+				name,
+				nodes: getNodes(),
+				edges,
+				svg: await capture(),
+			});
+
+			downloadText(`${fileSlug(name)}.html`, page, "text/html");
+		} catch (error) {
+			notify.error({
+				title: "Could not export the page",
+				description: error instanceof Error ? error.message : "Something went wrong",
+			});
+		}
+	}, [capture, name, getNodes, edges]);
 	const regenerate = useCallback(
 		(options: GenerateOptions) => void latest.current.generate(options),
 		[],
@@ -823,6 +871,8 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 						onPrefetchSql={prefetchSql}
 						onExportSql={exportSql}
 						onExportJson={exportJson}
+						onExportSvg={() => void exportSvg()}
+						onExportHtml={() => void exportHtml()}
 						onImport={importFile}
 						onNewSchema={openCreate}
 						settingsOpen={settingsOpen}
