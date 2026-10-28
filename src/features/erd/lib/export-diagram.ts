@@ -58,6 +58,7 @@ const STYLE_PROPERTIES = [
 	"color",
 	"opacity",
 	"visibility",
+	"pointer-events",
 	"overflow",
 	"overflow-x",
 	"overflow-y",
