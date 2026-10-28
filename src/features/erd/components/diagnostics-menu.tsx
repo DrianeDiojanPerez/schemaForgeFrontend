@@ -144,22 +144,17 @@ export function DiagnosticsMenu({
 											<DropdownMenuRadioItem
 												key={item.id}
 												value={item.id}
-												className="items-start gap-3 px-2 py-2 *:data-[slot=dropdown-menu-radio-item-indicator]:top-2.5"
+												className="gap-3 px-2 py-1.5"
 											>
 												<span
 													className={cn(
-														"mt-px flex size-7 shrink-0 items-center justify-center rounded-md",
+														"flex size-7 shrink-0 items-center justify-center rounded-md",
 														tint,
 													)}
 												>
 													<Icon className="size-4 text-current! *:text-inherit!" />
 												</span>
-												<span className="flex min-w-0 flex-col gap-0.5">
-													<span className="text-sm font-medium">{item.label}</span>
-													<span className="text-xs leading-snug whitespace-normal text-muted-foreground!">
-														{item.detail}
-													</span>
-												</span>
+												<span className="font-medium">{item.label}</span>
 											</DropdownMenuRadioItem>
 										);
 									})}

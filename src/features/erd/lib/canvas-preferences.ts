@@ -56,10 +56,10 @@ export const SCHEMA_LIST_WIDTH = { min: 200, max: 560, start: 256 };
 export type ProblemsShown = "all" | "errors" | "none";
 
 export const PROBLEMS_SHOWN = [
-	{ id: "all", label: "Errors and warnings", detail: "Everything the backend finds" },
-	{ id: "errors", label: "Errors only", detail: "Only what would stop the SQL" },
-	{ id: "none", label: "Nothing", detail: "Keep checking, but mark nothing" },
-] as const satisfies readonly { id: ProblemsShown; label: string; detail: string }[];
+	{ id: "all", label: "Errors and warnings" },
+	{ id: "errors", label: "Errors only" },
+	{ id: "none", label: "Nothing" },
+] as const satisfies readonly { id: ProblemsShown; label: string }[];
 
 /** Filled is the card look. Outline keeps only the lines, in the text colour, over a clear ground. */
 export type TableStyle = "filled" | "outline";
