@@ -141,12 +141,13 @@ function ColumnTypeCombobox({
 				render={
 					<button
 						type="button"
+						data-export="compact"
 						className="nodrag nopan flex h-4 items-center gap-0.5 rounded-sm px-1 text-4xs text-muted-foreground transition hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
 					/>
 				}
 			>
 				{label}
-				<ChevronDownIcon className="size-2" />
+				<ChevronDownIcon data-export="chrome" className="size-2" />
 			</PopoverTrigger>
 			<PopoverContent align="end" className="w-48 gap-0 p-0">
 				<Command>
@@ -496,6 +497,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 								animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
 								exit={{ opacity: 0, scale: 0.7, filter: "blur(4px)" }}
 								transition={{ duration: 0.4, ease: "easeOut" }}
+								data-export="blank"
 								className="ml-auto flex shrink-0 origin-right"
 							>
 								<ProblemCount problems={problems} />
@@ -715,6 +717,7 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 
 				<button
 					type="button"
+					data-export="chrome"
 					className={cn(
 						"nodrag nopan flex items-center justify-center gap-1 rounded-b-lg border-t border-border py-1 text-4xs text-muted-foreground transition hover:bg-muted hover:text-foreground",
 						OUTLINE_SURFACE,

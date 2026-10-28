@@ -522,7 +522,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 						onEditDetails={openDetails}
 					/>
 					{problems.length > 0 && (
-						<span className="rounded-full bg-card shadow-sm">
+						<span data-export="chrome" className="rounded-full bg-card shadow-sm">
 							<ProblemCount problems={problems} align="center" />
 						</span>
 					)}

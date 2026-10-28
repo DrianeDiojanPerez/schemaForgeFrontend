@@ -68,6 +68,25 @@
 	--shadow-halo: 0 0 0 6px color-mix(in oklab, var(--color-primary) 20%, transparent);
 }
 
+/* While the canvas is being captured for a file, what is only there for
+   editing is taken out of the picture. A count in a table's header keeps its
+   room, since the lines end at the width the card was measured with. */
+[data-exporting] [data-export="chrome"] {
+	display: none;
+}
+
+[data-exporting] [data-export="blank"] {
+	visibility: hidden;
+}
+
+/* A type picker loses its chevron and takes that room on its other side, so
+   the type ends as far from the edge as the icons start from theirs and the
+   card is no narrower. */
+[data-exporting] [data-export="compact"] {
+	padding-left: 0.875rem;
+	padding-right: 0.25rem;
+}
+
 /* The dots the canvas is drawn on, at the two densities the app uses. */
 @utility bg-dots {
 	background-image: radial-gradient(var(--color-border) 0.5px, transparent 0.5px);
