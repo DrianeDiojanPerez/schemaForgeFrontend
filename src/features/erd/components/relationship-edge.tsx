@@ -201,6 +201,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	);
 	const relationshipType = data?.relationshipType ?? "one-to-many";
 	const problems = useElementProblems(id);
+	const failing = problems.some((problem) => problem.severity === "ERROR");
 
 	const sourceNode = useStore(useCallback((state) => state.nodeLookup.get(source), [source]));
 	const targetNode = useStore(useCallback((state) => state.nodeLookup.get(target), [target]));
@@ -279,6 +280,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	const targetBottom = targetTop + (targetNode?.measured.height ?? 0);
 
 	const { line, dash, labels } = useEdgeStyle();
+	const labelled = labels || problems.length > 0;
 
 	// Both ends stop short of the table. A "one" bar's marker carries the line
 	// on to the row, so that stretch is drawn once rather than twice; a crow's
@@ -506,26 +508,40 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 						transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
 					}}
 					className={cn(
-						"nodrag nopan absolute flex items-center gap-1 text-4xs",
-						labels || problems.length > 0 ? "pointer-events-auto" : "pointer-events-none",
+						"nodrag nopan absolute text-4xs",
+						labelled ? "pointer-events-auto" : "pointer-events-none",
 					)}
 				>
-					<EdgeBadge
-						id={id}
-						relationshipType={relationshipType}
-						name={data?.name}
-						selected={selected}
-						shown={labels}
-						open={menuOpen}
-						onOpenChange={changeMenuOpen}
-						anchor={menuAnchor}
-						onEditDetails={openDetails}
-					/>
-					{problems.length > 0 && (
-						<span data-export="chrome" className="rounded-full bg-card shadow-sm">
-							<ProblemCount problems={problems} align="center" />
-						</span>
-					)}
+					<span className="relative flex">
+						<EdgeBadge
+							id={id}
+							relationshipType={relationshipType}
+							name={data?.name}
+							selected={selected}
+							shown={labels}
+							open={menuOpen}
+							onOpenChange={changeMenuOpen}
+							anchor={menuAnchor}
+							onEditDetails={openDetails}
+						/>
+						{/* On its own the count stands where the badge would. With the
+								badge showing it hangs off the top corner, the way a count sits
+								on a table's header. */}
+						{problems.length > 0 && (
+							<span
+								data-export="chrome"
+								className={cn(
+									"rounded-full shadow-sm ring-1 backdrop-blur-sm",
+									failing
+										? "bg-destructive/15 ring-destructive/50"
+										: "bg-warning/8 ring-warning/35",
+									labels && "absolute -top-3 -right-3.5 origin-top-right scale-90",
+								)}
+							>
+								<ProblemCount problems={problems} align="center" />
+							</span>
+						)}
+					</span>
 				</div>
 
 				{editingDetails && (
