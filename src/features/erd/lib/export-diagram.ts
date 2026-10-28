@@ -176,7 +176,7 @@ export async function diagramSvg(flow: HTMLElement, bounds: Rect, zoom: number):
 		flow.removeAttribute("data-exporting");
 	}
 
-	const picture = withVariables(decodeURIComponent(url.slice(PREFIX.length)), flow);
+	const picture = plainTypes(withVariables(decodeURIComponent(url.slice(PREFIX.length)), flow));
 
 	return picture.replace(/^(<svg[^>]*>)/, `$1${backdrop(flow, shift, zoom)}`);
 }
@@ -233,4 +233,16 @@ function withVariables(svg: string, flow: HTMLElement): string {
 		.join("; ");
 
 	return svg.replace(/ style="/, ` style="${values}; `);
+}
+
+/**
+ * A type is drawn in the button that picks it, and a browser will not let
+ * anyone select what is written on a button. In the picture it is only
+ * writing, so the button becomes a span and the type can be copied out.
+ */
+export function plainTypes(svg: string): string {
+	return svg.replace(
+		/<button([^>]*data-export="compact"[^>]*)>([\s\S]*?)<\/button>/g,
+		"<span$1>$2</span>",
+	);
 }
