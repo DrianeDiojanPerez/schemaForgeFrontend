@@ -114,18 +114,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
 }
 `;
 
-// Clicking a table in the picture goes to its section. The picture keeps the
-// canvas's node wrappers, each carrying the id of the table it draws.
-const SCRIPT = `
-const names = NAMES;
-for (const node of document.querySelectorAll("#diagram [data-id]")) {
-  const name = names[node.dataset.id];
-  if (!name) continue;
-  node.style.cursor = "pointer";
-  node.addEventListener("click", () => { location.hash = name; });
-}
-`;
-
 /** The colour the picture was drawn on, so the screen round it matches. */
 function ground(svg: string): string | undefined {
 	return /<rect width="100%" height="100%" fill="([^"]+)"\/>/.exec(svg)?.[1];
@@ -134,12 +122,11 @@ function ground(svg: string): string | undefined {
 /**
  * A page that stands on its own: the diagram filling the first screen, then
  * every table with its columns, then the relationships, readable with
- * nothing but a browser. A click on a table in the picture goes to it.
+ * nothing but a browser.
  */
 export function diagramHtml({ name, description, nodes, edges, svg }: Report): string {
 	const tables = nodes.filter(isTableNode);
 	const title = escape(name);
-	const names = Object.fromEntries(tables.map((table) => [table.id, table.data.name]));
 	const base = ground(svg);
 
 	return `<!doctype html>
@@ -173,7 +160,6 @@ ${edges.map((edge) => relationshipRow(tables, edge)).join("\n")}
 		: ""
 }
 </main>
-<script>${SCRIPT.replace("NAMES", JSON.stringify(names))}</script>
 </body>
 </html>
 `;

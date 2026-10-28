@@ -2,7 +2,6 @@ import { expect, test } from "vitest";
 
 import { exampleSchema1 } from "@/features/erd/data/examples";
 import { diagramHtml } from "@/features/erd/lib/export-html";
-import { isTableNode } from "@/features/erd/lib/node-guards";
 
 const page = diagramHtml({
 	name: "blog <draft>",
@@ -35,16 +34,6 @@ test("a key column says which kind of key it is", () => {
 	expect(page).toMatch(
 		/<code>id<\/code><\/td>\n<td><code>uuid<\/code><\/td>\n<td>no<\/td>\n<td>primary<\/td>/,
 	);
-});
-
-test("a click on a table in the picture goes to its section", () => {
-	const names = Object.fromEntries(
-		exampleSchema1.nodes.filter(isTableNode).map((node) => [node.id, node.data.name]),
-	);
-
-	expect(page).toContain(`const names = ${JSON.stringify(names)};`);
-	expect(page).toContain('querySelectorAll("#diagram [data-id]")');
-	expect(page).toContain("location.hash = name");
 });
 
 test("the screen round the picture takes the picture's own colour", () => {
