@@ -33,7 +33,7 @@ import { toDiagram } from "../lib/schema-adapter";
 import { rememberViewport, savedViewport } from "../lib/viewport-store";
 import { HOTKEYS } from "../lib/hotkeys";
 import { setCanvasPreference, useCanvasPreferences } from "../lib/canvas-preferences";
-import type { SchemaGrouping, TableStyle } from "../lib/canvas-preferences";
+import type { ProblemsShown, SchemaGrouping, TableStyle } from "../lib/canvas-preferences";
 import type { BackgroundStyle } from "../lib/backgrounds";
 import type { EdgeDash, EdgeLine } from "../lib/edge-lines";
 import { DEFAULT_CONNECTOR_ARROW } from "../lib/connector-arrows";
@@ -42,6 +42,7 @@ import { downloadText, fileSlug } from "../lib/download";
 import { diagramSvg } from "../lib/export-diagram";
 import { diagramHtml } from "../lib/export-html";
 import { isTableNode } from "../lib/node-guards";
+import { keepShown, keepShownByElement } from "../lib/problems-shown";
 import { schemaBoxes as boxesFor, isSchemaBoxId } from "../lib/schema-groups";
 import { TOUR } from "../lib/tour";
 import type { ErdDiagram, ErdNode } from "../types/erd";
@@ -98,6 +99,7 @@ const EDGE_DEFAULTS = { type: "relationship", animated: true };
 const setBackground = (next: BackgroundStyle) => setCanvasPreference("background", next);
 const setTableStyle = (next: TableStyle) => setCanvasPreference("tableStyle", next);
 const setAutoSave = (next: boolean) => setCanvasPreference("autoSave", next);
+const setProblemsShown = (next: ProblemsShown) => setCanvasPreference("problemsShown", next);
 const setToolbarHides = (next: boolean) => setCanvasPreference("toolbarHides", next);
 const setEdgeLine = (next: EdgeLine) => setCanvasPreference("edgeLine", next);
 const setEdgeDash = (next: EdgeDash) => setCanvasPreference("edgeDash", next);
@@ -213,6 +215,7 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 		edgeLabels,
 		autoSave,
 		autoValidate: validateWanted,
+		problemsShown,
 		toolbarHides,
 		sqlPositions,
 	} = useCanvasPreferences();
@@ -601,7 +604,7 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 		document.addEventListener("pointerup", release, true);
 	}, []);
 
-	const { diagnostics, checked, dismissDiagnostics } = sync;
+	const { diagnostics, checked } = sync;
 	const generate = useCallback(() => void latest.current.generate(), []);
 	const prefetchSql = useCallback(() => latest.current.prefetch(), []);
 	const exportSql = useCallback(() => void latest.current.generate({ download: true }), []);
@@ -732,12 +735,25 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 
 	// Held back on a fresh load until the loader is gone, since coming in
 	// while the page is still busy loading it arrives in a jump.
+	const shownDiagnostics = useMemo(
+		() => keepShown(diagnostics, problemsShown),
+		[diagnostics, problemsShown],
+	);
+	const shownProblems = useMemo(
+		() => keepShownByElement(sync.problems, problemsShown),
+		[sync.problems, problemsShown],
+	);
 	const problemsMenu = useMemo(
 		() =>
 			autoValidate && loading === "gone"
-				? { diagnostics, checked, onDismiss: dismissDiagnostics }
+				? {
+						diagnostics: shownDiagnostics,
+						checked,
+						shown: problemsShown,
+						onShownChange: setProblemsShown,
+					}
 				: undefined,
-		[autoValidate, loading, diagnostics, checked, dismissDiagnostics],
+		[autoValidate, loading, shownDiagnostics, checked, problemsShown],
 	);
 
 	const addTableAtCentre = useCallback(() => {
@@ -887,7 +903,7 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 	);
 
 	return (
-		<ProblemsProvider value={sync.problems}>
+		<ProblemsProvider value={shownProblems}>
 			<ConnectorArrowProvider value={connectorArrow}>
 				<EdgeLineProvider value={edgeStyle}>
 					<GraphActionsProvider value={actions}>

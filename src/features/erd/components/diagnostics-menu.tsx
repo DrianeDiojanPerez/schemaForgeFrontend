@@ -1,4 +1,11 @@
-import { BugIcon, CircleCheckIcon, EraserIcon } from "lucide-react";
+import {
+	BugIcon,
+	CircleAlertIcon,
+	CircleCheckIcon,
+	EyeIcon,
+	EyeOffIcon,
+	TriangleAlertIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -6,7 +13,13 @@ import {
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,13 +27,17 @@ import type { Diagnostic } from "@/features/schema/types/schema";
 import { cn } from "@/lib/utils";
 
 import { useReveal } from "../hooks/use-reveal";
+import { PROBLEMS_SHOWN } from "../lib/canvas-preferences";
+import type { ProblemsShown } from "../lib/canvas-preferences";
 import { ProblemMark, ProblemMessage, problemTitle } from "./problem-text";
 
 export type DiagnosticsMenuProps = {
 	diagnostics: Diagnostic[];
-	onDismiss: () => void;
 	/** Whether an answer has come back, which is what gives the bug a colour. */
 	checked: boolean;
+	/** Which findings are marked and listed. Chosen from the menu itself. */
+	shown: ProblemsShown;
+	onShownChange: (shown: ProblemsShown) => void;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	/** For the button, so it matches the bar it sits in. */
@@ -30,6 +47,14 @@ export type DiagnosticsMenuProps = {
 function plural(count: number, word: string) {
 	return `${count} ${count === 1 ? word : `${word}s`}`;
 }
+
+const SHORT: Record<ProblemsShown, string> = { all: "All", errors: "Errors", none: "Hidden" };
+
+const TILE: Record<ProblemsShown, { icon: typeof EyeIcon; tint: string }> = {
+	all: { icon: TriangleAlertIcon, tint: "bg-warning/10 text-warning!" },
+	errors: { icon: CircleAlertIcon, tint: "bg-destructive/10 text-destructive!" },
+	none: { icon: EyeOffIcon, tint: "bg-foreground/8 text-muted-foreground!" },
+};
 
 function summary(errors: number, warnings: number) {
 	if (errors === 0 && warnings === 0) return "No problems";
@@ -41,8 +66,9 @@ function summary(errors: number, warnings: number) {
 
 export function DiagnosticsMenu({
 	diagnostics,
-	onDismiss,
 	checked,
+	shown,
+	onShownChange,
 	open,
 	onOpenChange,
 	className,
@@ -52,7 +78,12 @@ export function DiagnosticsMenu({
 	const errors = diagnostics.filter((item) => item.severity === "ERROR");
 	const warnings = diagnostics.filter((item) => item.severity === "WARNING");
 
-	const label = checked ? summary(errors.length, warnings.length) : "Checking";
+	const hidden = shown === "none";
+	const label = hidden
+		? "Problems hidden"
+		: checked
+			? summary(errors.length, warnings.length)
+			: "Checking";
 
 	return (
 		<DropdownMenu open={open} onOpenChange={onOpenChange}>
@@ -65,7 +96,7 @@ export function DiagnosticsMenu({
 				<BugIcon
 					className={cn(
 						"size-5 transition-colors duration-500",
-						!checked
+						hidden || !checked
 							? "text-current"
 							: errors.length > 0
 								? "text-destructive"
@@ -93,20 +124,59 @@ export function DiagnosticsMenu({
 								</span>
 							)}
 						</span>
-						{diagnostics.length > 0 && (
-							<DropdownMenuItem onClick={onDismiss} className="h-7 px-2">
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger className="h-7">
 								<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-									<EraserIcon className="size-3.5" />
-									Clear
+									{hidden ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
+									{SHORT[shown]}
 								</span>
-							</DropdownMenuItem>
-						)}
+							</DropdownMenuSubTrigger>
+							<DropdownMenuSubContent className="w-72 p-1">
+								<DropdownMenuLabel>Show on the canvas</DropdownMenuLabel>
+								<DropdownMenuRadioGroup
+									value={shown}
+									onValueChange={(next) => onShownChange(next as ProblemsShown)}
+								>
+									{PROBLEMS_SHOWN.map((item) => {
+										const { icon: Icon, tint } = TILE[item.id];
+
+										return (
+											<DropdownMenuRadioItem
+												key={item.id}
+												value={item.id}
+												className="items-start gap-3 px-2 py-2 *:data-[slot=dropdown-menu-radio-item-indicator]:top-2.5"
+											>
+												<span
+													className={cn(
+														"mt-px flex size-7 shrink-0 items-center justify-center rounded-md",
+														tint,
+													)}
+												>
+													<Icon className="size-4 text-current! *:text-inherit!" />
+												</span>
+												<span className="flex min-w-0 flex-col gap-0.5">
+													<span className="text-sm font-medium">{item.label}</span>
+													<span className="text-xs leading-snug whitespace-normal text-muted-foreground!">
+														{item.detail}
+													</span>
+												</span>
+											</DropdownMenuRadioItem>
+										);
+									})}
+								</DropdownMenuRadioGroup>
+							</DropdownMenuSubContent>
+						</DropdownMenuSub>
 					</div>
 				</DropdownMenuGroup>
 
 				<DropdownMenuSeparator className="my-0" />
 
-				{diagnostics.length === 0 ? (
+				{hidden ? (
+					<p className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
+						<EyeOffIcon className="size-4" />
+						Nothing is marked. Choose what to show above.
+					</p>
+				) : diagnostics.length === 0 ? (
 					<p className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
 						<CircleCheckIcon className="size-4 text-primary" />
 						Nothing to fix.

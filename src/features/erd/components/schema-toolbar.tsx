@@ -54,7 +54,7 @@ export type SchemaToolbarProps = {
 	/** Lets the bar drop out of the way between uses. Off, it stays put. */
 	hides?: boolean;
 	/** Left out while there is nothing to show. */
-	diagnostics?: Pick<DiagnosticsMenuProps, "diagnostics" | "checked" | "onDismiss">;
+	diagnostics?: Pick<DiagnosticsMenuProps, "diagnostics" | "checked" | "shown" | "onShownChange">;
 };
 
 /** Astro's HOVER_DELAY, the wait before the bar drops back. */
