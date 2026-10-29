@@ -42,7 +42,7 @@ import { downloadText, fileSlug } from "../lib/download";
 import { diagramSvg } from "../lib/export-diagram";
 import { diagramHtml } from "../lib/export-html";
 import { isTableNode } from "../lib/node-guards";
-import { keepShown, keepShownByElement } from "../lib/problems-shown";
+import { keepShownByElement } from "../lib/problems-shown";
 import { schemaBoxes as boxesFor, isSchemaBoxId } from "../lib/schema-groups";
 import { TOUR } from "../lib/tour";
 import type { ErdDiagram, ErdNode } from "../types/erd";
@@ -735,10 +735,6 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 
 	// Held back on a fresh load until the loader is gone, since coming in
 	// while the page is still busy loading it arrives in a jump.
-	const shownDiagnostics = useMemo(
-		() => keepShown(diagnostics, problemsShown),
-		[diagnostics, problemsShown],
-	);
 	const shownProblems = useMemo(
 		() => keepShownByElement(sync.problems, problemsShown),
 		[sync.problems, problemsShown],
@@ -747,13 +743,13 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 		() =>
 			autoValidate && loading === "gone"
 				? {
-						diagnostics: shownDiagnostics,
+						diagnostics,
 						checked,
 						shown: problemsShown,
 						onShownChange: setProblemsShown,
 					}
 				: undefined,
-		[autoValidate, loading, shownDiagnostics, checked, problemsShown],
+		[autoValidate, loading, diagnostics, checked, problemsShown],
 	);
 
 	const addTableAtCentre = useCallback(() => {

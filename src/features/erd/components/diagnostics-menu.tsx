@@ -6,6 +6,7 @@ import {
 	EyeOffIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,6 @@ import {
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
-	DropdownMenuLabel,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
@@ -22,6 +22,13 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Diagnostic } from "@/features/schema/types/schema";
 import { cn } from "@/lib/utils";
@@ -35,7 +42,7 @@ export type DiagnosticsMenuProps = {
 	diagnostics: Diagnostic[];
 	/** Whether an answer has come back, which is what gives the bug a colour. */
 	checked: boolean;
-	/** Which findings are marked and listed. Chosen from the menu itself. */
+	/** Which findings are marked on the canvas. Chosen from the menu itself. */
 	shown: ProblemsShown;
 	onShownChange: (shown: ProblemsShown) => void;
 	open: boolean;
@@ -75,10 +82,13 @@ export function DiagnosticsMenu({
 }: DiagnosticsMenuProps) {
 	const { goToProblem } = useReveal();
 
-	const errors = diagnostics.filter((item) => item.severity === "ERROR");
-	const warnings = diagnostics.filter((item) => item.severity === "WARNING");
-
 	const hidden = shown === "none";
+	const errors = hidden ? [] : diagnostics.filter((item) => item.severity === "ERROR");
+	const warnings =
+		hidden || shown === "errors" ? [] : diagnostics.filter((item) => item.severity === "WARNING");
+	const listed = [...errors, ...warnings];
+	const unlisted = diagnostics.length - listed.length;
+
 	const label = hidden
 		? "Problems hidden"
 		: checked
@@ -95,7 +105,7 @@ export function DiagnosticsMenu({
 			>
 				<BugIcon
 					className={cn(
-						"size-5 transition-colors duration-500",
+						"size-5 transition-colors duration-300",
 						hidden || !checked
 							? "text-current"
 							: errors.length > 0
@@ -118,21 +128,47 @@ export function DiagnosticsMenu({
 						<span className="flex items-center gap-1.5 text-xs font-medium">
 							<BugIcon className="size-3.5" />
 							Diagnostics
-							{diagnostics.length > 0 && (
-								<span className="rounded-full bg-muted px-1.5 text-2xs leading-4 text-muted-foreground tabular-nums">
-									{diagnostics.length}
-								</span>
-							)}
+							<AnimatePresence mode="wait" initial={false}>
+								{listed.length > 0 && (
+									<motion.span
+										key={listed.length}
+										initial={{ opacity: 0, scale: 0.6 }}
+										animate={{ opacity: 1, scale: 1 }}
+										exit={{ opacity: 0, scale: 0.6 }}
+										transition={{ duration: 0.175 }}
+										className="rounded-full bg-muted px-1.5 text-2xs leading-4 text-muted-foreground tabular-nums"
+									>
+										{listed.length}
+									</motion.span>
+								)}
+							</AnimatePresence>
 						</span>
 						<DropdownMenuSub>
 							<DropdownMenuSubTrigger className="h-7">
-								<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-									{hidden ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
-									{SHORT[shown]}
-								</span>
+								<AnimatePresence mode="wait" initial={false}>
+									<motion.span
+										key={shown}
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										transition={{ duration: 0.175 }}
+										className="flex items-center gap-1.5 text-xs text-muted-foreground"
+									>
+										{hidden ? (
+											<EyeOffIcon className="size-3.5" />
+										) : (
+											<EyeIcon className="size-3.5" />
+										)}
+										{SHORT[shown]}
+									</motion.span>
+								</AnimatePresence>
 							</DropdownMenuSubTrigger>
-							<DropdownMenuSubContent className="w-72 p-1">
-								<DropdownMenuLabel>Show on the canvas</DropdownMenuLabel>
+							<DropdownMenuSubContent
+								align="end"
+								alignOffset={0}
+								sideOffset={4}
+								className="w-72 p-1"
+							>
 								<DropdownMenuRadioGroup
 									value={shown}
 									onValueChange={(next) => onShownChange(next as ProblemsShown)}
@@ -144,17 +180,22 @@ export function DiagnosticsMenu({
 											<DropdownMenuRadioItem
 												key={item.id}
 												value={item.id}
-												className="gap-3 px-2 py-1.5"
+												className="items-start gap-3 px-2 py-2 *:data-[slot=dropdown-menu-radio-item-indicator]:top-2.5"
 											>
 												<span
 													className={cn(
-														"flex size-7 shrink-0 items-center justify-center rounded-md",
+														"mt-px flex size-7 shrink-0 items-center justify-center rounded-md",
 														tint,
 													)}
 												>
 													<Icon className="size-4 text-current! *:text-inherit!" />
 												</span>
-												<span className="font-medium">{item.label}</span>
+												<span className="flex min-w-0 flex-col gap-0.5">
+													<span className="text-sm font-medium">{item.label}</span>
+													<span className="text-xs leading-snug whitespace-normal text-muted-foreground!">
+														{item.detail}
+													</span>
+												</span>
 											</DropdownMenuRadioItem>
 										);
 									})}
@@ -166,41 +207,67 @@ export function DiagnosticsMenu({
 
 				<DropdownMenuSeparator className="my-0" />
 
-				{hidden ? (
-					<p className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-						<EyeOffIcon className="size-4" />
-						Nothing is marked. Choose what to show above.
-					</p>
-				) : diagnostics.length === 0 ? (
-					<p className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-						<CircleCheckIcon className="size-4 text-primary" />
-						Nothing to fix.
-					</p>
-				) : (
-					// The cap goes on the viewport itself. A percentage height has
-					// nothing to resolve against in a popup sized by its contents.
-					<ScrollArea className="*:data-[slot=scroll-area-viewport]:max-h-72">
-						<DropdownMenuGroup className="p-1">
-							{[...errors, ...warnings].map((diagnostic, index) => (
-								<DropdownMenuItem
-									key={`${diagnostic.code}-${index}`}
-									onClick={() => void goToProblem(diagnostic)}
-									className="items-start gap-3 px-2.5 py-2.5"
-								>
-									<ProblemMark severity={diagnostic.severity} />
-									<span className="flex min-w-0 flex-1 flex-col gap-1">
-										<span className="text-sm font-medium text-foreground!">
-											{problemTitle(diagnostic.code)}
-										</span>
-										<span className="text-xs leading-relaxed whitespace-normal text-muted-foreground!">
-											<ProblemMessage text={diagnostic.message} />
-										</span>
-									</span>
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuGroup>
-					</ScrollArea>
-				)}
+				<AnimatePresence mode="wait" initial={false}>
+					<motion.div
+						key={listed.length === 0 ? `empty-${shown}` : "list"}
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.175 }}
+					>
+						{listed.length === 0 ? (
+							<Empty size="sm" className="h-72">
+								<EmptyHeader>
+									<EmptyMedia
+										variant="icon"
+										className={cn(
+											"rounded-full",
+											hidden
+												? "bg-foreground/8 text-muted-foreground"
+												: "bg-primary/10 text-primary",
+										)}
+									>
+										{hidden ? <EyeOffIcon /> : <CircleCheckIcon />}
+									</EmptyMedia>
+									<EmptyTitle>
+										{hidden ? "Nothing shown" : unlisted > 0 ? "No errors" : "Nothing to fix"}
+									</EmptyTitle>
+									<EmptyDescription>
+										{unlisted === 0
+											? "Every table and line passed the check."
+											: hidden
+												? `${plural(unlisted, "finding")} kept out of sight by the choice above.`
+												: `${plural(unlisted, "warning")} not listed while only errors are shown.`}
+									</EmptyDescription>
+								</EmptyHeader>
+							</Empty>
+						) : (
+							// The height goes on the viewport itself. A percentage height has
+							// nothing to resolve against in a popup sized by its contents.
+							<ScrollArea className="*:data-[slot=scroll-area-viewport]:h-72">
+								<DropdownMenuGroup className="p-1">
+									{listed.map((diagnostic, index) => (
+										<DropdownMenuItem
+											key={`${diagnostic.code}-${index}`}
+											onClick={() => void goToProblem(diagnostic)}
+											className="items-start gap-3 px-2.5 py-2.5"
+										>
+											<ProblemMark severity={diagnostic.severity} />
+											<span className="flex min-w-0 flex-1 flex-col gap-1">
+												<span className="text-sm font-medium text-foreground!">
+													{problemTitle(diagnostic.code)}
+												</span>
+												<span className="text-xs leading-relaxed whitespace-normal text-muted-foreground!">
+													<ProblemMessage text={diagnostic.message} />
+												</span>
+											</span>
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuGroup>
+							</ScrollArea>
+						)}
+					</motion.div>
+				</AnimatePresence>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
