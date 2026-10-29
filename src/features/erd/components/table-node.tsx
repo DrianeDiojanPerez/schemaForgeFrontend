@@ -493,10 +493,10 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 						{problems.length > 0 && (
 							<motion.div
 								key="problems"
-								initial={{ opacity: 0, scale: 0.7, filter: "blur(4px)" }}
-								animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-								exit={{ opacity: 0, scale: 0.7, filter: "blur(4px)" }}
-								transition={{ duration: 0.4, ease: "easeOut" }}
+								initial={{ opacity: 0, scale: 0.6 }}
+								animate={{ opacity: 1, scale: 1 }}
+								exit={{ opacity: 0, scale: 0.6 }}
+								transition={{ duration: 0.3, ease: "easeInOut" }}
 								data-export="blank"
 								className="ml-auto flex shrink-0 origin-right"
 							>

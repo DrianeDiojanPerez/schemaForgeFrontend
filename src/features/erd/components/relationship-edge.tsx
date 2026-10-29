@@ -3,6 +3,7 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { EdgeLabelRenderer, Position, useReactFlow, useStore } from "@xyflow/react";
 import type { EdgeProps } from "@xyflow/react";
 import { FileTextIcon, Trash2Icon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import {
 	DropdownMenu,
@@ -527,20 +528,27 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 						{/* On its own the count stands where the badge would. With the
 								badge showing it hangs off the top corner, the way a count sits
 								on a table's header. */}
-						{problems.length > 0 && (
-							<span
-								data-export="chrome"
-								className={cn(
-									"rounded-full shadow-sm ring-1 backdrop-blur-sm",
-									failing
-										? "bg-destructive/15 ring-destructive/50"
-										: "bg-warning/8 ring-warning/35",
-									labels && "absolute -top-3 -right-3.5 origin-top-right scale-90",
-								)}
-							>
-								<ProblemCount problems={problems} align="center" />
-							</span>
-						)}
+						<AnimatePresence>
+							{problems.length > 0 && (
+								<motion.span
+									key="problems"
+									initial={{ opacity: 0, scale: 0.6 }}
+									animate={{ opacity: 1, scale: 1 }}
+									exit={{ opacity: 0, scale: 0.6 }}
+									transition={{ duration: 0.3, ease: "easeInOut" }}
+									data-export="chrome"
+									className={cn(
+										"rounded-full shadow-sm ring-1 backdrop-blur-sm",
+										failing
+											? "bg-destructive/15 ring-destructive/50"
+											: "bg-warning/8 ring-warning/35",
+										labels && "absolute -top-3 -right-3.5 origin-top-right scale-90",
+									)}
+								>
+									<ProblemCount problems={problems} align="center" />
+								</motion.span>
+							)}
+						</AnimatePresence>
 					</span>
 				</div>
 
