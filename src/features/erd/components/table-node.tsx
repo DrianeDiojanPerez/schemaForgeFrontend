@@ -7,7 +7,6 @@ import type * as React from "react";
 import {
 	ChevronDownIcon,
 	Circle,
-	CircleSlash2,
 	CopyIcon,
 	Database,
 	FileTextIcon,
@@ -20,6 +19,7 @@ import {
 	PlusIcon,
 	Table2,
 	Trash2Icon,
+	createLucideIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -187,6 +187,11 @@ type ColumnFlag = {
 	onClick?: () => void;
 };
 
+const NullableIcon = createLucideIcon("Nullable", [
+	["circle", { cx: "12", cy: "12", r: "10", key: "ring" }],
+	["path", { d: "M19.07 4.93 4.93 19.07", key: "slash" }],
+]);
+
 const columnFlags = (column: TableColumn, toggleNullable: () => void): ColumnFlag[] => {
 	const flags: ColumnFlag[] = [];
 
@@ -212,7 +217,7 @@ const columnFlags = (column: TableColumn, toggleNullable: () => void): ColumnFla
 		flags.push({
 			key: "nullable",
 			label: "Nullable",
-			icon: CircleSlash2,
+			icon: NullableIcon,
 			className: "text-muted-foreground",
 			onClick: toggleNullable,
 		});
