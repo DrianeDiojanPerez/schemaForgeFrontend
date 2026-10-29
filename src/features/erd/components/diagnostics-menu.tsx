@@ -2,7 +2,6 @@ import {
 	BugIcon,
 	CircleAlertIcon,
 	CircleCheckIcon,
-	EyeIcon,
 	EyeOffIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
@@ -63,6 +62,34 @@ const TILE: Record<ProblemsShown, { icon: typeof BugIcon; tint: string }> = {
 	errors: { icon: CircleAlertIcon, tint: "bg-destructive/10 text-destructive!" },
 	none: { icon: EyeOffIcon, tint: "bg-foreground/8 text-muted-foreground!" },
 };
+
+/** One eye that keeps its place. The slash draws across it instead of swapping icons. */
+function SlashedEye({ slashed, className }: { slashed: boolean; className?: string }) {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth={2}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+			className={className}
+		>
+			<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+			<circle cx="12" cy="12" r="3" />
+			<motion.line
+				x1="2"
+				y1="2"
+				x2="22"
+				y2="22"
+				initial={false}
+				animate={{ pathLength: slashed ? 1 : 0, opacity: slashed ? 1 : 0 }}
+				transition={{ duration: 0.35, ease: "easeInOut" }}
+			/>
+		</svg>
+	);
+}
 
 function summary(errors: number, warnings: number) {
 	if (errors === 0 && warnings === 0) return "No problems";
@@ -147,22 +174,7 @@ export function DiagnosticsMenu({
 						<DropdownMenuSub>
 							<DropdownMenuSubTrigger className="h-7">
 								<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-									<AnimatePresence mode="wait" initial={false}>
-										<motion.span
-											key={hidden ? "off" : "on"}
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.175 }}
-											className="flex"
-										>
-											{hidden ? (
-												<EyeOffIcon className="size-3.5" />
-											) : (
-												<EyeIcon className="size-3.5" />
-											)}
-										</motion.span>
-									</AnimatePresence>
+									<SlashedEye slashed={hidden} className="size-3.5" />
 									<TextMorph duration={350}>{SHORT[shown]}</TextMorph>
 								</span>
 							</DropdownMenuSubTrigger>
