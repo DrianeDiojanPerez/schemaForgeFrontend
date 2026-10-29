@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type * as React from "react";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { BackgroundVariant, useStore, useStoreApi, useReactFlow } from "@xyflow/react";
 import { Alpha, hexToHsva, hsvaToHexa, ShadeSlider, Wheel } from "@uiw/react-color";
 import type { HsvaColor } from "@uiw/react-color";
@@ -37,6 +37,7 @@ import { OptionTile } from "@/components/ui/option-tile";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -664,9 +665,7 @@ function AccountPanel() {
 		window.location.assign("/login");
 	};
 
-	if (!me) {
-		return <p className="py-4 text-sm text-muted-foreground">Loading your account</p>;
-	}
+	if (!me) return <AccountSkeleton />;
 
 	const leaveButton = (
 		<Button variant="outline" size="sm" disabled={leaving} onClick={() => void leave()}>
@@ -740,20 +739,26 @@ const COVER_CLASSES =
 
 const coverColor = (color: string | null) => color ?? "var(--color-muted)";
 
-function BannerHeader({ me, leaveButton }: AccountView) {
+function CoverBand() {
 	const cover = useCover();
 
 	return (
+		<div
+			data-cover={cover.pattern}
+			style={{ "--cover": coverColor(cover.color) } as React.CSSProperties}
+			className={cn("relative h-20", COVER_CLASSES)}
+		>
+			<span className="absolute top-2 right-2">
+				<CoverPicker value={cover} />
+			</span>
+		</div>
+	);
+}
+
+function BannerHeader({ me, leaveButton }: AccountView) {
+	return (
 		<div className="overflow-hidden rounded-lg border border-border">
-			<div
-				data-cover={cover.pattern}
-				style={{ "--cover": coverColor(cover.color) } as React.CSSProperties}
-				className={cn("relative h-20", COVER_CLASSES)}
-			>
-				<span className="absolute top-2 right-2">
-					<CoverPicker value={cover} />
-				</span>
-			</div>
+			<CoverBand />
 			<div className="flex items-end gap-4 px-4 pb-4">
 				<span className="-mt-8 flex rounded-full ring-4 ring-background">
 					<Avatar className="size-16">
@@ -1031,6 +1036,67 @@ function PermissionTabs({ permissions }: PermissionViewProps) {
 	);
 }
 
+const SKELETON_ROWS = [0, 1];
+const SKELETON_COLUMNS = [0, 1, 2, 3];
+
+// The account laid out as it will be, with the cover already painted since
+// it is kept on this device, so nothing moves when the answer arrives.
+function AccountSkeleton() {
+	return (
+		<div aria-busy aria-label="Loading your account" className="flex min-w-0 flex-col gap-6 py-4">
+			<div className="overflow-hidden rounded-lg border border-border">
+				<CoverBand />
+				<div className="flex items-end gap-4 px-4 pb-4">
+					<span className="-mt-8 flex rounded-full ring-4 ring-background">
+						<Skeleton className="size-16 rounded-full" />
+					</span>
+					<div className="flex min-w-0 flex-1 flex-col pt-2">
+						<span className="flex h-6 items-center gap-2">
+							<Skeleton className="h-4 w-28" />
+							<Skeleton className="h-5 w-24 rounded-4xl" />
+						</span>
+						<span className="flex h-5 items-center">
+							<Skeleton className="h-3.5 w-48" />
+						</span>
+						<span className="flex h-5 items-end">
+							<Skeleton className="h-3 w-36" />
+						</span>
+					</div>
+					<Skeleton className="h-8 w-24" />
+				</div>
+			</div>
+			<section className="flex min-w-0 flex-col gap-2">
+				<h3 className="text-sm font-medium">Permissions</h3>
+				<Skeleton className="h-9 w-full max-w-lg" />
+				<div className="w-full max-w-lg overflow-hidden rounded-lg border border-border">
+					<div className={cn("flex", HEAD_RULE)}>
+						<span className="flex h-10 w-44 shrink-0 items-center border-r border-border px-2">
+							<Skeleton className="h-3.5 w-16" />
+						</span>
+						{SKELETON_COLUMNS.map((column) => (
+							<span key={column} className="flex h-10 flex-1 items-center justify-center px-2">
+								<Skeleton className="h-3.5 w-12" />
+							</span>
+						))}
+					</div>
+					{SKELETON_ROWS.map((row) => (
+						<div key={row} className="flex">
+							<span className="flex h-9 w-44 shrink-0 items-center border-r border-border px-2">
+								<Skeleton className={cn("h-3.5", row === 0 ? "w-28" : "w-16")} />
+							</span>
+							{SKELETON_COLUMNS.map((column) => (
+								<span key={column} className="flex h-9 flex-1 items-center justify-center">
+									<Skeleton className="size-2.5 rounded-full" />
+								</span>
+							))}
+						</div>
+					))}
+				</div>
+			</section>
+		</div>
+	);
+}
+
 function AccountCustom({ me, leaveButton }: AccountView) {
 	return (
 		<div className="flex min-w-0 flex-col gap-6">
@@ -1130,6 +1196,13 @@ export const CanvasSettings = memo(function CanvasSettings({
 	const { zoomIn, zoomOut, zoomTo, fitView } = useReactFlow();
 	const store = useStoreApi();
 	const theme = useTheme();
+	const queryClient = useQueryClient();
+
+	// Asked for ahead of the click, so the account is there when the dialog
+	// opens on it.
+	useEffect(() => {
+		void queryClient.prefetchQuery(accountQueries.me());
+	}, [queryClient]);
 	const toastPosition = useToastPosition();
 	const [tab, setTab] = useState<TabId>(TABS[0].id);
 
