@@ -7,6 +7,7 @@ import {
 	TriangleAlertIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { TextMorph } from "torph/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -57,7 +58,7 @@ function plural(count: number, word: string) {
 
 const SHORT: Record<ProblemsShown, string> = { all: "All", errors: "Errors", none: "Hidden" };
 
-const TILE: Record<ProblemsShown, { icon: typeof EyeIcon; tint: string }> = {
+const TILE: Record<ProblemsShown, { icon: typeof BugIcon; tint: string }> = {
 	all: { icon: TriangleAlertIcon, tint: "bg-warning/10 text-warning!" },
 	errors: { icon: CircleAlertIcon, tint: "bg-destructive/10 text-destructive!" },
 	none: { icon: EyeOffIcon, tint: "bg-foreground/8 text-muted-foreground!" },
@@ -128,40 +129,42 @@ export function DiagnosticsMenu({
 						<span className="flex items-center gap-1.5 text-xs font-medium">
 							<BugIcon className="size-3.5" />
 							Diagnostics
-							<AnimatePresence mode="wait" initial={false}>
+							<AnimatePresence initial={false}>
 								{listed.length > 0 && (
 									<motion.span
-										key={listed.length}
+										key="count"
 										initial={{ opacity: 0, scale: 0.6 }}
 										animate={{ opacity: 1, scale: 1 }}
 										exit={{ opacity: 0, scale: 0.6 }}
 										transition={{ duration: 0.175 }}
 										className="rounded-full bg-muted px-1.5 text-2xs leading-4 text-muted-foreground tabular-nums"
 									>
-										{listed.length}
+										<TextMorph duration={350}>{listed.length}</TextMorph>
 									</motion.span>
 								)}
 							</AnimatePresence>
 						</span>
 						<DropdownMenuSub>
 							<DropdownMenuSubTrigger className="h-7">
-								<AnimatePresence mode="wait" initial={false}>
-									<motion.span
-										key={shown}
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.175 }}
-										className="flex items-center gap-1.5 text-xs text-muted-foreground"
-									>
-										{hidden ? (
-											<EyeOffIcon className="size-3.5" />
-										) : (
-											<EyeIcon className="size-3.5" />
-										)}
-										{SHORT[shown]}
-									</motion.span>
-								</AnimatePresence>
+								<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+									<AnimatePresence mode="wait" initial={false}>
+										<motion.span
+											key={hidden ? "off" : "on"}
+											initial={{ opacity: 0 }}
+											animate={{ opacity: 1 }}
+											exit={{ opacity: 0 }}
+											transition={{ duration: 0.175 }}
+											className="flex"
+										>
+											{hidden ? (
+												<EyeOffIcon className="size-3.5" />
+											) : (
+												<EyeIcon className="size-3.5" />
+											)}
+										</motion.span>
+									</AnimatePresence>
+									<TextMorph duration={350}>{SHORT[shown]}</TextMorph>
+								</span>
 							</DropdownMenuSubTrigger>
 							<DropdownMenuSubContent
 								align="end"
