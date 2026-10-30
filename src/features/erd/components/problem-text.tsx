@@ -101,9 +101,12 @@ function plural(count: number) {
 export function ProblemCount({
 	problems,
 	align = "end",
+	iconOnly = false,
 }: {
 	problems: Diagnostic[];
 	align?: React.ComponentProps<typeof PopoverContent>["align"];
+	/** Only the icon, for where there is no room for the number. */
+	iconOnly?: boolean;
 }) {
 	const failing = problems.some((problem) => problem.severity === "ERROR");
 	const Icon = failing ? CircleAlertIcon : TriangleAlertIcon;
@@ -120,7 +123,8 @@ export function ProblemCount({
 					<button
 						type="button"
 						className={cn(
-							"nodrag flex h-4 shrink-0 items-center gap-0.5 rounded-full pr-1.5 pl-1 tabular-nums transition-colors",
+							"nodrag flex h-4 shrink-0 items-center gap-0.5 rounded-full tabular-nums transition-colors",
+							iconOnly ? "w-4 justify-center" : "pr-1.5 pl-1",
 							failing
 								? "text-destructive hover:bg-destructive/10 data-popup-open:bg-destructive/10"
 								: "text-warning hover:bg-warning/10 data-popup-open:bg-warning/10",
@@ -129,7 +133,7 @@ export function ProblemCount({
 				}
 			>
 				<Icon strokeWidth={2} size={10} />
-				{problems.length}
+				{!iconOnly && problems.length}
 			</PopoverTrigger>
 
 			<PopoverContent align={align} sideOffset={6} className="w-80 gap-0 p-0">

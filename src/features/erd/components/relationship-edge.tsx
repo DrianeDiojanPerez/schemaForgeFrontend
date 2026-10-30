@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { useHeldSides } from "../hooks/use-held-sides";
+import { EASE_IN_OUT, EASE_OUT_EXPO } from "../lib/eases";
 import { edgeDash, planRoute, END_GAP } from "../lib/edge-lines";
 import type { Side } from "../lib/edge-lines";
 import type { ErdEdge, RelationshipType } from "../types/erd";
@@ -107,9 +108,9 @@ const EdgeBadge = memo(function EdgeBadge({
 						type="button"
 						style={{ "--stroke": relationship.stroke } as React.CSSProperties}
 						className={cn(
-							"cursor-pointer rounded border border-(--stroke) bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-all hover:bg-muted hover:shadow-md",
+							"cursor-pointer rounded border border-(--stroke) bg-card px-1.5 py-0.5 leading-none font-semibold shadow-sm transition-[background-color,box-shadow] hover:bg-muted hover:shadow-md",
 							relationship.text,
-							selected && "ring-1 ring-primary ring-offset-1",
+							selected && "bg-muted shadow-(--stroke)/25 shadow-[0_0_0_3px]",
 							!shown && "invisible size-0 overflow-hidden border-0 p-0",
 						)}
 					/>
@@ -513,43 +514,81 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 						labelled ? "pointer-events-auto" : "pointer-events-none",
 					)}
 				>
-					<span className="relative flex">
-						<EdgeBadge
-							id={id}
-							relationshipType={relationshipType}
-							name={data?.name}
-							selected={selected}
-							shown={labels}
-							open={menuOpen}
-							onOpenChange={changeMenuOpen}
-							anchor={menuAnchor}
-							onEditDetails={openDetails}
-						/>
-						{/* On its own the count stands where the badge would. With the
-								badge showing it hangs off the top corner, the way a count sits
-								on a table's header. */}
-						<AnimatePresence>
-							{problems.length > 0 && (
-								<motion.span
-									key="problems"
-									initial={{ opacity: 0, scale: 0.6 }}
-									animate={{ opacity: 1, scale: 1 }}
-									exit={{ opacity: 0, scale: 0.6 }}
-									transition={{ duration: 0.3, ease: "easeInOut" }}
-									data-export="chrome"
-									className={cn(
-										"rounded-full shadow-sm ring-1 backdrop-blur-sm",
-										failing
-											? "bg-destructive/15 ring-destructive/50"
-											: "bg-warning/8 ring-warning/35",
-										labels && "absolute -top-3 -right-3.5 origin-top-right scale-90",
-									)}
-								>
-									<ProblemCount problems={problems} align="center" />
-								</motion.span>
-							)}
-						</AnimatePresence>
-					</span>
+					{/* Switching the labels swaps the whole group: what is there fades
+							out, then the badge and its corner icon, or the count on its
+							own, fade in together. */}
+					<AnimatePresence mode="wait" initial={false}>
+						<motion.span
+							key={labels ? "badge" : "count"}
+							initial={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
+							animate={{
+								opacity: 1,
+								scale: 1,
+								filter: "blur(0px)",
+								transition: { duration: 0.5, ease: EASE_OUT_EXPO },
+							}}
+							exit={{
+								opacity: 0,
+								scale: 0.9,
+								filter: "blur(4px)",
+								transition: { duration: 0.4, ease: EASE_IN_OUT },
+							}}
+							className="relative flex"
+						>
+							<EdgeBadge
+								id={id}
+								relationshipType={relationshipType}
+								name={data?.name}
+								selected={selected}
+								shown={labels}
+								open={menuOpen}
+								onOpenChange={changeMenuOpen}
+								anchor={menuAnchor}
+								onEditDetails={openDetails}
+							/>
+							{/* On its own the count stands where the badge would. With the
+									badge showing only the icon hangs off the top corner. */}
+							<AnimatePresence>
+								{problems.length > 0 && (
+									<motion.span
+										key="problems"
+										initial={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
+										animate={{
+											opacity: 1,
+											scale: 1,
+											filter: "blur(0px)",
+											transition: { duration: 0.5, ease: EASE_OUT_EXPO },
+										}}
+										exit={{
+											opacity: 0,
+											scale: 0.9,
+											filter: "blur(4px)",
+											transition: { duration: 0.4, ease: EASE_IN_OUT },
+										}}
+										data-export="chrome"
+										className={cn(
+											"rounded-full",
+											labels
+												? "absolute -top-[9px] -right-[9px] origin-top-right"
+												: "bg-background shadow-sm",
+										)}
+									>
+										<span
+											className={cn(
+												"flex rounded-full",
+												!labels &&
+													(failing
+														? "bg-destructive/15 ring-1 ring-destructive/50 ring-inset"
+														: "bg-warning/8 ring-1 ring-warning/35 ring-inset"),
+											)}
+										>
+											<ProblemCount problems={problems} align="center" iconOnly={labels} />
+										</span>
+									</motion.span>
+								)}
+							</AnimatePresence>
+						</motion.span>
+					</AnimatePresence>
 				</div>
 
 				{editingDetails && (
