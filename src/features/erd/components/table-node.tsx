@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { EASE_IN_OUT, EASE_OUT_EXPO } from "@/features/erd/lib/eases";
+
 import {
 	Command,
 	CommandEmpty,
@@ -492,18 +494,25 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 						</div>
 					</div>
 
-					{/* Comes into focus the way the tour's icon does, and blurs away
-              again once the table is clean. */}
 					<AnimatePresence>
 						{problems.length > 0 && (
 							<motion.div
 								key="problems"
-								initial={{ opacity: 0, scale: 0.6 }}
-								animate={{ opacity: 1, scale: 1 }}
-								exit={{ opacity: 0, scale: 0.6 }}
-								transition={{ duration: 0.3, ease: "easeInOut" }}
+								initial={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
+								animate={{
+									opacity: 1,
+									scale: 1,
+									filter: "blur(0px)",
+									transition: { duration: 0.5, ease: EASE_OUT_EXPO },
+								}}
+								exit={{
+									opacity: 0,
+									scale: 0.9,
+									filter: "blur(4px)",
+									transition: { duration: 0.4, ease: EASE_IN_OUT },
+								}}
 								data-export="blank"
-								className="ml-auto flex shrink-0 origin-right"
+								className="ml-auto flex shrink-0"
 							>
 								<ProblemCount problems={problems} />
 							</motion.div>
