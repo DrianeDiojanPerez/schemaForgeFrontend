@@ -10,16 +10,26 @@ export type { BackendState, BackendStatus } from "../api/queries";
 
 let announced = false;
 
+// A backend waking from suspend answers within a few seconds, and the canvas
+// is already covering that wait. Only a silence longer than a wake-up is
+// worth a toast.
+const GRACE = 5000;
+
 /**
  * Watches the connection for the canvas. A working backend is what the app
  * is supposed to have, so it passes without comment and only trouble
- * interrupts: the first bad answer of the session is reported once, the
- * retries after it are silent, and the answer that ends them says so while
- * the caller reloads.
+ * interrupts: the first bad answer of the session is reported once, after a
+ * grace period a wake-up fits inside, the retries after it are silent, and
+ * the answer that ends them says so while the caller reloads. A silence
+ * that ends inside the grace period is never mentioned.
  */
 export function useBackendWatch(onReconnect: () => Promise<void> | void) {
 	const { data } = useQuery(backendQueries.status());
 	const before = useRef(data?.state);
+	const grace = useRef<number>(undefined);
+	const told = useRef(false);
+
+	useEffect(() => () => window.clearTimeout(grace.current), []);
 
 	useEffect(() => {
 		if (!data) return;
@@ -31,11 +41,12 @@ export function useBackendWatch(onReconnect: () => Promise<void> | void) {
 
 		if (data.state !== "online") {
 			if (announced) return;
-			announced = true;
 
 			// Up and answering, and every save will still fail. That is a warning
 			// rather than an error: nothing is broken, the credentials are wrong.
 			if (data.state === "unauthorised") {
+				announced = true;
+				told.current = true;
 				notify.warning({
 					title: "Backend refused sign-in",
 					description: data.detail,
@@ -43,13 +54,29 @@ export function useBackendWatch(onReconnect: () => Promise<void> | void) {
 				return;
 			}
 
-			notify.error({ title: "Backend unreachable", description: data.detail });
+			window.clearTimeout(grace.current);
+			grace.current = window.setTimeout(() => {
+				announced = true;
+				told.current = true;
+				notify.error({ title: "Backend unreachable", description: data.detail });
+			}, GRACE);
 			return;
 		}
 
+		window.clearTimeout(grace.current);
+
 		// Online from nothing is the ordinary start, so nothing is said. Online
-		// after a bad answer is the wait ending.
+		// after a bad answer is the wait ending; the caller reloads either way,
+		// and is only told about it when the outage itself was mentioned.
 		if (was === undefined) return;
+
+		const mentioned = told.current;
+		told.current = false;
+
+		if (!mentioned) {
+			void onReconnect();
+			return;
+		}
 
 		notify.waiting({ title: "Reconnecting" });
 
