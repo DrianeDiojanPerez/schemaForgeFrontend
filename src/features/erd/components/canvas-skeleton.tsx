@@ -33,11 +33,11 @@ const WORDS = {
 	},
 	reaching: {
 		title: "Reaching the server",
-		detail: "It is waking up after a quiet spell and will answer in a moment",
+		detail: "Waking up after a quiet spell, back in a moment",
 	},
 	slow: {
 		title: "The server is taking longer than usual",
-		detail: "It is still being asked every few seconds. It may be down.",
+		detail: "Still asking every few seconds. It may be down.",
 	},
 } as const;
 
@@ -108,7 +108,7 @@ export function CanvasSkeleton({
 						<span className="flex items-center justify-center gap-2">
 							<Spinner ref={keepTurning} className="shrink-0" />
 							<AnimatePresence mode="wait" initial={false}>
-								<motion.span key={state} className="max-w-xs text-left" {...swap}>
+								<motion.span key={state} className="whitespace-nowrap" {...swap}>
 									{words.detail}
 								</motion.span>
 							</AnimatePresence>
