@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
 	ConnectionMode,
 	Background,
@@ -189,13 +189,16 @@ function Canvas({
 	// it goes.
 	const [loading, setLoading] = useState<LoadingPhase>("covering");
 
+	// While the backend has not answered the cover stays where it is, however
+	// far the fit has got, so the diagram's arrival is one handover rather than
+	// a cover that drops and comes back.
 	useEffect(() => {
-		if (loading !== "glass") return;
+		if (loading !== "glass" || !reachable) return;
 
 		const linger = window.setTimeout(() => setLoading("gone"), GLASS_LINGER);
 
 		return () => window.clearTimeout(linger);
-	}, [loading]);
+	}, [loading, reachable]);
 
 	// Once faded, the loader leaves the page altogether. Left in place with
 	// its blur, it kept costing every frame of a drag long after it was seen.
@@ -217,12 +220,19 @@ function Canvas({
 	}, [reachable]);
 
 	useEffect(() => {
-		if (loading !== "gone") return;
+		if (loading !== "gone" || !reachable) return;
 
 		const fade = window.setTimeout(() => setLoaderShown(false), LOADER_FADE);
 
 		return () => window.clearTimeout(fade);
-	}, [loading]);
+	}, [loading, reachable]);
+
+	// Whether the cover is on screen right now, read by a swap to decide
+	// whether it has to fade in first or is already there.
+	const covered = useRef(true);
+	useLayoutEffect(() => {
+		covered.current = loaderShown || !reachable;
+	});
 
 	const [settingsByKeyboard, setSettingsByKeyboard] = useState(false);
 	const [showMiniMap, setShowMiniMap] = useState(true);
@@ -711,7 +721,7 @@ function Canvas({
 			// new tables have no size until they have been drawn once, and fitting
 			// before that frames nothing, so the fit waits two frames and the
 			// cover lifts once it has run.
-			setSwitching(true);
+			setSwitching(!covered.current);
 			setLoaderShown(true);
 			setLoading("covering");
 
@@ -735,7 +745,9 @@ function Canvas({
 
 	const shown = useRef(schema.id);
 
-	useEffect(() => {
+	// Before paint, so a schema arriving behind the waiting cover is never seen
+	// through a frame of bare canvas.
+	useLayoutEffect(() => {
 		if (shown.current === schema.id) return;
 
 		shown.current = schema.id;
