@@ -50,8 +50,10 @@ export const schemaQueries = {
 	 * ask for a schema on a fresh backend and show nothing for one that is
 	 * away. The connection itself is reported by the status query.
 	 *
-	 * Never stale: the canvas takes the diagram once and owns it from there, so
-	 * a refetch would only rebuild something nobody reads.
+	 * Never stale once answered: the canvas takes the diagram once and owns it
+	 * from there, so a refetch would only rebuild something nobody reads. An
+	 * answer that never arrived is asked for again every few seconds, so a
+	 * backend still waking up is caught when it is ready.
 	 */
 	latest: () =>
 		queryOptions({
@@ -71,7 +73,8 @@ export const schemaQueries = {
 					return { schema: null, reachable: false };
 				}
 			},
-			staleTime: Infinity,
+			staleTime: (query) => (query.state.data?.reachable === false ? 0 : Infinity),
+			refetchInterval: (query) => (query.state.data?.reachable === false ? RETRY_EVERY : false),
 			retry: false,
 		}),
 };

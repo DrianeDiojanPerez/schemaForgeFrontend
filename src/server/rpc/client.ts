@@ -42,6 +42,8 @@ import type { RefreshTokenResponse__Output } from "./generated/schemaforge/v1/Re
 import type { SchemaServiceClient } from "./generated/schemaforge/v1/SchemaService";
 import type { UpdateSchemaRequest } from "./generated/schemaforge/v1/UpdateSchemaRequest";
 import type { UpdateSchemaResponse__Output } from "./generated/schemaforge/v1/UpdateSchemaResponse";
+import type { CompareSchemasRequest } from "./generated/schemaforge/v1/CompareSchemasRequest";
+import type { CompareSchemasResponse__Output } from "./generated/schemaforge/v1/CompareSchemasResponse";
 import type { ValidateSchemaRequest } from "./generated/schemaforge/v1/ValidateSchemaRequest";
 import type { ValidateSchemaResponse__Output } from "./generated/schemaforge/v1/ValidateSchemaResponse";
 import { PROTO_OPTIONS } from "./proto-options";
@@ -288,7 +290,10 @@ function unary<TResponse>(
 	requestId?: string,
 	authorization?: string,
 ): Promise<TResponse> {
-	const metadata = new Metadata();
+	// A backend waking from suspend refuses connections for its first second
+	// or two. Waiting for the channel rides that out, up to the deadline,
+	// instead of failing the page's first call.
+	const metadata = new Metadata({ waitForReady: true });
 
 	// Passing the id through means one line in the backend's log and one in this
 	// process's can be tied to the same user action.
@@ -381,6 +386,16 @@ export function calls(holder: Credentials) {
 				authed(
 					(metadata, options, callback) =>
 						clients().schema.ValidateSchema(request, metadata, options, callback),
+					requestId,
+				),
+
+			compareSchemas: (
+				request: CompareSchemasRequest,
+				requestId?: string,
+			): Promise<CompareSchemasResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.CompareSchemas(request, metadata, options, callback),
 					requestId,
 				),
 
