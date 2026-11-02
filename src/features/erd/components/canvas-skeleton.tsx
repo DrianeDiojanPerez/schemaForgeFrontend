@@ -31,12 +31,15 @@ function keepTurning(node: SVGSVGElement | null) {
 export function CanvasSkeleton({
 	phase = "covering",
 	entering = false,
+	waiting = false,
 	className,
 	...props
 }: React.ComponentProps<"div"> & {
 	phase?: LoadingPhase;
 	/** Fade in over a canvas already on screen, instead of being there from the start. */
 	entering?: boolean;
+	/** The backend has not answered yet, so there is nothing to lay out. */
+	waiting?: boolean;
 }) {
 	return (
 		<div
@@ -58,11 +61,13 @@ export function CanvasSkeleton({
 					<EmptyMedia variant="icon">
 						<DatabaseZapIcon />
 					</EmptyMedia>
-					<EmptyTitle>Laying out the diagram</EmptyTitle>
+					<EmptyTitle>{waiting ? "Reaching the server" : "Laying out the diagram"}</EmptyTitle>
 					<EmptyDescription>
 						<span className="flex items-center gap-2">
 							<Spinner ref={keepTurning} />
-							Placing the tables and drawing their relationships
+							{waiting
+								? "It is waking up after a quiet spell and will answer in a moment"
+								: "Placing the tables and drawing their relationships"}
 						</span>
 					</EmptyDescription>
 				</EmptyHeader>

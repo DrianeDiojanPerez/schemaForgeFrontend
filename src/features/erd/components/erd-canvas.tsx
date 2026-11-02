@@ -142,7 +142,13 @@ const BackendWatch = memo(function BackendWatch({
 	return null;
 });
 
-function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanvasProps) {
+function Canvas({
+	diagram,
+	schema,
+	askForSchema = false,
+	reachable = true,
+	held = false,
+}: ErdCanvasProps) {
 	const {
 		nodes,
 		edges,
@@ -862,11 +868,12 @@ function Canvas({ diagram, schema, askForSchema = false, held = false }: ErdCanv
 					onFit={fitAll}
 				/>
 
-				{loaderShown && (
+				{(loaderShown || !reachable) && (
 					<CanvasSkeleton
 						aria-hidden
-						phase={loading}
+						phase={reachable ? loading : "covering"}
 						entering={switching}
+						waiting={!reachable}
 						className="absolute inset-0 z-10"
 					/>
 				)}
@@ -1000,11 +1007,13 @@ export type ErdCanvasProps = {
 	schema: { id: string; name: string };
 	/** Opens on the create dialog, for someone who has no schema yet. */
 	askForSchema?: boolean;
+	/** False while the backend has not answered, which keeps the cover on and says why. */
+	reachable?: boolean;
 	/** Something else has the screen first, so the dialog and the tour wait. */
 	held?: boolean;
 };
 
-export function ErdCanvas({ diagram, schema, askForSchema, held }: ErdCanvasProps) {
+export function ErdCanvas({ diagram, schema, askForSchema, reachable, held }: ErdCanvasProps) {
 	const { schemaGrouping, schemaListOpen } = useCanvasPreferences();
 
 	// Three of the stops are on the list, and a list that is folded away would
@@ -1022,7 +1031,13 @@ export function ErdCanvas({ diagram, schema, askForSchema, held }: ErdCanvasProp
 	return (
 		<ReactFlowProvider>
 			<TourProvider storageKey="erd-tour" prepare={showList}>
-				<Canvas diagram={diagram} schema={schema} askForSchema={askForSchema} held={held} />
+				<Canvas
+					diagram={diagram}
+					schema={schema}
+					askForSchema={askForSchema}
+					reachable={reachable}
+					held={held}
+				/>
 			</TourProvider>
 		</ReactFlowProvider>
 	);

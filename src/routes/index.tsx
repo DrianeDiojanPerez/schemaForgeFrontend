@@ -41,7 +41,13 @@ function SchemaBuilderPage() {
 
 	return (
 		<main className="h-svh w-full">
-			<ErdCanvas diagram={diagram} schema={schema} askForSchema={askForSchema} held={noticeOpen} />
+			<ErdCanvas
+				diagram={diagram}
+				schema={schema}
+				askForSchema={askForSchema}
+				reachable={latest.reachable}
+				held={noticeOpen || !latest.reachable}
+			/>
 			<BrowserNotice />
 		</main>
 	);
