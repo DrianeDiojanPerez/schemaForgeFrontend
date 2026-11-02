@@ -53,6 +53,7 @@ import {
 	InputGroupButton,
 	InputGroupInput,
 } from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { schemaQueries } from "@/features/schema/api/queries";
 import { cn } from "@/lib/utils";
@@ -148,6 +149,8 @@ export type SchemaSidebarProps = {
 	schemaId: string;
 	/** Goes up each time another diagram is put on the canvas. */
 	swap: number;
+	/** The backend has not answered yet, so the list shows its shape and nothing it cannot know. */
+	waiting?: boolean;
 	onOpenSchema?: (id: string) => void;
 	onNewSchema?: () => void;
 	/** Deletes the stored schema on the canvas, once the person has agreed to it. */
@@ -222,16 +225,43 @@ type SchemaListProps = {
 	nodes: ErdNode[];
 	schemaId: string;
 	swap: number;
+	waiting?: boolean;
 	onOpenSchema?: (id: string) => void;
 	onNewSchema?: () => void;
 	onDeleteSchema?: (id: string) => void;
 };
+
+// The list as it will look once the tables are known: one schema heading and
+// a few rows under it, with bars where the names go.
+const SKELETON_ROWS = [24, 16, 28, 20];
+
+function ListSkeleton() {
+	return (
+		<div aria-hidden className="flex flex-col gap-0.5">
+			<div className="flex h-8 items-center gap-2 px-2">
+				<Skeleton className="size-3.5 rounded-sm" />
+				<Skeleton className="size-4 rounded-sm" />
+				<Skeleton className="h-3.5 w-16" />
+				<Skeleton className="ml-auto h-3 w-4" />
+			</div>
+			{SKELETON_ROWS.map((width, index) => (
+				<div key={index} className="flex h-8 items-center gap-2 py-1 pr-2 pl-6">
+					<Skeleton className="size-3.5 rounded-sm" />
+					<Skeleton className="size-4 rounded-sm" />
+					<Skeleton className="h-3.5" style={{ width: `${width * 4}px` }} />
+					<Skeleton className="ml-auto h-3 w-3" />
+				</div>
+			))}
+		</div>
+	);
+}
 
 const SchemaList = memo(function SchemaList({
 	name,
 	nodes,
 	schemaId,
 	swap,
+	waiting = false,
 	onOpenSchema,
 	onNewSchema,
 	onDeleteSchema,
@@ -339,7 +369,11 @@ const SchemaList = memo(function SchemaList({
 						}
 					>
 						<DatabaseIcon className="size-4 shrink-0 text-primary" />
-						<span className="flex-1 truncate">{name}</span>
+						{waiting ? (
+							<Skeleton className="h-3.5 w-28" />
+						) : (
+							<span className="flex-1 truncate">{name}</span>
+						)}
 						{/* Turns without a transition. Animating it put the icon on a
                 compositor layer of its own for the turn, and the panel's
                 own layer was redrawn around it, which flashed the text. */}
@@ -517,70 +551,73 @@ const SchemaList = memo(function SchemaList({
 						transition={LIST_SWAP}
 						className="flex flex-col gap-1 p-2"
 					>
-						{found.map((group, index) => {
-							const label = schemaLabel(group.name, name);
+						{waiting && <ListSkeleton />}
 
-							// The picker above already names the diagram, so the row for
-							// the tables that carry no schema of their own says what it
-							// holds instead of saying that name a second time.
-							const heading = group.name === DEFAULT_SCHEMA ? "Tables" : label;
-							const unfolded = Boolean(term) || !folded.includes(group.name);
+						{!waiting &&
+							found.map((group, index) => {
+								const label = schemaLabel(group.name, name);
 
-							return (
-								<div key={group.name}>
-									{index > 0 && <div className="mx-2 my-1 h-px bg-sidebar-border" />}
+								// The picker above already names the diagram, so the row for
+								// the tables that carry no schema of their own says what it
+								// holds instead of saying that name a second time.
+								const heading = group.name === DEFAULT_SCHEMA ? "Tables" : label;
+								const unfolded = Boolean(term) || !folded.includes(group.name);
 
-									<Collapsible open={unfolded} onOpenChange={() => toggleSchema(group.name)}>
-										<div className="sticky top-0 z-10 flex h-8 items-center rounded-md bg-sidebar pr-2 transition-colors hover:bg-sidebar-accent">
-											<CollapsibleTrigger
-												aria-label={unfolded ? `Hide ${label} tables` : `Show ${label} tables`}
-												render={
-													<button
-														type="button"
-														className="group/schema flex h-full shrink-0 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+								return (
+									<div key={group.name}>
+										{index > 0 && <div className="mx-2 my-1 h-px bg-sidebar-border" />}
+
+										<Collapsible open={unfolded} onOpenChange={() => toggleSchema(group.name)}>
+											<div className="sticky top-0 z-10 flex h-8 items-center rounded-md bg-sidebar pr-2 transition-colors hover:bg-sidebar-accent">
+												<CollapsibleTrigger
+													aria-label={unfolded ? `Hide ${label} tables` : `Show ${label} tables`}
+													render={
+														<button
+															type="button"
+															className="group/schema flex h-full shrink-0 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+														/>
+													}
+												>
+													<ChevronRightIcon
+														className={cn(CARET, "group-data-panel-open/schema:rotate-90")}
 													/>
-												}
-											>
-												<ChevronRightIcon
-													className={cn(CARET, "group-data-panel-open/schema:rotate-90")}
-												/>
-											</CollapsibleTrigger>
+												</CollapsibleTrigger>
 
-											<button
-												type="button"
-												onClick={() => revealSchema(group)}
-												title={`Show ${label} on the canvas`}
-												className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-											>
-												<LayersIcon
-													className={cn("size-4 shrink-0", schemaAccentText(group.accent))}
-												/>
-												<span className="truncate text-sm font-medium text-muted-foreground">
-													{heading}
-												</span>
-												<Count>{group.tables.length}</Count>
-											</button>
-										</div>
-
-										<CollapsibleContent>
-											<div className="flex flex-col gap-0.5 pt-0.5">
-												{group.tables.map((table) => (
-													<TableRow
-														key={table.id}
-														table={table}
-														open={openTable === table.id}
-														onToggle={toggleTable}
-														onReveal={reveal}
+												<button
+													type="button"
+													onClick={() => revealSchema(group)}
+													title={`Show ${label} on the canvas`}
+													className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+												>
+													<LayersIcon
+														className={cn("size-4 shrink-0", schemaAccentText(group.accent))}
 													/>
-												))}
+													<span className="truncate text-sm font-medium text-muted-foreground">
+														{heading}
+													</span>
+													<Count>{group.tables.length}</Count>
+												</button>
 											</div>
-										</CollapsibleContent>
-									</Collapsible>
-								</div>
-							);
-						})}
 
-						{found.length === 0 && (
+											<CollapsibleContent>
+												<div className="flex flex-col gap-0.5 pt-0.5">
+													{group.tables.map((table) => (
+														<TableRow
+															key={table.id}
+															table={table}
+															open={openTable === table.id}
+															onToggle={toggleTable}
+															onReveal={reveal}
+														/>
+													))}
+												</div>
+											</CollapsibleContent>
+										</Collapsible>
+									</div>
+								);
+							})}
+
+						{!waiting && found.length === 0 && (
 							<Empty size="sm">
 								<EmptyHeader>
 									<EmptyMedia variant="icon" className="mb-1 size-9">
@@ -636,6 +673,7 @@ export function SchemaSidebar({
 	corner,
 	schemaId,
 	swap,
+	waiting,
 	onOpenSchema,
 	onNewSchema,
 	onDeleteSchema,
@@ -743,6 +781,7 @@ export function SchemaSidebar({
 							nodes={listed}
 							schemaId={schemaId}
 							swap={swap}
+							waiting={waiting}
 							onOpenSchema={onOpenSchema}
 							onNewSchema={onNewSchema}
 							onDeleteSchema={onDeleteSchema}

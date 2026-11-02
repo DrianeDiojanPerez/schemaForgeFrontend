@@ -975,6 +975,7 @@ function Canvas({
 									onWidthChange={(width) => setCanvasPreference("schemaListWidth", width)}
 									corner={showControls && <CanvasControls />}
 									schemaId={schemaId}
+									waiting={!reachable}
 									onOpenSchema={openSchema}
 									onNewSchema={openCreate}
 									onDeleteSchema={(id) => void deleteSchema(id)}
