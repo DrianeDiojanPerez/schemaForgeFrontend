@@ -142,11 +142,15 @@ const BackendWatch = memo(function BackendWatch({
 	return null;
 });
 
+// How long the cover waits for the backend before saying something may be wrong.
+const SLOW_AFTER = 10_000;
+
 function Canvas({
 	diagram,
 	schema,
 	askForSchema = false,
 	reachable = true,
+	onRetry,
 	held = false,
 }: ErdCanvasProps) {
 	const {
@@ -196,6 +200,21 @@ function Canvas({
 	// Once faded, the loader leaves the page altogether. Left in place with
 	// its blur, it kept costing every frame of a drag long after it was seen.
 	const [loaderShown, setLoaderShown] = useState(true);
+
+	// A backend that has not answered for a while is said to be slow, with a
+	// way to ask again, rather than left to spin.
+	const [slow, setSlow] = useState(false);
+
+	useEffect(() => {
+		if (reachable) {
+			setSlow(false);
+			return;
+		}
+
+		const wait = window.setTimeout(() => setSlow(true), SLOW_AFTER);
+
+		return () => window.clearTimeout(wait);
+	}, [reachable]);
 
 	useEffect(() => {
 		if (loading !== "gone") return;
@@ -870,10 +889,12 @@ function Canvas({
 
 				{(loaderShown || !reachable) && (
 					<CanvasSkeleton
-						aria-hidden
+						aria-hidden={reachable}
 						phase={reachable ? loading : "covering"}
 						entering={switching}
 						waiting={!reachable}
+						slow={slow}
+						onRetry={onRetry}
 						className="absolute inset-0 z-10"
 					/>
 				)}
@@ -1009,11 +1030,20 @@ export type ErdCanvasProps = {
 	askForSchema?: boolean;
 	/** False while the backend has not answered, which keeps the cover on and says why. */
 	reachable?: boolean;
+	/** Asks the backend again, offered on the cover once the wait has gone on too long. */
+	onRetry?: () => void;
 	/** Something else has the screen first, so the dialog and the tour wait. */
 	held?: boolean;
 };
 
-export function ErdCanvas({ diagram, schema, askForSchema, reachable, held }: ErdCanvasProps) {
+export function ErdCanvas({
+	diagram,
+	schema,
+	askForSchema,
+	reachable,
+	onRetry,
+	held,
+}: ErdCanvasProps) {
 	const { schemaGrouping, schemaListOpen } = useCanvasPreferences();
 
 	// Three of the stops are on the list, and a list that is folded away would
@@ -1036,6 +1066,7 @@ export function ErdCanvas({ diagram, schema, askForSchema, reachable, held }: Er
 					schema={schema}
 					askForSchema={askForSchema}
 					reachable={reachable}
+					onRetry={onRetry}
 					held={held}
 				/>
 			</TourProvider>

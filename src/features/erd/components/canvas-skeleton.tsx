@@ -1,8 +1,10 @@
 import { DatabaseZapIcon } from "lucide-react";
 import { cn } from "cn";
 
+import { Button } from "@/components/ui/button";
 import {
 	Empty,
+	EmptyContent,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
@@ -32,6 +34,8 @@ export function CanvasSkeleton({
 	phase = "covering",
 	entering = false,
 	waiting = false,
+	slow = false,
+	onRetry,
 	className,
 	...props
 }: React.ComponentProps<"div"> & {
@@ -40,6 +44,9 @@ export function CanvasSkeleton({
 	entering?: boolean;
 	/** The backend has not answered yet, so there is nothing to lay out. */
 	waiting?: boolean;
+	/** The wait has gone on longer than a wake-up takes. */
+	slow?: boolean;
+	onRetry?: () => void;
 }) {
 	return (
 		<div
@@ -61,16 +68,31 @@ export function CanvasSkeleton({
 					<EmptyMedia variant="icon">
 						<DatabaseZapIcon />
 					</EmptyMedia>
-					<EmptyTitle>{waiting ? "Reaching the server" : "Laying out the diagram"}</EmptyTitle>
+					<EmptyTitle>
+						{waiting
+							? slow
+								? "The server is taking longer than usual"
+								: "Reaching the server"
+							: "Laying out the diagram"}
+					</EmptyTitle>
 					<EmptyDescription>
 						<span className="flex items-center gap-2">
 							<Spinner ref={keepTurning} />
 							{waiting
-								? "It is waking up after a quiet spell and will answer in a moment"
+								? slow
+									? "It is still being asked every few seconds. It may be down."
+									: "It is waking up after a quiet spell and will answer in a moment"
 								: "Placing the tables and drawing their relationships"}
 						</span>
 					</EmptyDescription>
 				</EmptyHeader>
+				{waiting && slow && onRetry && (
+					<EmptyContent>
+						<Button variant="outline" size="sm" onClick={onRetry}>
+							Try again
+						</Button>
+					</EmptyContent>
+				)}
 			</Empty>
 		</div>
 	);
