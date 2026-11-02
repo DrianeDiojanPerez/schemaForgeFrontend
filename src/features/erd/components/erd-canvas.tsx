@@ -726,6 +726,7 @@ function Canvas({
 			setLoading("covering");
 
 			window.setTimeout(() => {
+				setArriving(false);
 				setSchemaId(next.id);
 				setName(next.name);
 				setSwaps((count) => count + 1);
@@ -745,12 +746,17 @@ function Canvas({
 
 	const shown = useRef(schema.id);
 
+	// A schema that has arrived but is not yet on the canvas: the list keeps
+	// showing its shape through the swap rather than the placeholder name.
+	const [arriving, setArriving] = useState(false);
+
 	// Before paint, so a schema arriving behind the waiting cover is never seen
 	// through a frame of bare canvas.
 	useLayoutEffect(() => {
 		if (shown.current === schema.id) return;
 
 		shown.current = schema.id;
+		setArriving(true);
 		show(schema, diagram);
 	}, [schema, diagram, show]);
 
@@ -975,7 +981,7 @@ function Canvas({
 									onWidthChange={(width) => setCanvasPreference("schemaListWidth", width)}
 									corner={showControls && <CanvasControls />}
 									schemaId={schemaId}
-									waiting={!reachable}
+									waiting={!reachable || arriving}
 									onOpenSchema={openSchema}
 									onNewSchema={openCreate}
 									onDeleteSchema={(id) => void deleteSchema(id)}
