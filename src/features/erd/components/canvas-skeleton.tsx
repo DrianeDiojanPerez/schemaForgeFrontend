@@ -1,4 +1,5 @@
 import { DatabaseZapIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 
+import { EASE_IN_EXPO, EASE_OUT_EXPO } from "../lib/eases";
+
 /**
  * Covering hides the graph while it is laid out, glass lets it show through
  * behind the loading state, and gone is the fade-out.
@@ -20,6 +23,29 @@ export type LoadingPhase = "covering" | "glass" | "gone";
 
 // The tour's curve: quick to start, long and soft to settle.
 const EASE = "ease-out-expo";
+
+// What the cover says in each of its states. The text swaps with a fade, the
+// icon and the spinner stay where they are.
+const WORDS = {
+	laying: {
+		title: "Laying out the diagram",
+		detail: "Placing the tables and drawing their relationships",
+	},
+	reaching: {
+		title: "Reaching the server",
+		detail: "It is waking up after a quiet spell and will answer in a moment",
+	},
+	slow: {
+		title: "The server is taking longer than usual",
+		detail: "It is still being asked every few seconds. It may be down.",
+	},
+} as const;
+
+const swap = {
+	initial: { opacity: 0, y: 4 },
+	animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: EASE_OUT_EXPO } },
+	exit: { opacity: 0, y: -4, transition: { duration: 0.15, ease: EASE_IN_EXPO } },
+};
 
 // The loader is mounted twice on a fresh load, once by the server and once
 // more when the browser takes the page over, and a spinner that started
@@ -48,6 +74,9 @@ export function CanvasSkeleton({
 	slow?: boolean;
 	onRetry?: () => void;
 }) {
+	const state = waiting ? (slow ? "slow" : "reaching") : "laying";
+	const words = WORDS[state];
+
 	return (
 		<div
 			className={cn(
@@ -69,30 +98,34 @@ export function CanvasSkeleton({
 						<DatabaseZapIcon />
 					</EmptyMedia>
 					<EmptyTitle>
-						{waiting
-							? slow
-								? "The server is taking longer than usual"
-								: "Reaching the server"
-							: "Laying out the diagram"}
+						<AnimatePresence mode="wait" initial={false}>
+							<motion.span key={state} className="block" {...swap}>
+								{words.title}
+							</motion.span>
+						</AnimatePresence>
 					</EmptyTitle>
 					<EmptyDescription>
-						<span className="flex items-center gap-2">
-							<Spinner ref={keepTurning} />
-							{waiting
-								? slow
-									? "It is still being asked every few seconds. It may be down."
-									: "It is waking up after a quiet spell and will answer in a moment"
-								: "Placing the tables and drawing their relationships"}
+						<span className="flex items-center justify-center gap-2">
+							<Spinner ref={keepTurning} className="shrink-0" />
+							<AnimatePresence mode="wait" initial={false}>
+								<motion.span key={state} className="max-w-xs text-left" {...swap}>
+									{words.detail}
+								</motion.span>
+							</AnimatePresence>
 						</span>
 					</EmptyDescription>
 				</EmptyHeader>
-				{waiting && slow && onRetry && (
-					<EmptyContent>
-						<Button variant="outline" size="sm" onClick={onRetry}>
-							Try again
-						</Button>
-					</EmptyContent>
-				)}
+				<AnimatePresence initial={false}>
+					{state === "slow" && onRetry && (
+						<motion.div key="retry" {...swap}>
+							<EmptyContent>
+								<Button variant="outline" size="sm" onClick={onRetry}>
+									Try again
+								</Button>
+							</EmptyContent>
+						</motion.div>
+					)}
+				</AnimatePresence>
 			</Empty>
 		</div>
 	);
