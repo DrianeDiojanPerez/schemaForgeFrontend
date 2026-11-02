@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { deleteCookie, getRequestHeader } from "@tanstack/react-start/server";
 
 import { v1 } from "../rpc/client";
 import { session } from "./session";
@@ -75,4 +76,20 @@ export const currentUser = createServerFn({ method: "GET" }).handler(async (): P
 
 export const signOut = createServerFn({ method: "POST" }).handler(async () => {
 	await (await session()).clear();
+});
+
+/**
+ * Signs out and drops every cookie this site has set, so the next load is
+ * what a first-time visitor gets. What the browser holds on its own side is
+ * the caller's to clear.
+ */
+export const forgetVisitor = createServerFn({ method: "POST" }).handler(async () => {
+	await (await session()).clear();
+
+	const names = (getRequestHeader("cookie") ?? "")
+		.split(";")
+		.map((pair) => pair.trim().split("=")[0])
+		.filter(Boolean);
+
+	for (const name of names) deleteCookie(name, { path: "/" });
 });

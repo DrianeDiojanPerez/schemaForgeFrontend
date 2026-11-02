@@ -10,6 +10,8 @@ import {
 	UploadIcon,
 	LogOutIcon,
 	MaximizeIcon,
+	EraserIcon,
+	FlaskConicalIcon,
 	MinusIcon,
 	MoonIcon,
 	MousePointer2Icon,
@@ -47,7 +49,7 @@ import { SCHEMA_GROUPINGS, TABLE_STYLES } from "@/features/erd/lib/canvas-prefer
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { accountQueries } from "@/features/schema/api/queries";
-import { signOut } from "@/server/auth/google";
+import { forgetVisitor, signOut } from "@/server/auth/google";
 import type { Account } from "@/server/auth/google";
 import type { SchemaGrouping, TableStyle } from "@/features/erd/lib/canvas-preferences";
 import { CONNECTOR_ARROWS } from "@/features/erd/lib/connector-arrows";
@@ -73,6 +75,7 @@ const TABS = [
 	{ id: "interaction", label: "Interaction", icon: MousePointer2Icon },
 	{ id: "sync", label: "Saving & sync", icon: ServerIcon },
 	{ id: "about", label: "About", icon: InfoIcon },
+	{ id: "developer", label: "Developer", icon: FlaskConicalIcon },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -1142,6 +1145,44 @@ function initials(name: string): string {
  * The tour draws over the canvas, so the dialog has to be out of the way
  * first. The wait covers its closing animation.
  */
+// Every cookie the browser will let a page touch; the session cookie is
+// hidden from the page and goes on the server.
+function dropCookies() {
+	for (const pair of document.cookie.split(";")) {
+		const name = pair.trim().split("=")[0];
+		if (name) document.cookie = `${name}=; path=/; max-age=0`;
+	}
+}
+
+function DeveloperPanel() {
+	const [resetting, setResetting] = useState(false);
+
+	// A full load rather than a navigation, so nothing fetched as this person
+	// is left in memory for the next.
+	const startOver = async () => {
+		setResetting(true);
+		await forgetVisitor();
+		dropCookies();
+		localStorage.clear();
+		sessionStorage.clear();
+		window.location.assign("/login");
+	};
+
+	return (
+		<div className="flex flex-col gap-5 py-4">
+			<Row
+				label="Start over as a new visitor"
+				hint="Signs out and clears this site's cookies and local storage, so the next load is a first visit"
+			>
+				<Button variant="outline" size="sm" disabled={resetting} onClick={() => void startOver()}>
+					<EraserIcon />
+					Start over
+				</Button>
+			</Row>
+		</div>
+	);
+}
+
 function TourRow({ onClose }: { onClose: () => void }) {
 	const { start } = useTour();
 
@@ -1455,6 +1496,10 @@ export const CanvasSettings = memo(function CanvasSettings({
 
 							<TabsContent value="about">
 								<AboutPanel />
+							</TabsContent>
+
+							<TabsContent value="developer">
+								<DeveloperPanel />
 							</TabsContent>
 						</div>
 					</ScrollArea>
