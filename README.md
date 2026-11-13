@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/banner.png" alt="SchemaForge: draw a database schema, check it, and get the SQL" width="100%"></p>
+<p align="center"><img src="assets/banner.png" alt="schemaforge: draw a database schema and get the SQL" width="100%"></p>
 
 - [Requirements](#requirements)
 - [Run](#run)
