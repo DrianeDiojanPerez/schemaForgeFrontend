@@ -46,6 +46,20 @@ import type { CompareSchemasRequest } from "./generated/schemaforge/v1/CompareSc
 import type { CompareSchemasResponse__Output } from "./generated/schemaforge/v1/CompareSchemasResponse";
 import type { ValidateSchemaRequest } from "./generated/schemaforge/v1/ValidateSchemaRequest";
 import type { ValidateSchemaResponse__Output } from "./generated/schemaforge/v1/ValidateSchemaResponse";
+import type { AcceptInvitationRequest } from "./generated/schemaforge/v1/AcceptInvitationRequest";
+import type { AcceptInvitationResponse__Output } from "./generated/schemaforge/v1/AcceptInvitationResponse";
+import type { CancelInvitationRequest } from "./generated/schemaforge/v1/CancelInvitationRequest";
+import type { CancelInvitationResponse__Output } from "./generated/schemaforge/v1/CancelInvitationResponse";
+import type { ChangeShareRoleRequest } from "./generated/schemaforge/v1/ChangeShareRoleRequest";
+import type { ChangeShareRoleResponse__Output } from "./generated/schemaforge/v1/ChangeShareRoleResponse";
+import type { ListPeopleRequest } from "./generated/schemaforge/v1/ListPeopleRequest";
+import type { ListPeopleResponse__Output } from "./generated/schemaforge/v1/ListPeopleResponse";
+import type { ListSharedSchemasRequest } from "./generated/schemaforge/v1/ListSharedSchemasRequest";
+import type { ListSharedSchemasResponse__Output } from "./generated/schemaforge/v1/ListSharedSchemasResponse";
+import type { RevokeShareRequest } from "./generated/schemaforge/v1/RevokeShareRequest";
+import type { RevokeShareResponse__Output } from "./generated/schemaforge/v1/RevokeShareResponse";
+import type { ShareSchemaRequest } from "./generated/schemaforge/v1/ShareSchemaRequest";
+import type { ShareSchemaResponse__Output } from "./generated/schemaforge/v1/ShareSchemaResponse";
 import { PROTO_OPTIONS } from "./proto-options";
 
 /**
@@ -426,6 +440,76 @@ export function calls(holder: Credentials) {
 				authed(
 					(metadata, options, callback) =>
 						clients().schema.ImportSchema(request, metadata, options, callback),
+					requestId,
+				),
+
+			listSharedSchemas: (
+				request: ListSharedSchemasRequest,
+				requestId?: string,
+			): Promise<ListSharedSchemasResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ListSharedSchemas(request, metadata, options, callback),
+					requestId,
+				),
+
+			listPeople: (
+				request: ListPeopleRequest,
+				requestId?: string,
+			): Promise<ListPeopleResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ListPeople(request, metadata, options, callback),
+					requestId,
+				),
+
+			shareSchema: (
+				request: ShareSchemaRequest,
+				requestId?: string,
+			): Promise<ShareSchemaResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ShareSchema(request, metadata, options, callback),
+					requestId,
+				),
+
+			changeShareRole: (
+				request: ChangeShareRoleRequest,
+				requestId?: string,
+			): Promise<ChangeShareRoleResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.ChangeShareRole(request, metadata, options, callback),
+					requestId,
+				),
+
+			revokeShare: (
+				request: RevokeShareRequest,
+				requestId?: string,
+			): Promise<RevokeShareResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.RevokeShare(request, metadata, options, callback),
+					requestId,
+				),
+
+			cancelInvitation: (
+				request: CancelInvitationRequest,
+				requestId?: string,
+			): Promise<CancelInvitationResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.CancelInvitation(request, metadata, options, callback),
+					requestId,
+				),
+
+			acceptInvitation: (
+				request: AcceptInvitationRequest,
+				requestId?: string,
+			): Promise<AcceptInvitationResponse__Output> =>
+				authed(
+					(metadata, options, callback) =>
+						clients().schema.AcceptInvitation(request, metadata, options, callback),
 					requestId,
 				),
 		},

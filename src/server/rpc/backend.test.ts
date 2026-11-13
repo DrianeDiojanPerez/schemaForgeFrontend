@@ -38,6 +38,7 @@ const draft: Schema = {
 	description: "Saved and read back through the gRPC boundary",
 	createdAt: "",
 	updatedAt: "",
+	access: "owner",
 	entities: [
 		{
 			id: "users",
@@ -315,7 +316,13 @@ describe.skipIf(!address)("the gRPC boundary against a running backend", () => {
 			const result = toDraft("round trip", "", diagram.nodes, diagram.edges);
 			if (!result.ok) throw new Error("the example uses a type the backend has no kind for");
 
-			const asSchema: Schema = { ...result.draft, id: "", createdAt: "", updatedAt: "" };
+			const asSchema: Schema = {
+				...result.draft,
+				id: "",
+				createdAt: "",
+				updatedAt: "",
+				access: "owner",
+			};
 			const generated = await rpc.SchemaService.generateDdl({
 				draft: wire.schemaOut(asSchema),
 				dialect: wire.dialectOut("POSTGRES"),
@@ -348,7 +355,13 @@ describe.skipIf(!address)("the gRPC boundary against a running backend", () => {
 			const result = toDraft("round trip", "", diagram.nodes, diagram.edges);
 			if (!result.ok) throw new Error("the example uses a type the backend has no kind for");
 
-			const asSchema: Schema = { ...result.draft, id: "", createdAt: "", updatedAt: "" };
+			const asSchema: Schema = {
+				...result.draft,
+				id: "",
+				createdAt: "",
+				updatedAt: "",
+				access: "owner",
+			};
 			const exported = await rpc.SchemaService.exportSchema({
 				draft: wire.schemaOut(asSchema),
 				format: "EXPORT_FORMAT_JSON",

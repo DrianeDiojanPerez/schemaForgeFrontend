@@ -3,22 +3,32 @@ import { createServerFn } from "@tanstack/react-start";
 import type {
 	Diagnostic,
 	Dialect,
+	Member,
+	People,
+	Result,
 	Schema,
 	SchemaDraft,
 	SchemaSummary,
+	ShareOutcome,
+	ShareRole,
+	SharedSchema,
 } from "@/features/schema/types/schema";
 import {
 	diagnosticIn,
 	dialectOut,
 	entityOut,
+	invitationIn,
+	memberIn,
 	relationshipOut,
 	schemaIn,
 	schemaOut,
+	shareRoleOut,
+	sharedSchemaIn,
 	summaryIn,
 } from "@/features/schema/lib/wire";
 
 import { session } from "../auth/session";
-import { isUnimplemented, v1 } from "./client";
+import { SchemaForgeRpcError, isUnimplemented, v1 } from "./client";
 import type { GenerateDdlRequest } from "./generated/schemaforge/v1/GenerateDdlRequest";
 
 /**
@@ -195,6 +205,114 @@ export const importSchema = createServerFn({ method: "POST" })
 			diagnostics: response.diagnostics.map(diagnosticIn),
 		};
 	});
+
+/**
+ * Sharing. A refused share says why in its status, an address that already
+ * has access or an invitation that has run out, and the page has to read
+ * that. The status would be lost on the way to the browser if these threw,
+ * so they answer with a result instead and the browser side throws from it.
+ */
+async function attempt<T>(call: () => Promise<T>): Promise<Result<T>> {
+	try {
+		return { ok: true, value: await call() };
+	} catch (error) {
+		if (error instanceof SchemaForgeRpcError) return { ok: false, ...error.rpc };
+
+		throw error;
+	}
+}
+
+export const listSharedSchemas = createServerFn({ method: "GET" })
+	.validator((input: { page?: number; perPage?: number }) => input)
+	.handler(async ({ data }): Promise<{ schemas: SharedSchema[]; total: number }> => {
+		const response = await v1.SchemaService.listSharedSchemas({
+			page: data.page ?? 1,
+			perPage: data.perPage ?? 25,
+		});
+
+		return {
+			schemas: response.schemas.map(sharedSchemaIn),
+			total: response.total,
+		};
+	});
+
+export const listPeople = createServerFn({ method: "GET" })
+	.validator((input: { schemaId: string }) => input)
+	.handler(async ({ data }): Promise<People> => {
+		const response = await v1.SchemaService.listPeople({ schemaId: data.schemaId });
+
+		return {
+			members: response.members.map(memberIn),
+			invitations: response.invitations.map(invitationIn),
+		};
+	});
+
+export const shareSchema = createServerFn({ method: "POST" })
+	.validator(
+		(input: { schemaId: string; email: string; role: ShareRole; callbackUri: string }) => input,
+	)
+	.handler(({ data }): Promise<Result<ShareOutcome>> =>
+		attempt(async () => {
+			const response = await v1.SchemaService.shareSchema({
+				schemaId: data.schemaId,
+				email: data.email,
+				role: shareRoleOut(data.role),
+				callbackUri: data.callbackUri,
+			});
+
+			if (response.member) return { member: memberIn(response.member) };
+			if (response.invitation) return { invitation: invitationIn(response.invitation) };
+
+			throw new Error("The backend answered without saying who was given access.");
+		}),
+	);
+
+export const changeShareRole = createServerFn({ method: "POST" })
+	.validator((input: { schemaId: string; userId: string; role: ShareRole }) => input)
+	.handler(({ data }): Promise<Result<Member>> =>
+		attempt(async () => {
+			const response = await v1.SchemaService.changeShareRole({
+				schemaId: data.schemaId,
+				userId: data.userId,
+				role: shareRoleOut(data.role),
+			});
+
+			return memberIn(stored(response.member));
+		}),
+	);
+
+export const revokeShare = createServerFn({ method: "POST" })
+	.validator((input: { schemaId: string; userId: string }) => input)
+	.handler(({ data }): Promise<Result<{ userId: string }>> =>
+		attempt(async () => {
+			await v1.SchemaService.revokeShare({ schemaId: data.schemaId, userId: data.userId });
+
+			return { userId: data.userId };
+		}),
+	);
+
+export const cancelInvitation = createServerFn({ method: "POST" })
+	.validator((input: { schemaId: string; invitationId: string }) => input)
+	.handler(({ data }): Promise<Result<{ invitationId: string }>> =>
+		attempt(async () => {
+			await v1.SchemaService.cancelInvitation({
+				schemaId: data.schemaId,
+				invitationId: data.invitationId,
+			});
+
+			return { invitationId: data.invitationId };
+		}),
+	);
+
+export const acceptInvitation = createServerFn({ method: "POST" })
+	.validator((input: { token: string }) => input)
+	.handler(({ data }): Promise<Result<SharedSchema>> =>
+		attempt(async () => {
+			const response = await v1.SchemaService.acceptInvitation({ token: data.token });
+
+			return sharedSchemaIn(stored(response.schema));
+		}),
+	);
 
 /**
  * The health call carries no token, so on its own it reports that the process
