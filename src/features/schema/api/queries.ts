@@ -2,8 +2,16 @@ import { queryOptions } from "@tanstack/react-query";
 import { isRedirect } from "@tanstack/react-router";
 
 import { currentUser } from "@/server/auth/google";
-import { checkBackend, generateDdl, getSchema, listSchemas } from "@/server/rpc/schema";
+import {
+	checkBackend,
+	generateDdl,
+	getSchema,
+	listPeople,
+	listSchemas,
+	listSharedSchemas,
+} from "@/server/rpc/schema";
 
+import { rememberedSchema } from "../lib/last-schema";
 import { EMPTY_SCHEMA } from "../types/schema";
 import type { Schema, SchemaDraft } from "../types/schema";
 import { accountKeys, backendKeys, ddlKeys, schemaKeys } from "./keys";
@@ -44,8 +52,24 @@ export const schemaQueries = {
 			queryFn: () => getSchema({ data: { id } }),
 		}),
 
+	/** What others have let this person in on, with who owns each and as what. */
+	shared: (page = 1, perPage = 50) =>
+		queryOptions({
+			queryKey: schemaKeys.sharedList(page, perPage),
+			queryFn: () => listSharedSchemas({ data: { page, perPage } }),
+		}),
+
+	/** Who has access to a schema. Only the owner is also told who is still invited. */
+	people: (id: string) =>
+		queryOptions({
+			queryKey: schemaKeys.people(id),
+			queryFn: () => listPeople({ data: { schemaId: id } }),
+			retry: false,
+		}),
+
 	/**
-	 * The most recently updated schema, or null when the backend holds none.
+	 * The schema this person last had open in this browser, or failing that
+	 * the most recently updated one, or null when the backend holds none.
 	 * `reachable` says whether the backend answered at all, so the canvas can
 	 * ask for a schema on a fresh backend and show nothing for one that is
 	 * away. The connection itself is reported by the status query.
@@ -60,6 +84,9 @@ export const schemaQueries = {
 			queryKey: schemaKeys.latest(),
 			queryFn: async (): Promise<Latest> => {
 				try {
+					const remembered = await lastOpened();
+					if (remembered) return { schema: remembered, reachable: true };
+
 					const listing = await listSchemas({ data: { page: 1, perPage: 1 } });
 					const first = listing.schemas.at(0);
 
@@ -78,6 +105,22 @@ export const schemaQueries = {
 			retry: false,
 		}),
 };
+
+// One that has since been deleted, or taken back by its owner, is simply
+// not there any more, and the latest stands in for it.
+async function lastOpened(): Promise<Schema | null> {
+	const me = await currentUser();
+	const id = rememberedSchema(me.id);
+	if (!id) return null;
+
+	try {
+		return await getSchema({ data: { id } });
+	} catch (error) {
+		if (isRedirect(error)) throw error;
+
+		return null;
+	}
+}
 
 export const backendQueries = {
 	/**
