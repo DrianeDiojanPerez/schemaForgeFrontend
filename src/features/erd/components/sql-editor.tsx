@@ -108,13 +108,14 @@ const waves = layer({
 // a theme reach it.
 function findingsTheme(c: Palette) {
 	return EditorView.theme({
-		// No edge on the card: a shadow lifts it, and each finding is a tinted block.
+		// No edge on the card: a shadow lifts it. The findings on a line share
+		// it, each parted from the next by a line.
 		".cm-tooltip-hover .cm-tooltip-lint, .cm-tooltip.cm-tooltip-lint": {
-			backgroundColor: c.base,
+			backgroundColor: c.surface,
 			color: c.ink,
 			boxShadow: "0 1px 2px rgb(0 0 0 / 0.2), 0 18px 40px -16px rgb(0 0 0 / 0.55)",
 		},
-		".cm-tooltip .sf-finding": { backgroundColor: c.surface },
+		".cm-tooltip .cm-diagnostic + .cm-diagnostic": { borderTop: `1px solid ${c.line}` },
 		".cm-tooltip .sf-finding-go": {
 			color: c.accent,
 			backgroundColor: `color-mix(in srgb, ${c.accent} 14%, transparent)`,

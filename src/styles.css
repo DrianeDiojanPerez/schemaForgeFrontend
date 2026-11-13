@@ -353,7 +353,7 @@ body .cm-tooltip.cm-tooltip-lint {
 
 body .cm-tooltip .cm-tooltip-lint {
 	margin: 0;
-	padding: 0.25rem;
+	padding: 0;
 	list-style: none;
 }
 
@@ -363,10 +363,6 @@ body .cm-tooltip .cm-diagnostic {
 	border-left: 0;
 	white-space: normal;
 	overflow-wrap: anywhere;
-}
-
-body .cm-tooltip .cm-diagnostic + .cm-diagnostic {
-	margin-top: 0.25rem;
 }
 
 body .cm-tooltip .cm-diagnosticText {
@@ -403,7 +399,6 @@ body .cm-tooltip .cm-diagnosticText {
 .sf-finding {
 	display: flex;
 	flex-direction: column;
-	border-radius: 0.5rem;
 	font-size: 0.875rem;
 	line-height: 1.6;
 }
