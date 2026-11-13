@@ -6,6 +6,14 @@ function wanted(item: Pick<Diagnostic, "severity">, shown: ProblemsShown): boole
 	return shown === "all" || (shown === "errors" && item.severity === "ERROR");
 }
 
+/** The marks the person has asked for, in the order they came. */
+export function keepShown<T extends Pick<Diagnostic, "severity">>(
+	items: T[],
+	shown: ProblemsShown,
+): T[] {
+	return shown === "all" ? items : items.filter((item) => wanted(item, shown));
+}
+
 /** The marks the person has asked for, grouped by the table or line they blame. An element with nothing left is dropped. */
 export function keepShownByElement<T extends Pick<Diagnostic, "severity">>(
 	grouped: Map<string, T[]>,

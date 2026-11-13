@@ -52,7 +52,7 @@ export const SCHEMA_GROUPINGS = [
 
 export const SCHEMA_LIST_WIDTH = { min: 200, max: 560, start: 256 };
 
-/** Which of the backend's findings are drawn on the canvas and listed in the toolbar. */
+/** Which of the backend's findings are drawn on the canvas, marked in the SQL and listed in the toolbar. */
 export type ProblemsShown = "all" | "errors" | "none";
 
 export const PROBLEMS_SHOWN = [

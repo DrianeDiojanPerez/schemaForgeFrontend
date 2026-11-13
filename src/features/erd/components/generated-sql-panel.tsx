@@ -54,6 +54,7 @@ import {
 import { SQL_THEMES, SQL_THEME_ENTRIES, SQL_THEME_GROUPS, sqlThemeOf } from "../lib/sql-themes";
 import type { Palette, SqlTheme } from "../lib/sql-themes";
 import { downloadText } from "../lib/download";
+import { keepShown } from "../lib/problems-shown";
 import { PANEL_IN, PANEL_OUT, panelReach } from "../lib/side-panel";
 import { nodeAnchor } from "../lib/tour";
 import type { ErdTableNode } from "../types/erd";
@@ -97,7 +98,7 @@ export const GeneratedSqlPanel = memo(function GeneratedSqlPanel({
 	// Edits are remembered against the script they were made to, so a fresh
 	// script from the backend replaces them rather than being overwritten.
 	const [edit, setEdit] = useState<{ of: string; text: string } | null>(null);
-	const { sqlVim, sqlTheme, sqlPanelWidth } = useCanvasPreferences();
+	const { sqlVim, sqlTheme, sqlPanelWidth, problemsShown } = useCanvasPreferences();
 	// The width while the edge is being dragged, and the saved one otherwise.
 	const [dragWidth, setDragWidth] = useState<number | null>(null);
 	const width = dragWidth ?? sqlPanelWidth;
@@ -203,7 +204,7 @@ export const GeneratedSqlPanel = memo(function GeneratedSqlPanel({
 	const reported = result?.diagnostics;
 	const findings = useMemo(
 		() =>
-			(reported ?? []).map((diagnostic) => ({
+			keepShown(reported ?? [], problemsShown).map((diagnostic) => ({
 				severity: diagnostic.severity,
 				message: diagnostic.message,
 				onGoTo:
@@ -215,7 +216,7 @@ export const GeneratedSqlPanel = memo(function GeneratedSqlPanel({
 						? () => handlers.current.fixFor(diagnostic)?.()
 						: undefined,
 			})),
-		[reported],
+		[reported, problemsShown],
 	);
 
 	// The left edge drags to resize. The width is kept here while the hand is
