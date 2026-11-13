@@ -34,6 +34,8 @@ export type GraphMenuProps = {
 	/** How many tables the clipboard holds, or nothing while it is empty. */
 	copied: number | null;
 	busy: boolean;
+	/** Nothing drawn here can be kept, so the menu offers no way to change the diagram. */
+	readOnly?: boolean;
 	onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
 	onMouseDownCapture: (event: React.MouseEvent<HTMLDivElement>) => void;
 	onContextMenuCapture: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -47,6 +49,7 @@ export type GraphMenuProps = {
 export const GraphMenu = memo(function GraphMenu({
 	copied,
 	busy,
+	readOnly = false,
 	onPointerMove,
 	onMouseDownCapture,
 	onContextMenuCapture,
@@ -75,26 +78,30 @@ export const GraphMenu = memo(function GraphMenu({
 			</ContextMenuTrigger>
 
 			<ContextMenuContent>
-				<ContextMenuItem onClick={onAddTable}>
-					<PlusIcon />
-					New table
-				</ContextMenuItem>
-				{copied !== null && (
-					<ContextMenuItem onClick={onPaste}>
-						<ClipboardIcon />
-						Paste {tables(copied)}
-						<ContextMenuShortcut>{formatForDisplay(HOTKEYS.paste)}</ContextMenuShortcut>
-					</ContextMenuItem>
+				{!readOnly && (
+					<>
+						<ContextMenuItem onClick={onAddTable}>
+							<PlusIcon />
+							New table
+						</ContextMenuItem>
+						{copied !== null && (
+							<ContextMenuItem onClick={onPaste}>
+								<ClipboardIcon />
+								Paste {tables(copied)}
+								<ContextMenuShortcut>{formatForDisplay(HOTKEYS.paste)}</ContextMenuShortcut>
+							</ContextMenuItem>
+						)}
+						<ContextMenuSeparator />
+						{/* Auto-save can be switched off, and there is no Save button any
+                more, so this is the only way back to a deliberate write. */}
+						<ContextMenuItem disabled={busy} onClick={onSave}>
+							<SaveIcon />
+							Save
+							<ContextMenuShortcut>{formatForDisplay(HOTKEYS.save)}</ContextMenuShortcut>
+						</ContextMenuItem>
+						<ContextMenuSeparator />
+					</>
 				)}
-				<ContextMenuSeparator />
-				{/* Auto-save can be switched off, and there is no Save button any
-            more, so this is the only way back to a deliberate write. */}
-				<ContextMenuItem disabled={busy} onClick={onSave}>
-					<SaveIcon />
-					Save
-					<ContextMenuShortcut>{formatForDisplay(HOTKEYS.save)}</ContextMenuShortcut>
-				</ContextMenuItem>
-				<ContextMenuSeparator />
 				<ContextMenuItem onClick={onFit}>
 					<MaximizeIcon />
 					Fit to screen

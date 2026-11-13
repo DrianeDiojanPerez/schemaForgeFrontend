@@ -53,6 +53,8 @@ export type SchemaToolbarProps = {
 	raised?: boolean;
 	/** Lets the bar drop out of the way between uses. Off, it stays put. */
 	hides?: boolean;
+	/** The schema is only to be looked at, so the bar offers nothing that would change it. */
+	readOnly?: boolean;
 	/** Left out while there is nothing to show. */
 	diagnostics?: Pick<DiagnosticsMenuProps, "diagnostics" | "checked" | "shown" | "onShownChange">;
 };
@@ -100,6 +102,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 	onSettingsOpenChange,
 	raised = false,
 	hides = false,
+	readOnly = false,
 	diagnostics,
 }: SchemaToolbarProps) {
 	const picker = useRef<HTMLInputElement>(null);
@@ -199,22 +202,24 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 
 			<div id={TOUR.toolbar} className={cn(BAR, SHADOW)}>
 				<TooltipProvider delay={200}>
-					<Tooltip>
-						<TooltipTrigger
-							render={
-								<Button
-									variant="bar"
-									size="icon"
-									aria-label="New table"
-									onClick={onAddTable}
-									className={cn(ITEM, "w-10.5", !up && "opacity-20")}
-								/>
-							}
-						>
-							<TablePropertiesIcon className="ml-1 size-5" />
-						</TooltipTrigger>
-						<TooltipContent>New table</TooltipContent>
-					</Tooltip>
+					{!readOnly && (
+						<Tooltip>
+							<TooltipTrigger
+								render={
+									<Button
+										variant="bar"
+										size="icon"
+										aria-label="New table"
+										onClick={onAddTable}
+										className={cn(ITEM, "w-10.5", !up && "opacity-20")}
+									/>
+								}
+							>
+								<TablePropertiesIcon className="ml-1 size-5" />
+							</TooltipTrigger>
+							<TooltipContent>New table</TooltipContent>
+						</Tooltip>
+					)}
 
 					<Tooltip>
 						<TooltipTrigger
@@ -227,7 +232,7 @@ export const SchemaToolbar = memo(function SchemaToolbar({
 									onPointerEnter={onPrefetchSql}
 									onFocus={onPrefetchSql}
 									onClick={onGenerate}
-									className={cn(ITEM, !up && "opacity-20")}
+									className={cn(ITEM, readOnly && "w-10.5", !up && "opacity-20")}
 								/>
 							}
 						>

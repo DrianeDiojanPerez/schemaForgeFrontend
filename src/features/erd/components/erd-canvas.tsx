@@ -14,13 +14,14 @@ import { TourProvider, useTour } from "@/components/tour";
 
 import { schemaKeys } from "@/features/schema/api/keys";
 import { useDeleteSchema } from "@/features/schema/api/mutations";
-import { schemaQueries } from "@/features/schema/api/queries";
+import { accountQueries, schemaQueries } from "@/features/schema/api/queries";
 import type { Latest } from "@/features/schema/api/queries";
+import { rememberSchema } from "@/features/schema/lib/last-schema";
 import { EMPTY_SCHEMA } from "@/features/schema/types/schema";
-import type { Schema, SchemaDraft } from "@/features/schema/types/schema";
+import type { Access, Schema, SchemaDraft } from "@/features/schema/types/schema";
 import { useBackendWatch } from "@/features/schema/hooks/use-backend-status";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/lib/theme";
 import { notify } from "@/lib/toast";
 
@@ -60,6 +61,7 @@ import { GraphActionsProvider } from "./graph-actions-context";
 import { FlowProvider, GraphMenu, tables } from "./graph-menu";
 import { ProblemsProvider } from "./problems-context";
 import { RelationshipEdge } from "./relationship-edge";
+import { SchemaAccess } from "./schema-access";
 import { SchemaNode } from "./schema-node";
 import { SchemaSidebar } from "./schema-sidebar";
 import { SchemaToolbar } from "./schema-toolbar";
@@ -263,6 +265,10 @@ function Canvas({
 
 	const [schemaId, setSchemaId] = useState(schema.id);
 	const [name, setName] = useState(schema.name);
+	const [access, setAccess] = useState<Access>(schema.access);
+	// A schema shared to be looked at. The canvas still pans and zooms, and
+	// the SQL can still be read off it, but nothing drawn on it would be kept.
+	const readOnly = access === "viewer";
 	// The canvas that stands in while there is nothing to show has the
 	// placeholder for a name. Saving it as it is would store a schema called
 	// that, so it asks for a name on its first save instead and is never
@@ -274,7 +280,7 @@ function Canvas({
 		name,
 		nodes,
 		edges,
-		autoSave: autoSave && !unnamed,
+		autoSave: autoSave && !unnamed && !readOnly,
 		autoValidate,
 		includePositions: sqlPositions,
 		onSaved: setSchemaId,
@@ -398,8 +404,9 @@ function Canvas({
 			removeTable,
 			removeColumn,
 			renameSchema: setName,
+			readOnly,
 		}),
-		[addColumn, copyTable, removeTable, removeColumn],
+		[addColumn, copyTable, removeTable, removeColumn, readOnly],
 	);
 
 	// The boxes go in front of the tables in the array and behind them on screen,
@@ -550,12 +557,13 @@ function Canvas({
 	);
 
 	const saveNow = useCallback(() => {
+		if (readOnly) return;
 		if (unnamed) askName();
 		else void latest.current.save();
-	}, [unnamed, askName]);
+	}, [readOnly, unnamed, askName]);
 
 	useHotkey(HOTKEYS.save, () => saveNow(), {
-		enabled: !sync.busy,
+		enabled: !sync.busy && !readOnly,
 		ignoreInputs: true,
 	});
 
@@ -714,8 +722,18 @@ function Canvas({
 	// tables out and the new ones in together instead of a table at a time.
 	const [swaps, setSwaps] = useState(0);
 
+	// Whose browser this is, so the schema on the canvas is remembered for
+	// them and not for whoever signs in next. Keyed on both, since the account
+	// answers after the first schema is already up.
+	const { data: me } = useQuery(accountQueries.me());
+	const userId = me?.id ?? "";
+
+	useEffect(() => {
+		rememberSchema(userId, schemaId);
+	}, [userId, schemaId]);
+
 	const show = useCallback(
-		(next: { id: string; name: string }, picture: ErdDiagram) => {
+		(next: { id: string; name: string; access: Access }, picture: ErdDiagram) => {
 			// The loader fades in first and the tables are swapped only once it is
 			// opaque, so the old ones are not seen jumping into the new ones. The
 			// new tables have no size until they have been drawn once, and fitting
@@ -729,6 +747,7 @@ function Canvas({
 				setArriving(false);
 				setSchemaId(next.id);
 				setName(next.name);
+				setAccess(next.access);
 				setSwaps((count) => count + 1);
 				setNodes(picture.nodes);
 				setEdges(picture.edges);
@@ -771,7 +790,7 @@ function Canvas({
 	const importFile = useCallback(
 		async (content: string, format: ImportFormat) => {
 			const read = await latest.current.importFile(content, format);
-			if (read) show({ id: "", name: read.name }, toDiagram(read));
+			if (read) show({ id: "", name: read.name, access: "owner" }, toDiagram(read));
 		},
 		[show],
 	);
@@ -828,7 +847,9 @@ function Canvas({
 			colorMode={theme}
 			onInit={() => void frame(schemaId).then(() => setLoading("glass"))}
 			onMoveEnd={rememberView}
-			deleteKeyCode={DELETE_KEYS}
+			deleteKeyCode={readOnly ? null : DELETE_KEYS}
+			nodesDraggable={!readOnly}
+			nodesConnectable={!readOnly}
 			snapToGrid={snapToGrid}
 			// Waiting a pixel before the drag starts costs the table the ground
 			// the pointer covered getting there, which it then trails by for the
@@ -896,6 +917,7 @@ function Canvas({
 				<GraphMenu
 					copied={clipboard ? clipboard.nodes.length : null}
 					busy={sync.busy}
+					readOnly={readOnly}
 					onPointerMove={trackPointer}
 					onMouseDownCapture={trackPress}
 					onContextMenuCapture={holdMenu}
@@ -937,9 +959,17 @@ function Canvas({
 						onSettingsOpenChange={openSettings}
 						raised={tour.active}
 						hides={toolbarHides}
+						readOnly={readOnly}
 						diagnostics={problemsMenu}
 					/>
 				</div>
+
+				{/* Under the SQL panel, which slides in over this corner. */}
+				{schemaId && reachable && (
+					<div className="absolute top-3.75 right-3.75 z-20">
+						<SchemaAccess access={access} schemaId={schemaId} schemaName={name} />
+					</div>
+				)}
 			</div>
 		</FlowProvider>
 	);
@@ -1043,8 +1073,8 @@ function Canvas({
 
 export type ErdCanvasProps = {
 	diagram: ErdDiagram;
-	/** Identity and name of the stored schema the diagram came from. */
-	schema: { id: string; name: string };
+	/** Identity and name of the stored schema the diagram came from, and what this person may do with it. */
+	schema: { id: string; name: string; access: Access };
 	/** Opens on the create dialog, for someone who has no schema yet. */
 	askForSchema?: boolean;
 	/** False while the backend has not answered, which keeps the cover on and says why. */

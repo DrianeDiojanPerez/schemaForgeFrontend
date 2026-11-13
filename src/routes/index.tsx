@@ -9,7 +9,7 @@ import { useBrowserNoticeOpen } from "@/lib/browser-notice";
 import { EMPTY_SCHEMA } from "@/features/schema/types/schema";
 import { currentSession } from "@/server/auth/google";
 
-const UNTITLED = { id: "", name: EMPTY_SCHEMA.name };
+const UNTITLED = { id: "", name: EMPTY_SCHEMA.name, access: EMPTY_SCHEMA.access };
 
 const EMPTY = { diagram: { nodes: [], edges: [] }, schema: UNTITLED };
 
@@ -30,7 +30,11 @@ function SchemaBuilderPage() {
 	const { diagram, schema } = latest?.schema
 		? {
 				diagram: toDiagram(latest.schema),
-				schema: { id: latest.schema.id, name: latest.schema.name },
+				schema: {
+					id: latest.schema.id,
+					name: latest.schema.name,
+					access: latest.schema.access,
+				},
 			}
 		: EMPTY;
 

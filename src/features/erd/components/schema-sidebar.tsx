@@ -34,6 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
 	Command,
 	CommandEmpty,
+	CommandGroup,
 	CommandInput,
 	CommandItem,
 	CommandList,
@@ -56,6 +57,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { schemaQueries } from "@/features/schema/api/queries";
+import { SHARE_ROLE_LABELS } from "@/features/schema/types/schema";
+import type { ShareRole } from "@/features/schema/types/schema";
 import { cn } from "@/lib/utils";
 
 import { useReveal } from "../hooks/use-reveal";
@@ -83,6 +86,16 @@ type Choice = {
 	label: string;
 	count: number;
 };
+
+/** A schema someone else owns, with who and as what. */
+type SharedChoice = Choice & { owner: string; role: ShareRole };
+
+// What the confirmation is for: dropping a schema of one's own, or giving
+// up a share of someone else's.
+type Asked = { choice: Choice; kind: "delete" };
+
+const ROW_ACTION =
+	"-my-1 -ml-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/command-item:opacity-100 focus-visible:opacity-100 focus-visible:outline-none";
 
 function Count({ children }: { children: React.ReactNode }) {
 	return <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{children}</span>;
@@ -273,9 +286,9 @@ const SchemaList = memo(function SchemaList({
 	const [openTable, setOpenTable] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
 	const [picking, setPicking] = useState(false);
-	// The schema a delete is being asked about stays known after the answer,
-	// so the dialog still has a name to show while it fades out.
-	const [asked, setAsked] = useState<Choice | null>(null);
+	// The schema a delete or a leave is being asked about stays known after the
+	// answer, so the dialog still has a name to show while it fades out.
+	const [asked, setAsked] = useState<Asked | null>(null);
 	const [confirming, setConfirming] = useState(false);
 	const box = useRef<HTMLInputElement>(null);
 
@@ -335,7 +348,20 @@ const SchemaList = memo(function SchemaList({
 	// can hold tables the backend has not been sent yet. One not stored at
 	// all, such as a file just opened, is known to the canvas alone.
 	const { data: stored } = useQuery(schemaQueries.list(1, 50));
+	const { data: shared } = useQuery(schemaQueries.shared());
 	const tables = groups.reduce((sum, group) => sum + group.tables.length, 0);
+
+	const sharedChoices: SharedChoice[] = useMemo(
+		() =>
+			(shared?.schemas ?? []).map(({ schema, owner, role }) => ({
+				id: schema.id,
+				label: schema.name,
+				count: schema.id === schemaId ? tables : schema.entityCount,
+				owner: owner.name || owner.email || "Someone",
+				role,
+			})),
+		[shared, schemaId, tables],
+	);
 
 	const choices: Choice[] = useMemo(() => {
 		const listed = (stored?.schemas ?? []).map((summary) => ({
@@ -343,10 +369,56 @@ const SchemaList = memo(function SchemaList({
 			label: summary.name,
 			count: summary.id === schemaId ? tables : summary.entityCount,
 		}));
-		return listed.some((choice) => choice.id === schemaId)
-			? listed
-			: [{ id: schemaId, label: name, count: tables }, ...listed];
-	}, [stored, schemaId, name, tables]);
+		const known = [...listed, ...sharedChoices].some((choice) => choice.id === schemaId);
+
+		return known ? listed : [{ id: schemaId, label: name, count: tables }, ...listed];
+	}, [stored, sharedChoices, schemaId, name, tables]);
+
+	const searchable = choices.length + sharedChoices.length > 4;
+
+	const ask = (event: React.MouseEvent, choice: Choice, kind: Asked["kind"]) => {
+		event.stopPropagation();
+		setPicking(false);
+		setAsked({ choice, kind });
+		setConfirming(true);
+	};
+
+	const ownRows = choices.map((choice) => (
+		<CommandItem
+			key={choice.id}
+			value={choice.id || "unsaved"}
+			keywords={[choice.label]}
+			onSelect={() => pick(choice.id)}
+			className="h-8"
+		>
+			{/* The open one is told by its colour and weight, the way the
+          button above shows it, rather than by a tick. */}
+			<DatabaseIcon
+				className={cn(choice.id === schemaId ? "text-primary!" : "text-muted-foreground")}
+			/>
+			<span className={cn("min-w-0 flex-1 truncate", choice.id === schemaId && "font-medium")}>
+				{choice.label}
+			</span>
+			{onDeleteSchema && choice.id && (
+				<button
+					type="button"
+					aria-label={`Delete ${choice.label}`}
+					title="Delete"
+					onClick={(event) => ask(event, choice, "delete")}
+					className={cn(ROW_ACTION, "hover:text-destructive")}
+				>
+					<Trash2Icon className="size-3.5" />
+				</button>
+			)}
+			{/* The shortcut slot, so the row's own tick stays out of the end. */}
+			<span
+				data-slot="command-shortcut"
+				className="shrink-0 text-xs text-muted-foreground tabular-nums"
+			>
+				{choice.count} {choice.count === 1 ? "table" : "tables"}
+			</span>
+		</CommandItem>
+	));
 
 	// The filter is the one thing in here worth reaching for without the mouse.
 	useHotkey(HOTKEYS.findTable, () => box.current?.select());
@@ -387,61 +459,48 @@ const SchemaList = memo(function SchemaList({
 					<PopoverContent align="start" sideOffset={6} className="w-(--anchor-width) gap-0 p-0">
 						<Command>
 							{/* A handful of schemas is read faster than it is searched. */}
-							{choices.length > 4 && <CommandInput placeholder="Search schemas" />}
-							<CommandList className={cn("max-h-55", choices.length > 4 && "mt-1")}>
+							{searchable && <CommandInput placeholder="Search schemas" />}
+							<CommandList className={cn("max-h-64", searchable && "mt-1")}>
 								<CommandEmpty className="py-4">No schema found.</CommandEmpty>
 
 								{/* Keyed by id, since two schemas can share a name. The name
-                    is what the search reads. */}
-								{choices.map((choice) => (
-									<CommandItem
-										key={choice.id}
-										value={choice.id || "unsaved"}
-										keywords={[choice.label]}
-										onSelect={() => pick(choice.id)}
-										className="h-8"
-									>
-										{/* The open one is told by its colour and weight, the way the
-                        button above shows it, rather than by a tick. */}
-										<DatabaseIcon
-											className={cn(
-												choice.id === schemaId ? "text-primary!" : "text-muted-foreground",
-											)}
-										/>
-										<span
-											className={cn(
-												"min-w-0 flex-1 truncate",
-												choice.id === schemaId && "font-medium",
-											)}
-										>
-											{choice.label}
-										</span>
-										{onDeleteSchema && choice.id && (
-											<button
-												type="button"
-												aria-label={`Delete ${choice.label}`}
-												title="Delete"
-												onClick={(event) => {
-													event.stopPropagation();
-													setPicking(false);
-													setAsked(choice);
-													setConfirming(true);
-												}}
-												className="-my-1 -ml-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/command-item:opacity-100 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none"
-											>
-												<Trash2Icon className="size-3.5" />
-											</button>
+                    is what the search reads. The headings only come in once
+                    there is a second group to tell the first from. */}
+								{sharedChoices.length === 0
+									? ownRows
+									: choices.length > 0 && (
+											<CommandGroup heading="My schemas">{ownRows}</CommandGroup>
 										)}
-										{/* The shortcut slot, so the row's own tick stays out of the end. */}
-										<span
-											data-slot="command-shortcut"
-											className="shrink-0 text-xs text-muted-foreground tabular-nums"
-										>
-											{choice.count} {choice.count === 1 ? "table" : "tables"}
-										</span>
-									</CommandItem>
-								))}
 
+								{sharedChoices.length > 0 && (
+									<CommandGroup heading="Shared with me">
+										{sharedChoices.map((choice) => (
+											<CommandItem
+												key={choice.id}
+												value={choice.id}
+												keywords={[choice.label, choice.owner]}
+												onSelect={() => pick(choice.id)}
+												className="h-auto"
+											>
+												<DatabaseIcon
+													className={cn(
+														choice.id === schemaId ? "text-primary!" : "text-muted-foreground",
+													)}
+												/>
+												{/* Two lines, since the list is narrow and the owner's name
+                            would otherwise push the schema's out. */}
+												<span className="flex min-w-0 flex-1 flex-col py-1.5 leading-tight">
+													<span className={cn("truncate", choice.id === schemaId && "font-medium")}>
+														{choice.label}
+													</span>
+													<span className="truncate text-xs text-muted-foreground">
+														{choice.owner} · {SHARE_ROLE_LABELS[choice.role]}
+													</span>
+												</span>
+											</CommandItem>
+										))}
+									</CommandGroup>
+								)}
 								{onNewSchema && (
 									<>
 										<CommandSeparator className="my-1" />
@@ -484,11 +543,11 @@ const SchemaList = memo(function SchemaList({
 									<DatabaseIcon className="size-4" />
 								</span>
 								<span className="flex min-w-0 flex-1 flex-col">
-									<span className="truncate text-sm font-medium">{asked?.label}</span>
+									<span className="truncate text-sm font-medium">{asked?.choice.label}</span>
 									<span className="text-xs text-muted-foreground">
-										{asked?.count === 0
+										{asked?.choice.count === 0
 											? "No tables yet"
-											: `${asked?.count} table${asked?.count === 1 ? "" : "s"}`}
+											: `${asked?.choice.count} table${asked?.choice.count === 1 ? "" : "s"}`}
 									</span>
 								</span>
 							</div>
@@ -499,7 +558,7 @@ const SchemaList = memo(function SchemaList({
 									variant="destructive"
 									onClick={() => {
 										setConfirming(false);
-										if (asked) onDeleteSchema(asked.id);
+										if (asked) onDeleteSchema(asked.choice.id);
 									}}
 								>
 									<Trash2Icon />
@@ -713,9 +772,15 @@ export function SchemaSidebar({
 		return () => window.cancelIdleCallback(handle);
 	}, []);
 
+	// The first schema is waited for, so the list slides in with the tables
+	// rather than ahead of them with bars where the names will go. Later
+	// swaps happen inside the open list, which stays where it is.
+	const [arrived, setArrived] = useState(!waiting);
+	if (!waiting && !arrived) setArrived(true);
+
 	// Open only counts while the list is the chosen grouping, so a panel left
 	// open is not still holding a column once the boxes have the canvas.
-	const showing = active && open && settled;
+	const showing = active && open && settled && arrived;
 
 	// The right edge drags to resize. The width is kept here while the hand is
 	// on it and written to the preferences once it lets go.
