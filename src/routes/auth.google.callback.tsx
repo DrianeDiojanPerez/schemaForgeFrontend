@@ -21,8 +21,10 @@ export const Route = createFileRoute("/auth/google/callback")({
 			});
 		}
 
+		let next: string | undefined;
+
 		try {
-			await finishGoogleLogin({ data: { code: search.code, state: search.state } });
+			({ next } = await finishGoogleLogin({ data: { code: search.code, state: search.state } }));
 		} catch (reason) {
 			throw redirect({
 				to: "/login",
@@ -30,7 +32,7 @@ export const Route = createFileRoute("/auth/google/callback")({
 			});
 		}
 
-		throw redirect({ to: "/" });
+		throw redirect({ href: next ?? "/" });
 	},
 	component: () => null,
 });

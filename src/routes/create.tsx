@@ -6,37 +6,53 @@ import { AuthPage, Solid } from "@/components/auth-page";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { afterSignUp, localPath } from "@/lib/next-path";
 import { notify } from "@/lib/toast";
 import { currentSession } from "@/server/auth/google";
 import { registerWithPassword } from "@/server/auth/password";
 
 export const Route = createFileRoute("/create")({
-	beforeLoad: async () => {
+	validateSearch: (search: Record<string, unknown>): { next?: string } =>
+		localPath(search.next) ? { next: localPath(search.next) } : {},
+	beforeLoad: async ({ search }) => {
 		const { signedIn } = await currentSession();
-		if (signedIn) throw redirect({ to: "/" });
+		if (signedIn) throw redirect({ href: search.next ?? "/" });
 	},
 	head: () => ({ meta: [{ title: "Create account · SchemaForge" }] }),
 	component: CreateAccountPage,
 });
 
 function CreateAccountPage() {
+	const { next } = Route.useSearch();
 	const navigate = Route.useNavigate();
+	const invited = next?.startsWith("/invitations/") ?? false;
 
 	return (
 		<AuthPage
 			title="Create your account"
-			blurb="Set up SchemaForge and start drawing your first diagram."
+			blurb={
+				invited
+					? "Sign up with the address the invitation was sent to, and the schema is yours to open."
+					: "Set up SchemaForge and start drawing your first diagram."
+			}
 			googleLabel="Sign up with Google"
+			next={invited ? afterSignUp(next) : next}
 			footer={
 				<>
 					Already have an account?{" "}
-					<Link to="/login" className="text-foreground underline underline-offset-3">
+					<Link
+						to="/login"
+						search={next ? { next } : {}}
+						className="text-foreground underline underline-offset-3"
+					>
 						Sign in
 					</Link>
 				</>
 			}
 		>
-			{(leaving) => <SignUpForm disabled={leaving} onDone={() => navigate({ to: "/" })} />}
+			{(leaving) => (
+				<SignUpForm disabled={leaving} onDone={() => navigate({ href: afterSignUp(next) })} />
+			)}
 		</AuthPage>
 	);
 }

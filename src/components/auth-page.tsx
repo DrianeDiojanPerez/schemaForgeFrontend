@@ -24,12 +24,15 @@ export function AuthPage({
 	title,
 	blurb,
 	googleLabel,
+	next,
 	children,
 	footer,
 }: {
 	title: string;
 	blurb: string;
 	googleLabel: string;
+	/** Where to land once signed in, when somewhere other than the canvas asked for it. */
+	next?: string;
 	children: (leaving: boolean) => React.ReactNode;
 	footer: React.ReactNode;
 }) {
@@ -39,7 +42,7 @@ export function AuthPage({
 		setLeaving(true);
 
 		try {
-			const { url } = await startGoogleLogin();
+			const { url } = await startGoogleLogin({ data: { next } });
 			window.location.assign(url);
 		} catch (reason) {
 			setLeaving(false);

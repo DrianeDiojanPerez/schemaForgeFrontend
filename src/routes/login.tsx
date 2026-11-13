@@ -6,23 +6,26 @@ import { AuthPage, Solid } from "@/components/auth-page";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { localPath } from "@/lib/next-path";
 import { notify } from "@/lib/toast";
 import { currentSession } from "@/server/auth/google";
 import { signInWithPassword } from "@/server/auth/password";
 
 export const Route = createFileRoute("/login")({
-	validateSearch: (search: Record<string, unknown>): { error?: string } =>
-		typeof search.error === "string" ? { error: search.error } : {},
-	beforeLoad: async () => {
+	validateSearch: (search: Record<string, unknown>): { error?: string; next?: string } => ({
+		...(typeof search.error === "string" ? { error: search.error } : {}),
+		...(localPath(search.next) ? { next: localPath(search.next) } : {}),
+	}),
+	beforeLoad: async ({ search }) => {
 		const { signedIn } = await currentSession();
-		if (signedIn) throw redirect({ to: "/" });
+		if (signedIn) throw redirect({ href: search.next ?? "/" });
 	},
 	head: () => ({ meta: [{ title: "Sign in · SchemaForge" }] }),
 	component: LoginPage,
 });
 
 function LoginPage() {
-	const { error } = Route.useSearch();
+	const { error, next } = Route.useSearch();
 	const navigate = Route.useNavigate();
 
 	// Google sends failures back in the address bar. Say it once, then take
@@ -30,24 +33,35 @@ function LoginPage() {
 	useEffect(() => {
 		if (!error) return;
 		notify.error({ title: "Sign-in did not go through", description: error });
-		void navigate({ search: {}, replace: true });
-	}, [error, navigate]);
+		void navigate({ search: next ? { next } : {}, replace: true });
+	}, [error, next, navigate]);
 
 	return (
 		<AuthPage
 			title="Welcome back"
-			blurb="Sign in to SchemaForge to pick up your diagrams where you left them."
+			blurb={
+				next?.startsWith("/invitations/")
+					? "Sign in with the address the invitation was sent to, and the schema opens for you."
+					: "Sign in to SchemaForge to pick up your diagrams where you left them."
+			}
 			googleLabel="Continue with Google"
+			next={next}
 			footer={
 				<>
 					New to SchemaForge?{" "}
-					<Link to="/create" className="text-foreground underline underline-offset-3">
+					<Link
+						to="/create"
+						search={next ? { next } : {}}
+						className="text-foreground underline underline-offset-3"
+					>
 						Create an account
 					</Link>
 				</>
 			}
 		>
-			{(leaving) => <PasswordForm disabled={leaving} onDone={() => navigate({ to: "/" })} />}
+			{(leaving) => (
+				<PasswordForm disabled={leaving} onDone={() => navigate({ href: next ?? "/" })} />
+			)}
 		</AuthPage>
 	);
 }

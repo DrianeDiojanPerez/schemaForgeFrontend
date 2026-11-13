@@ -19,20 +19,20 @@ export const currentSession = createServerFn({ method: "GET" }).handler(
 	}),
 );
 
-export const startGoogleLogin = createServerFn({ method: "POST" }).handler(
-	async (): Promise<{ url: string }> => {
+export const startGoogleLogin = createServerFn({ method: "POST" })
+	.validator((input: { next?: string } | undefined) => input ?? {})
+	.handler(async ({ data }): Promise<{ url: string }> => {
 		const current = await session();
 		const state = crypto.randomUUID();
 
-		await current.update({ pending: state });
+		await current.update({ pending: state, next: data.next });
 
 		return v1.AuthService.googleLoginUrl({ state });
-	},
-);
+	});
 
 export const finishGoogleLogin = createServerFn({ method: "POST" })
 	.validator((input: { code: string; state: string }) => input)
-	.handler(async ({ data }) => {
+	.handler(async ({ data }): Promise<{ next?: string }> => {
 		const current = await session();
 
 		if (!current.data.pending || current.data.pending !== data.state) {
@@ -40,13 +40,17 @@ export const finishGoogleLogin = createServerFn({ method: "POST" })
 		}
 
 		const tokens = await v1.AuthService.loginWithGoogle({ code: data.code });
+		const next = current.data.next;
 
 		await current.update({
 			token: tokens.token,
 			refreshToken: tokens.refreshToken,
 			pending: undefined,
+			next: undefined,
 			via: "google",
 		});
+
+		return { next };
 	});
 
 export type Account = {

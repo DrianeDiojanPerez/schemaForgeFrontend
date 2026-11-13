@@ -11,7 +11,12 @@ export type SignInMethod = "google" | "password";
  * What a visitor's cookie holds: the backend's token pair once they are in,
  * and the state of a sign-in that is under way until then.
  */
-type SessionData = Partial<Tokens> & { pending?: string; via?: SignInMethod };
+type SessionData = Partial<Tokens> & {
+	pending?: string;
+	via?: SignInMethod;
+	/** Where a sign-in through Google goes once Google has sent the browser back. */
+	next?: string;
+};
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
