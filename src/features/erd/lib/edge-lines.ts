@@ -108,6 +108,11 @@ export function bestSides(costs: SideCosts): Sides {
 	return PAIRS[pairs.reduce((top, pair) => (better(pair, top) ? pair : top))];
 }
 
+/** Whether a line arriving at `row` is cut by a loop that runs from one end's row to the other's. */
+export function runsPast(row: number, fromY: number, toY: number): boolean {
+	return row > Math.min(fromY, toY) && row < Math.max(fromY, toY);
+}
+
 export type Box = { left: number; right: number; top: number; bottom: number };
 
 type Ends = {

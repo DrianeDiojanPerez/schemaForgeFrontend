@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { Position } from "@xyflow/react";
 
-import { bestSides, linePath, nearestSides } from "./lib/edge-lines";
+import { bestSides, linePath, nearestSides, runsPast } from "./lib/edge-lines";
 
 // Two tables 160 wide. The source sits at 0; the target is moved about.
 const source = { left: 0, right: 160 };
@@ -140,5 +140,14 @@ describe("bestSides", () => {
 				rightToRight: { distance: 360, ...clean },
 			}),
 		).toEqual({ sourceSide: "right", targetSide: "right" });
+	});
+});
+
+describe("runsPast", () => {
+	test("a loop cuts the lines at the rows between its two ends and no others", () => {
+		expect(runsPast(200, 127, 384)).toBe(true);
+		expect(runsPast(200, 384, 127)).toBe(true);
+		expect(runsPast(80, 127, 384)).toBe(false);
+		expect(runsPast(127, 127, 384)).toBe(false);
 	});
 });
