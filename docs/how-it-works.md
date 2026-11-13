@@ -22,4 +22,10 @@ People sign in with Google or with an email and password. The backend holds the 
 - Compares two schemas and writes a migration.
 - Shares a schema with other people by invitation.
 
-`Ctrl+S` saves and `Ctrl+K` finds a table. On a Mac use `Cmd`.
+`Ctrl+S` saves and `Ctrl+K` finds a table. `Ctrl+Z` undoes the last change to the diagram, and `Ctrl+Shift+Z`, `Ctrl+Y` or `Ctrl+R` puts it back. On a Mac use `Cmd`, except for `Ctrl+R`.
+
+`Ctrl+R` no longer reloads the page while the canvas has the focus. `F5` still does.
+
+## Undo
+
+The canvas keeps the last 100 states of the diagram in memory. A state is the tables, their columns and positions, and the relationships. A new one is recorded a quarter of a second after the diagram stops changing, so a drag or a typed name is one step. Opening another schema or reloading the page clears the history.
