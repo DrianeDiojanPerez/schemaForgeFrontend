@@ -4,4 +4,8 @@ export const HOTKEYS = {
 	paste: "Mod+V",
 	save: "Mod+S",
 	findTable: "Mod+K",
+	undo: "Mod+Z",
+	redo: "Mod+Shift+Z",
+	redoToo: "Mod+Y",
+	redoVim: "Control+R",
 } as const;

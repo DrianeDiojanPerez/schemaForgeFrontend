@@ -1,6 +1,13 @@
 import { createContext, memo, use } from "react";
 import type { ReactNode } from "react";
-import { ClipboardIcon, MaximizeIcon, PlusIcon, SaveIcon } from "lucide-react";
+import {
+	ClipboardIcon,
+	MaximizeIcon,
+	PlusIcon,
+	Redo2Icon,
+	SaveIcon,
+	Undo2Icon,
+} from "lucide-react";
 import { ClientOnly } from "@tanstack/react-router";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
 
@@ -41,6 +48,9 @@ export type GraphMenuProps = {
 	onContextMenuCapture: (event: React.MouseEvent<HTMLDivElement>) => void;
 	onAddTable: () => void;
 	onPaste: () => void;
+	/** Left out while there is nothing to take back. */
+	onUndo?: () => void;
+	onRedo?: () => void;
 	onSave: () => void;
 	onFit: () => void;
 };
@@ -55,6 +65,8 @@ export const GraphMenu = memo(function GraphMenu({
 	onContextMenuCapture,
 	onAddTable,
 	onPaste,
+	onUndo,
+	onRedo,
 	onSave,
 	onFit,
 }: GraphMenuProps) {
@@ -91,6 +103,17 @@ export const GraphMenu = memo(function GraphMenu({
 								<ContextMenuShortcut>{formatForDisplay(HOTKEYS.paste)}</ContextMenuShortcut>
 							</ContextMenuItem>
 						)}
+						<ContextMenuSeparator />
+						<ContextMenuItem disabled={!onUndo} onClick={onUndo}>
+							<Undo2Icon />
+							Undo
+							<ContextMenuShortcut>{formatForDisplay(HOTKEYS.undo)}</ContextMenuShortcut>
+						</ContextMenuItem>
+						<ContextMenuItem disabled={!onRedo} onClick={onRedo}>
+							<Redo2Icon />
+							Redo
+							<ContextMenuShortcut>{formatForDisplay(HOTKEYS.redo)}</ContextMenuShortcut>
+						</ContextMenuItem>
 						<ContextMenuSeparator />
 						{/* Auto-save can be switched off, and there is no Save button any
                 more, so this is the only way back to a deliberate write. */}

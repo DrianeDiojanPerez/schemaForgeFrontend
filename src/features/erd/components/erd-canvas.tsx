@@ -26,6 +26,7 @@ import { useTheme } from "@/lib/theme";
 import { notify } from "@/lib/toast";
 
 import { useErdGraph } from "../hooks/use-erd-graph";
+import { useGraphHistory } from "../hooks/use-graph-history";
 import { useReveal } from "../hooks/use-reveal";
 import { useSchemaSync } from "../hooks/use-schema-sync";
 import type { GenerateOptions } from "../hooks/use-schema-sync";
@@ -722,6 +723,23 @@ function Canvas({
 	// tables out and the new ones in together instead of a table at a time.
 	const [swaps, setSwaps] = useState(0);
 
+	const history = useGraphHistory({ nodes, edges, setNodes, setEdges, epoch: swaps });
+
+	// The browser's own undo reaches back into the last field that was typed
+	// in, even with the focus on the canvas, so the key is always taken here.
+	const undoKey = (run: () => boolean) => (event: KeyboardEvent) => {
+		if (readOnly || busyElsewhere(event.target)) return;
+
+		event.preventDefault();
+		run();
+	};
+	const leaveToPage = { preventDefault: false, stopPropagation: false };
+
+	useHotkey(HOTKEYS.undo, undoKey(history.undo), leaveToPage);
+	useHotkey(HOTKEYS.redo, undoKey(history.redo), leaveToPage);
+	useHotkey(HOTKEYS.redoToo, undoKey(history.redo), leaveToPage);
+	useHotkey(HOTKEYS.redoVim, undoKey(history.redo), leaveToPage);
+
 	// Whose browser this is, so the schema on the canvas is remembered for
 	// them and not for whoever signs in next. Keyed on both, since the account
 	// answers after the first schema is already up.
@@ -923,6 +941,8 @@ function Canvas({
 					onContextMenuCapture={holdMenu}
 					onAddTable={addTableAtClick}
 					onPaste={pasteTableAtClick}
+					onUndo={history.canUndo ? history.undo : undefined}
+					onRedo={history.canRedo ? history.redo : undefined}
 					onSave={saveNow}
 					onFit={fitAll}
 				/>
