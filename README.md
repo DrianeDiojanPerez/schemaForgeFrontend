@@ -1,59 +1,45 @@
-# SchemaForge frontend
+<p align="center"><img src="assets/banner.png" alt="SchemaForge: draw a database schema, check it, and get the SQL" width="100%"></p>
 
-The canvas for SchemaForge: draw a database schema as a diagram, have the
-backend check it, and turn it into SQL. Built with TanStack Start, React Flow
-and shadcn/ui.
+- [Requirements](#requirements)
+- [Run](#run)
+- [Test](#test)
+- [Docs](#docs)
 
-## What it needs
+## Requirements
 
 - Node 22 or later.
-- The SchemaForge backend running, by default on `127.0.0.1:50051`, with its
-  Google sign-in configured. People sign in with Google; the backend holds
-  the Google client and this server holds nothing of it.
-- A secret of 32 or more characters in `SCHEMAFORGE_SESSION_SECRET`. It seals
-  the cookie that carries each visitor's backend tokens.
-- The backend's proto files on this machine. `SCHEMAFORGE_PROTO_DIR` points at
-  the directory that holds them (`schema.proto`, `health.proto` and
-  `auth.proto`, and nothing else), and the server fails its first request
-  until it does.
+- The SchemaForge backend, on `127.0.0.1:50051` unless you set another address.
+- The backend's proto files on this machine.
 
-## Running it
+## Run
 
-```bash
-cp .env.example .env   # then fill in the backend address and the secret
+```
+cp .env.example .env
 npm install
-npm run dev            # http://localhost:3100
+npm run dev
 ```
 
-Every setting the server reads is listed and explained in `.env.example`, and
-checked when the server starts, so a missing or wrong value fails with a
-message naming it.
+Fill in `.env` before the last step. It needs a session secret and the folder that holds the proto files. See [Settings](docs/settings.md).
 
-## When the proto files change
+The app opens at http://localhost:3100.
 
-```bash
-npm run proto:types
+## Test
+
 ```
-
-This writes TypeScript for every proto file in `SCHEMAFORGE_PROTO_DIR` into
-`src/server/rpc/generated`, which is committed. `npm test` fails while that
-output is older than the proto files.
-
-## Checks
-
-```bash
 npm test
 npm run lint
 npm run typecheck
 ```
 
-## Against a running backend
+`npm run test:backend` runs the same calls against a real backend. See [Testing](docs/testing.md).
 
-```bash
-npm run test:backend
-```
+## Docs
 
-Runs `src/server/rpc/backend.test.ts` through the real gRPC boundary: it
-registers a throwaway account on the backend named in `SCHEMAFORGE_TEST_BACKEND`
-(`127.0.0.1:50051` unless set) and saves, validates, generates, exports and
-imports a schema. Plain `npm test` skips it when that variable is unset.
+- [How it works](docs/how-it-works.md)
+- [Settings](docs/settings.md): every value in `.env`
+- [Commands](docs/commands.md): the `npm` scripts
+- [Proto files](docs/proto.md): what to do when the backend's contract changes
+- [Testing](docs/testing.md): checks, the backend suite, and the case studies
+- [Deploying](docs/deploy.md): Fly.io and the Docker image
+- [Where things live](docs/layout.md)
+- [Troubleshooting](docs/troubleshooting.md)
