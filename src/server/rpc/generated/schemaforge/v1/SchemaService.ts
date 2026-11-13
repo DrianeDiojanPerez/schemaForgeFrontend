@@ -2,6 +2,12 @@
 
 import type * as grpc from '@grpc/grpc-js'
 import type { MethodDefinition } from '@grpc/proto-loader'
+import type { AcceptInvitationRequest as _schemaforge_v1_AcceptInvitationRequest, AcceptInvitationRequest__Output as _schemaforge_v1_AcceptInvitationRequest__Output } from '../../schemaforge/v1/AcceptInvitationRequest';
+import type { AcceptInvitationResponse as _schemaforge_v1_AcceptInvitationResponse, AcceptInvitationResponse__Output as _schemaforge_v1_AcceptInvitationResponse__Output } from '../../schemaforge/v1/AcceptInvitationResponse';
+import type { CancelInvitationRequest as _schemaforge_v1_CancelInvitationRequest, CancelInvitationRequest__Output as _schemaforge_v1_CancelInvitationRequest__Output } from '../../schemaforge/v1/CancelInvitationRequest';
+import type { CancelInvitationResponse as _schemaforge_v1_CancelInvitationResponse, CancelInvitationResponse__Output as _schemaforge_v1_CancelInvitationResponse__Output } from '../../schemaforge/v1/CancelInvitationResponse';
+import type { ChangeShareRoleRequest as _schemaforge_v1_ChangeShareRoleRequest, ChangeShareRoleRequest__Output as _schemaforge_v1_ChangeShareRoleRequest__Output } from '../../schemaforge/v1/ChangeShareRoleRequest';
+import type { ChangeShareRoleResponse as _schemaforge_v1_ChangeShareRoleResponse, ChangeShareRoleResponse__Output as _schemaforge_v1_ChangeShareRoleResponse__Output } from '../../schemaforge/v1/ChangeShareRoleResponse';
 import type { CompareSchemasRequest as _schemaforge_v1_CompareSchemasRequest, CompareSchemasRequest__Output as _schemaforge_v1_CompareSchemasRequest__Output } from '../../schemaforge/v1/CompareSchemasRequest';
 import type { CompareSchemasResponse as _schemaforge_v1_CompareSchemasResponse, CompareSchemasResponse__Output as _schemaforge_v1_CompareSchemasResponse__Output } from '../../schemaforge/v1/CompareSchemasResponse';
 import type { CreateSchemaRequest as _schemaforge_v1_CreateSchemaRequest, CreateSchemaRequest__Output as _schemaforge_v1_CreateSchemaRequest__Output } from '../../schemaforge/v1/CreateSchemaRequest';
@@ -16,14 +22,49 @@ import type { GetSchemaRequest as _schemaforge_v1_GetSchemaRequest, GetSchemaReq
 import type { GetSchemaResponse as _schemaforge_v1_GetSchemaResponse, GetSchemaResponse__Output as _schemaforge_v1_GetSchemaResponse__Output } from '../../schemaforge/v1/GetSchemaResponse';
 import type { ImportSchemaRequest as _schemaforge_v1_ImportSchemaRequest, ImportSchemaRequest__Output as _schemaforge_v1_ImportSchemaRequest__Output } from '../../schemaforge/v1/ImportSchemaRequest';
 import type { ImportSchemaResponse as _schemaforge_v1_ImportSchemaResponse, ImportSchemaResponse__Output as _schemaforge_v1_ImportSchemaResponse__Output } from '../../schemaforge/v1/ImportSchemaResponse';
+import type { ListPeopleRequest as _schemaforge_v1_ListPeopleRequest, ListPeopleRequest__Output as _schemaforge_v1_ListPeopleRequest__Output } from '../../schemaforge/v1/ListPeopleRequest';
+import type { ListPeopleResponse as _schemaforge_v1_ListPeopleResponse, ListPeopleResponse__Output as _schemaforge_v1_ListPeopleResponse__Output } from '../../schemaforge/v1/ListPeopleResponse';
 import type { ListSchemasRequest as _schemaforge_v1_ListSchemasRequest, ListSchemasRequest__Output as _schemaforge_v1_ListSchemasRequest__Output } from '../../schemaforge/v1/ListSchemasRequest';
 import type { ListSchemasResponse as _schemaforge_v1_ListSchemasResponse, ListSchemasResponse__Output as _schemaforge_v1_ListSchemasResponse__Output } from '../../schemaforge/v1/ListSchemasResponse';
+import type { ListSharedSchemasRequest as _schemaforge_v1_ListSharedSchemasRequest, ListSharedSchemasRequest__Output as _schemaforge_v1_ListSharedSchemasRequest__Output } from '../../schemaforge/v1/ListSharedSchemasRequest';
+import type { ListSharedSchemasResponse as _schemaforge_v1_ListSharedSchemasResponse, ListSharedSchemasResponse__Output as _schemaforge_v1_ListSharedSchemasResponse__Output } from '../../schemaforge/v1/ListSharedSchemasResponse';
+import type { RevokeShareRequest as _schemaforge_v1_RevokeShareRequest, RevokeShareRequest__Output as _schemaforge_v1_RevokeShareRequest__Output } from '../../schemaforge/v1/RevokeShareRequest';
+import type { RevokeShareResponse as _schemaforge_v1_RevokeShareResponse, RevokeShareResponse__Output as _schemaforge_v1_RevokeShareResponse__Output } from '../../schemaforge/v1/RevokeShareResponse';
+import type { ShareSchemaRequest as _schemaforge_v1_ShareSchemaRequest, ShareSchemaRequest__Output as _schemaforge_v1_ShareSchemaRequest__Output } from '../../schemaforge/v1/ShareSchemaRequest';
+import type { ShareSchemaResponse as _schemaforge_v1_ShareSchemaResponse, ShareSchemaResponse__Output as _schemaforge_v1_ShareSchemaResponse__Output } from '../../schemaforge/v1/ShareSchemaResponse';
 import type { UpdateSchemaRequest as _schemaforge_v1_UpdateSchemaRequest, UpdateSchemaRequest__Output as _schemaforge_v1_UpdateSchemaRequest__Output } from '../../schemaforge/v1/UpdateSchemaRequest';
 import type { UpdateSchemaResponse as _schemaforge_v1_UpdateSchemaResponse, UpdateSchemaResponse__Output as _schemaforge_v1_UpdateSchemaResponse__Output } from '../../schemaforge/v1/UpdateSchemaResponse';
 import type { ValidateSchemaRequest as _schemaforge_v1_ValidateSchemaRequest, ValidateSchemaRequest__Output as _schemaforge_v1_ValidateSchemaRequest__Output } from '../../schemaforge/v1/ValidateSchemaRequest';
 import type { ValidateSchemaResponse as _schemaforge_v1_ValidateSchemaResponse, ValidateSchemaResponse__Output as _schemaforge_v1_ValidateSchemaResponse__Output } from '../../schemaforge/v1/ValidateSchemaResponse';
 
 export interface SchemaServiceClient extends grpc.Client {
+  AcceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  AcceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  AcceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  AcceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  acceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  acceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  acceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  acceptInvitation(argument: _schemaforge_v1_AcceptInvitationRequest, callback: grpc.requestCallback<_schemaforge_v1_AcceptInvitationResponse__Output>): grpc.ClientUnaryCall;
+  
+  CancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  CancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  CancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  CancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  cancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  cancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  cancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  cancelInvitation(argument: _schemaforge_v1_CancelInvitationRequest, callback: grpc.requestCallback<_schemaforge_v1_CancelInvitationResponse__Output>): grpc.ClientUnaryCall;
+  
+  ChangeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  ChangeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  ChangeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  ChangeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  changeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  changeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  changeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  changeShareRole(argument: _schemaforge_v1_ChangeShareRoleRequest, callback: grpc.requestCallback<_schemaforge_v1_ChangeShareRoleResponse__Output>): grpc.ClientUnaryCall;
+  
   CompareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
   CompareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
   CompareSchemas(argument: _schemaforge_v1_CompareSchemasRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_CompareSchemasResponse__Output>): grpc.ClientUnaryCall;
@@ -87,6 +128,15 @@ export interface SchemaServiceClient extends grpc.Client {
   importSchema(argument: _schemaforge_v1_ImportSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
   importSchema(argument: _schemaforge_v1_ImportSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_ImportSchemaResponse__Output>): grpc.ClientUnaryCall;
   
+  ListPeople(argument: _schemaforge_v1_ListPeopleRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  ListPeople(argument: _schemaforge_v1_ListPeopleRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  ListPeople(argument: _schemaforge_v1_ListPeopleRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  ListPeople(argument: _schemaforge_v1_ListPeopleRequest, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  listPeople(argument: _schemaforge_v1_ListPeopleRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  listPeople(argument: _schemaforge_v1_ListPeopleRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  listPeople(argument: _schemaforge_v1_ListPeopleRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  listPeople(argument: _schemaforge_v1_ListPeopleRequest, callback: grpc.requestCallback<_schemaforge_v1_ListPeopleResponse__Output>): grpc.ClientUnaryCall;
+  
   ListSchemas(argument: _schemaforge_v1_ListSchemasRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
   ListSchemas(argument: _schemaforge_v1_ListSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
   ListSchemas(argument: _schemaforge_v1_ListSchemasRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
@@ -95,6 +145,33 @@ export interface SchemaServiceClient extends grpc.Client {
   listSchemas(argument: _schemaforge_v1_ListSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
   listSchemas(argument: _schemaforge_v1_ListSchemasRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
   listSchemas(argument: _schemaforge_v1_ListSchemasRequest, callback: grpc.requestCallback<_schemaforge_v1_ListSchemasResponse__Output>): grpc.ClientUnaryCall;
+  
+  ListSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  ListSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  ListSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  ListSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  listSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  listSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  listSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  listSharedSchemas(argument: _schemaforge_v1_ListSharedSchemasRequest, callback: grpc.requestCallback<_schemaforge_v1_ListSharedSchemasResponse__Output>): grpc.ClientUnaryCall;
+  
+  RevokeShare(argument: _schemaforge_v1_RevokeShareRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  RevokeShare(argument: _schemaforge_v1_RevokeShareRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  RevokeShare(argument: _schemaforge_v1_RevokeShareRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  RevokeShare(argument: _schemaforge_v1_RevokeShareRequest, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  revokeShare(argument: _schemaforge_v1_RevokeShareRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  revokeShare(argument: _schemaforge_v1_RevokeShareRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  revokeShare(argument: _schemaforge_v1_RevokeShareRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  revokeShare(argument: _schemaforge_v1_RevokeShareRequest, callback: grpc.requestCallback<_schemaforge_v1_RevokeShareResponse__Output>): grpc.ClientUnaryCall;
+  
+  ShareSchema(argument: _schemaforge_v1_ShareSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ShareSchema(argument: _schemaforge_v1_ShareSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ShareSchema(argument: _schemaforge_v1_ShareSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
+  ShareSchema(argument: _schemaforge_v1_ShareSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
+  shareSchema(argument: _schemaforge_v1_ShareSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
+  shareSchema(argument: _schemaforge_v1_ShareSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
+  shareSchema(argument: _schemaforge_v1_ShareSchemaRequest, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
+  shareSchema(argument: _schemaforge_v1_ShareSchemaRequest, callback: grpc.requestCallback<_schemaforge_v1_ShareSchemaResponse__Output>): grpc.ClientUnaryCall;
   
   UpdateSchema(argument: _schemaforge_v1_UpdateSchemaRequest, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_schemaforge_v1_UpdateSchemaResponse__Output>): grpc.ClientUnaryCall;
   UpdateSchema(argument: _schemaforge_v1_UpdateSchemaRequest, metadata: grpc.Metadata, callback: grpc.requestCallback<_schemaforge_v1_UpdateSchemaResponse__Output>): grpc.ClientUnaryCall;
@@ -117,6 +194,12 @@ export interface SchemaServiceClient extends grpc.Client {
 }
 
 export interface SchemaServiceHandlers extends grpc.UntypedServiceImplementation {
+  AcceptInvitation: grpc.handleUnaryCall<_schemaforge_v1_AcceptInvitationRequest__Output, _schemaforge_v1_AcceptInvitationResponse>;
+  
+  CancelInvitation: grpc.handleUnaryCall<_schemaforge_v1_CancelInvitationRequest__Output, _schemaforge_v1_CancelInvitationResponse>;
+  
+  ChangeShareRole: grpc.handleUnaryCall<_schemaforge_v1_ChangeShareRoleRequest__Output, _schemaforge_v1_ChangeShareRoleResponse>;
+  
   CompareSchemas: grpc.handleUnaryCall<_schemaforge_v1_CompareSchemasRequest__Output, _schemaforge_v1_CompareSchemasResponse>;
   
   CreateSchema: grpc.handleUnaryCall<_schemaforge_v1_CreateSchemaRequest__Output, _schemaforge_v1_CreateSchemaResponse>;
@@ -131,7 +214,15 @@ export interface SchemaServiceHandlers extends grpc.UntypedServiceImplementation
   
   ImportSchema: grpc.handleUnaryCall<_schemaforge_v1_ImportSchemaRequest__Output, _schemaforge_v1_ImportSchemaResponse>;
   
+  ListPeople: grpc.handleUnaryCall<_schemaforge_v1_ListPeopleRequest__Output, _schemaforge_v1_ListPeopleResponse>;
+  
   ListSchemas: grpc.handleUnaryCall<_schemaforge_v1_ListSchemasRequest__Output, _schemaforge_v1_ListSchemasResponse>;
+  
+  ListSharedSchemas: grpc.handleUnaryCall<_schemaforge_v1_ListSharedSchemasRequest__Output, _schemaforge_v1_ListSharedSchemasResponse>;
+  
+  RevokeShare: grpc.handleUnaryCall<_schemaforge_v1_RevokeShareRequest__Output, _schemaforge_v1_RevokeShareResponse>;
+  
+  ShareSchema: grpc.handleUnaryCall<_schemaforge_v1_ShareSchemaRequest__Output, _schemaforge_v1_ShareSchemaResponse>;
   
   UpdateSchema: grpc.handleUnaryCall<_schemaforge_v1_UpdateSchemaRequest__Output, _schemaforge_v1_UpdateSchemaResponse>;
   
@@ -140,6 +231,9 @@ export interface SchemaServiceHandlers extends grpc.UntypedServiceImplementation
 }
 
 export interface SchemaServiceDefinition extends grpc.ServiceDefinition {
+  AcceptInvitation: MethodDefinition<_schemaforge_v1_AcceptInvitationRequest, _schemaforge_v1_AcceptInvitationResponse, _schemaforge_v1_AcceptInvitationRequest__Output, _schemaforge_v1_AcceptInvitationResponse__Output>
+  CancelInvitation: MethodDefinition<_schemaforge_v1_CancelInvitationRequest, _schemaforge_v1_CancelInvitationResponse, _schemaforge_v1_CancelInvitationRequest__Output, _schemaforge_v1_CancelInvitationResponse__Output>
+  ChangeShareRole: MethodDefinition<_schemaforge_v1_ChangeShareRoleRequest, _schemaforge_v1_ChangeShareRoleResponse, _schemaforge_v1_ChangeShareRoleRequest__Output, _schemaforge_v1_ChangeShareRoleResponse__Output>
   CompareSchemas: MethodDefinition<_schemaforge_v1_CompareSchemasRequest, _schemaforge_v1_CompareSchemasResponse, _schemaforge_v1_CompareSchemasRequest__Output, _schemaforge_v1_CompareSchemasResponse__Output>
   CreateSchema: MethodDefinition<_schemaforge_v1_CreateSchemaRequest, _schemaforge_v1_CreateSchemaResponse, _schemaforge_v1_CreateSchemaRequest__Output, _schemaforge_v1_CreateSchemaResponse__Output>
   DeleteSchema: MethodDefinition<_schemaforge_v1_DeleteSchemaRequest, _schemaforge_v1_DeleteSchemaResponse, _schemaforge_v1_DeleteSchemaRequest__Output, _schemaforge_v1_DeleteSchemaResponse__Output>
@@ -147,7 +241,11 @@ export interface SchemaServiceDefinition extends grpc.ServiceDefinition {
   GenerateDdl: MethodDefinition<_schemaforge_v1_GenerateDdlRequest, _schemaforge_v1_GenerateDdlResponse, _schemaforge_v1_GenerateDdlRequest__Output, _schemaforge_v1_GenerateDdlResponse__Output>
   GetSchema: MethodDefinition<_schemaforge_v1_GetSchemaRequest, _schemaforge_v1_GetSchemaResponse, _schemaforge_v1_GetSchemaRequest__Output, _schemaforge_v1_GetSchemaResponse__Output>
   ImportSchema: MethodDefinition<_schemaforge_v1_ImportSchemaRequest, _schemaforge_v1_ImportSchemaResponse, _schemaforge_v1_ImportSchemaRequest__Output, _schemaforge_v1_ImportSchemaResponse__Output>
+  ListPeople: MethodDefinition<_schemaforge_v1_ListPeopleRequest, _schemaforge_v1_ListPeopleResponse, _schemaforge_v1_ListPeopleRequest__Output, _schemaforge_v1_ListPeopleResponse__Output>
   ListSchemas: MethodDefinition<_schemaforge_v1_ListSchemasRequest, _schemaforge_v1_ListSchemasResponse, _schemaforge_v1_ListSchemasRequest__Output, _schemaforge_v1_ListSchemasResponse__Output>
+  ListSharedSchemas: MethodDefinition<_schemaforge_v1_ListSharedSchemasRequest, _schemaforge_v1_ListSharedSchemasResponse, _schemaforge_v1_ListSharedSchemasRequest__Output, _schemaforge_v1_ListSharedSchemasResponse__Output>
+  RevokeShare: MethodDefinition<_schemaforge_v1_RevokeShareRequest, _schemaforge_v1_RevokeShareResponse, _schemaforge_v1_RevokeShareRequest__Output, _schemaforge_v1_RevokeShareResponse__Output>
+  ShareSchema: MethodDefinition<_schemaforge_v1_ShareSchemaRequest, _schemaforge_v1_ShareSchemaResponse, _schemaforge_v1_ShareSchemaRequest__Output, _schemaforge_v1_ShareSchemaResponse__Output>
   UpdateSchema: MethodDefinition<_schemaforge_v1_UpdateSchemaRequest, _schemaforge_v1_UpdateSchemaResponse, _schemaforge_v1_UpdateSchemaRequest__Output, _schemaforge_v1_UpdateSchemaResponse__Output>
   ValidateSchema: MethodDefinition<_schemaforge_v1_ValidateSchemaRequest, _schemaforge_v1_ValidateSchemaResponse, _schemaforge_v1_ValidateSchemaRequest__Output, _schemaforge_v1_ValidateSchemaResponse__Output>
 }

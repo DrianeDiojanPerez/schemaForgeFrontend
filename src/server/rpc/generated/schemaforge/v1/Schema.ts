@@ -11,6 +11,7 @@ export interface Schema {
   'relationships'?: (_schemaforge_v1_Relationship)[];
   'createdAt'?: (string);
   'updatedAt'?: (string);
+  'access'?: (string);
 }
 
 export interface Schema__Output {
@@ -21,4 +22,5 @@ export interface Schema__Output {
   'relationships': (_schemaforge_v1_Relationship__Output)[];
   'createdAt': (string);
   'updatedAt': (string);
+  'access': (string);
 }
