@@ -181,6 +181,7 @@ test("the table shows an add column button that calls through", () => {
 					removeTable: () => {},
 					removeColumn: () => {},
 					renameSchema: () => {},
+					readOnly: false,
 				}}
 			>
 				<TableNode {...nodeProps} />
@@ -209,6 +210,7 @@ test("right-clicking the table offers its actions and nothing bubbles past", asy
 						removeTable,
 						removeColumn: () => {},
 						renameSchema: () => {},
+						readOnly: false,
 					}}
 				>
 					<TableNode {...nodeProps} />

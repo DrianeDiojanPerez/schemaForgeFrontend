@@ -8,6 +8,8 @@ export type GraphActions = {
 	removeTable: (nodeId: string) => void;
 	removeColumn: (nodeId: string, columnId: string) => void;
 	renameSchema: (name: string) => void;
+	/** The schema was shared to be looked at, so the tables take no edits. */
+	readOnly: boolean;
 };
 
 /**
@@ -21,6 +23,7 @@ const GraphActionsContext = createContext<GraphActions>({
 	removeTable: () => {},
 	removeColumn: () => {},
 	renameSchema: () => {},
+	readOnly: false,
 });
 
 export const GraphActionsProvider = GraphActionsContext.Provider;

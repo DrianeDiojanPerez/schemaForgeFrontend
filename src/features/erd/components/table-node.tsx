@@ -258,7 +258,7 @@ const columnFlags = (column: TableColumn, toggleNullable: () => void): ColumnFla
 function Table({ id, data }: NodeProps<ErdTableNode>) {
 	const { updateNodeData, getZoom } = useReactFlow<ErdTableNode>();
 	const updateNodeInternals = useUpdateNodeInternals();
-	const { addColumn, copyTable, removeTable, removeColumn } = useGraphActions();
+	const { addColumn, copyTable, removeTable, removeColumn, readOnly } = useGraphActions();
 	const problems = useElementProblems(id);
 	const arrows = useConnectorArrows();
 	const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
@@ -482,11 +482,18 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 								/>
 							) : (
 								<span
-									className="absolute inset-y-0 left-0 cursor-pointer whitespace-pre transition hover:text-primary"
-									onDoubleClick={() => {
-										setTableNameValue(data.name);
-										setEditingTableName(true);
-									}}
+									className={cn(
+										"absolute inset-y-0 left-0 whitespace-pre transition",
+										!readOnly && "cursor-pointer hover:text-primary",
+									)}
+									onDoubleClick={
+										readOnly
+											? undefined
+											: () => {
+													setTableNameValue(data.name);
+													setEditingTableName(true);
+												}
+									}
 								>
 									{data.name}
 								</span>
@@ -594,11 +601,18 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 										/>
 									) : (
 										<span
-											className="absolute inset-y-0 left-0 cursor-pointer whitespace-pre text-foreground transition hover:text-primary"
-											onDoubleClick={() => {
-												setEditingColumnId(column.id);
-												setEditValue(column.name);
-											}}
+											className={cn(
+												"absolute inset-y-0 left-0 whitespace-pre text-foreground transition",
+												!readOnly && "cursor-pointer hover:text-primary",
+											)}
+											onDoubleClick={
+												readOnly
+													? undefined
+													: () => {
+															setEditingColumnId(column.id);
+															setEditValue(column.name);
+														}
+											}
 										>
 											{column.name}
 										</span>
@@ -651,53 +665,55 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 							})}
 						</ContextMenuTrigger>
 
-						<ContextMenuContent>
-							<ContextMenuItem
-								onClick={() => {
-									setEditingColumnId(column.id);
-									setEditValue(column.name);
-								}}
-							>
-								<PencilIcon />
-								Rename column
-							</ContextMenuItem>
-							<ContextMenuItem
-								onClick={() => setEditingDetails({ kind: "column", columnId: column.id })}
-							>
-								<FileTextIcon />
-								Edit details
-							</ContextMenuItem>
-							<ContextMenuSeparator />
-							<ContextMenuCheckboxItem
-								checked={column.isPrimary}
-								onCheckedChange={() => togglePrimaryKey(column)}
-							>
-								Primary key
-							</ContextMenuCheckboxItem>
-							<ContextMenuCheckboxItem
-								checked={column.isUnique}
-								onCheckedChange={(checked) => updateColumn(column.id, { isUnique: checked })}
-							>
-								Unique
-							</ContextMenuCheckboxItem>
-							<ContextMenuCheckboxItem
-								checked={column.isNullable}
-								disabled={column.isPrimary}
-								onCheckedChange={(checked) => updateColumn(column.id, { isNullable: checked })}
-							>
-								Nullable
-							</ContextMenuCheckboxItem>
-							<ContextMenuSeparator />
-							<ContextMenuItem onClick={() => addColumn(id)}>
-								<PlusIcon />
-								Add column
-							</ContextMenuItem>
-							<ContextMenuSeparator />
-							<ContextMenuItem variant="destructive" onClick={() => removeColumn(id, column.id)}>
-								<Trash2Icon />
-								Delete column
-							</ContextMenuItem>
-						</ContextMenuContent>
+						{!readOnly && (
+							<ContextMenuContent>
+								<ContextMenuItem
+									onClick={() => {
+										setEditingColumnId(column.id);
+										setEditValue(column.name);
+									}}
+								>
+									<PencilIcon />
+									Rename column
+								</ContextMenuItem>
+								<ContextMenuItem
+									onClick={() => setEditingDetails({ kind: "column", columnId: column.id })}
+								>
+									<FileTextIcon />
+									Edit details
+								</ContextMenuItem>
+								<ContextMenuSeparator />
+								<ContextMenuCheckboxItem
+									checked={column.isPrimary}
+									onCheckedChange={() => togglePrimaryKey(column)}
+								>
+									Primary key
+								</ContextMenuCheckboxItem>
+								<ContextMenuCheckboxItem
+									checked={column.isUnique}
+									onCheckedChange={(checked) => updateColumn(column.id, { isUnique: checked })}
+								>
+									Unique
+								</ContextMenuCheckboxItem>
+								<ContextMenuCheckboxItem
+									checked={column.isNullable}
+									disabled={column.isPrimary}
+									onCheckedChange={(checked) => updateColumn(column.id, { isNullable: checked })}
+								>
+									Nullable
+								</ContextMenuCheckboxItem>
+								<ContextMenuSeparator />
+								<ContextMenuItem onClick={() => addColumn(id)}>
+									<PlusIcon />
+									Add column
+								</ContextMenuItem>
+								<ContextMenuSeparator />
+								<ContextMenuItem variant="destructive" onClick={() => removeColumn(id, column.id)}>
+									<Trash2Icon />
+									Delete column
+								</ContextMenuItem>
+							</ContextMenuContent>
+						)}
 					</ContextMenu>
 				))}
 
@@ -729,49 +745,53 @@ function Table({ id, data }: NodeProps<ErdTableNode>) {
 					<div className="py-3 text-center text-4xs text-muted-foreground">No columns yet</div>
 				)}
 
-				<button
-					type="button"
-					data-export="chrome"
-					className={cn(
-						"nodrag nopan flex items-center justify-center gap-1 rounded-b-lg border-t border-border py-1 text-4xs text-muted-foreground transition hover:bg-muted hover:text-foreground",
-						OUTLINE_SURFACE,
-					)}
-					onClick={() => addColumn(id)}
-				>
-					<PlusIcon size={8} strokeWidth={2} />
-					Add column
-				</button>
+				{!readOnly && (
+					<button
+						type="button"
+						data-export="chrome"
+						className={cn(
+							"nodrag nopan flex items-center justify-center gap-1 rounded-b-lg border-t border-border py-1 text-4xs text-muted-foreground transition hover:bg-muted hover:text-foreground",
+							OUTLINE_SURFACE,
+						)}
+						onClick={() => addColumn(id)}
+					>
+						<PlusIcon size={8} strokeWidth={2} />
+						Add column
+					</button>
+				)}
 			</ContextMenuTrigger>
 
-			<ContextMenuContent>
-				<ContextMenuItem onClick={() => addColumn(id)}>
-					<PlusIcon />
-					Add column
-				</ContextMenuItem>
-				<ContextMenuItem
-					onClick={() => {
-						setTableNameValue(data.name);
-						setEditingTableName(true);
-					}}
-				>
-					<PencilIcon />
-					Rename table
-				</ContextMenuItem>
-				<ContextMenuItem onClick={() => setEditingDetails({ kind: "table" })}>
-					<FileTextIcon />
-					Edit description
-				</ContextMenuItem>
-				<ContextMenuSeparator />
-				<ContextMenuItem onClick={() => copyTable(data)}>
-					<CopyIcon />
-					Copy table
-				</ContextMenuItem>
-				<ContextMenuSeparator />
-				<ContextMenuItem variant="destructive" onClick={() => removeTable(id)}>
-					<Trash2Icon />
-					Delete table
-				</ContextMenuItem>
-			</ContextMenuContent>
+			{!readOnly && (
+				<ContextMenuContent>
+					<ContextMenuItem onClick={() => addColumn(id)}>
+						<PlusIcon />
+						Add column
+					</ContextMenuItem>
+					<ContextMenuItem
+						onClick={() => {
+							setTableNameValue(data.name);
+							setEditingTableName(true);
+						}}
+					>
+						<PencilIcon />
+						Rename table
+					</ContextMenuItem>
+					<ContextMenuItem onClick={() => setEditingDetails({ kind: "table" })}>
+						<FileTextIcon />
+						Edit description
+					</ContextMenuItem>
+					<ContextMenuSeparator />
+					<ContextMenuItem onClick={() => copyTable(data)}>
+						<CopyIcon />
+						Copy table
+					</ContextMenuItem>
+					<ContextMenuSeparator />
+					<ContextMenuItem variant="destructive" onClick={() => removeTable(id)}>
+						<Trash2Icon />
+						Delete table
+					</ContextMenuItem>
+				</ContextMenuContent>
+			)}
 
 			{editingDetails?.kind === "table" && (
 				<DescriptionDialog
