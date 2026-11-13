@@ -21,19 +21,33 @@ import type {
 	Schema__Output,
 } from "@/server/rpc/generated/schemaforge/v1/Schema";
 import type { SchemaSummary__Output } from "@/server/rpc/generated/schemaforge/v1/SchemaSummary";
+import type { Collaborator__Output } from "@/server/rpc/generated/schemaforge/v1/Collaborator";
+import type { Invitation__Output } from "@/server/rpc/generated/schemaforge/v1/Invitation";
+import type { Member__Output } from "@/server/rpc/generated/schemaforge/v1/Member";
+import type {
+	ShareRole as ShareRoleWire,
+	ShareRole__Output,
+} from "@/server/rpc/generated/schemaforge/v1/ShareRole";
+import type { SharedSchema__Output } from "@/server/rpc/generated/schemaforge/v1/SharedSchema";
 
 import type {
+	Access,
 	Attribute,
 	Cardinality,
+	Collaborator,
 	DataType,
 	DataTypeKind,
 	Diagnostic,
 	Dialect,
 	Entity,
+	Invitation,
+	Member,
 	Relationship,
 	Schema,
 	SchemaSummary,
 	Severity,
+	ShareRole,
+	SharedSchema,
 	Unprefixed,
 } from "../types/schema";
 
@@ -53,6 +67,7 @@ const DATA_TYPE_PREFIX = "DATA_TYPE_KIND_";
 const CARDINALITY_PREFIX = "CARDINALITY_";
 const SEVERITY_PREFIX = "SEVERITY_";
 const DIALECT_PREFIX = "DIALECT_";
+const SHARE_ROLE_PREFIX = "SHARE_ROLE_";
 
 function unprefix<TValue extends string, TPrefix extends string>(
 	value: TValue,
@@ -130,6 +145,57 @@ export function schemaIn(wire: Schema__Output): Schema {
 		relationships: wire.relationships.map(relationshipIn),
 		createdAt: wire.createdAt,
 		updatedAt: wire.updatedAt,
+		access: accessIn(wire.access),
+	};
+}
+
+// A draft nobody has stored carries no access, and it is the drawer's own.
+export function accessIn(wire: string): Access {
+	return wire === "editor" || wire === "viewer" ? wire : "owner";
+}
+
+export function shareRoleIn(wire: ShareRole__Output): ShareRole {
+	return unprefix(wire, SHARE_ROLE_PREFIX).toLowerCase() as ShareRole;
+}
+
+export function collaboratorIn(wire: Collaborator__Output | null): Collaborator {
+	return {
+		id: wire?.id ?? "",
+		email: wire?.email ?? "",
+		name: wire?.name ?? "",
+		avatarUrl: wire?.avatarUrl || undefined,
+	};
+}
+
+export function memberIn(wire: Member__Output): Member {
+	return {
+		user: collaboratorIn(wire.user),
+		role: shareRoleIn(wire.role),
+		sharedBy: wire.sharedBy,
+		createdAt: wire.createdAt,
+		updatedAt: wire.updatedAt,
+	};
+}
+
+export function invitationIn(wire: Invitation__Output): Invitation {
+	return {
+		id: wire.id,
+		schemaId: wire.schemaId,
+		email: wire.email,
+		role: shareRoleIn(wire.role),
+		invitedBy: wire.invitedBy,
+		expiresAt: wire.expiresAt,
+		createdAt: wire.createdAt,
+	};
+}
+
+export function sharedSchemaIn(wire: SharedSchema__Output): SharedSchema {
+	if (!wire.schema) throw new Error("The backend answered with a share and no schema.");
+
+	return {
+		schema: summaryIn(wire.schema),
+		role: shareRoleIn(wire.role),
+		owner: collaboratorIn(wire.owner),
 	};
 }
 
@@ -220,9 +286,14 @@ export function schemaOut(schema: Schema): SchemaWire {
 		relationships: schema.relationships.map(relationshipOut),
 		createdAt: schema.createdAt,
 		updatedAt: schema.updatedAt,
+		access: schema.access,
 	};
 }
 
 export function dialectOut(dialect: Dialect): DialectWire {
 	return `${DIALECT_PREFIX}${dialect}`;
+}
+
+export function shareRoleOut(role: ShareRole): ShareRoleWire {
+	return `${SHARE_ROLE_PREFIX}${role.toUpperCase() as Uppercase<ShareRole>}`;
 }

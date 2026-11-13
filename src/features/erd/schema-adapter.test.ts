@@ -105,6 +105,7 @@ const roundTrip = () => {
 			id: "schema-1",
 			createdAt: "",
 			updatedAt: "",
+			access: "owner",
 		}),
 	};
 };

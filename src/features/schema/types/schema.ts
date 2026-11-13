@@ -2,6 +2,7 @@ import type { Cardinality__Output } from "@/server/rpc/generated/schemaforge/v1/
 import type { DataTypeKind__Output } from "@/server/rpc/generated/schemaforge/v1/DataTypeKind";
 import type { Dialect__Output } from "@/server/rpc/generated/schemaforge/v1/Dialect";
 import type { Severity__Output } from "@/server/rpc/generated/schemaforge/v1/Severity";
+import type { ShareRole__Output } from "@/server/rpc/generated/schemaforge/v1/ShareRole";
 
 /**
  * The canonical schema model as the browser sees it.
@@ -31,6 +32,52 @@ export type Cardinality = Named<Cardinality__Output, "CARDINALITY_">;
 export type Severity = Named<Severity__Output, "SEVERITY_">;
 
 export type Dialect = Named<Dialect__Output, "DIALECT_">;
+
+/** What someone may do with a schema: `viewer` and `editor` are granted, `owner` made it. */
+export type Access = "owner" | "editor" | "viewer";
+
+/** A role the owner can give: `viewer` or `editor`. */
+export type ShareRole = Lowercase<Named<ShareRole__Output, "SHARE_ROLE_">>;
+
+export type Collaborator = {
+	id: string;
+	email: string;
+	name: string;
+	/** The account's picture, when it has one. */
+	avatarUrl?: string;
+};
+
+export type Member = {
+	user: Collaborator;
+	role: ShareRole;
+	sharedBy: string;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type Invitation = {
+	id: string;
+	schemaId: string;
+	email: string;
+	role: ShareRole;
+	invitedBy: string;
+	expiresAt: string;
+	createdAt: string;
+};
+
+export type SharedSchema = {
+	schema: SchemaSummary;
+	role: ShareRole;
+	owner: Collaborator;
+};
+
+export type People = {
+	members: Member[];
+	invitations: Invitation[];
+};
+
+/** Someone with an account is a member at once; anyone else is invited by email. */
+export type ShareOutcome = { member: Member } | { invitation: Invitation };
 
 export type Position = {
 	x: number;
@@ -92,6 +139,7 @@ export type Schema = {
 	relationships: Relationship[];
 	createdAt: string;
 	updatedAt: string;
+	access: Access;
 };
 
 export type SchemaSummary = {
@@ -137,6 +185,19 @@ export type RpcError = {
 	violations?: Record<string, string[]>;
 };
 
+/**
+ * A call that may fail for a reason the page has to read, such as an address
+ * that already has access. A thrown error does not keep its status across
+ * the server function boundary, so these calls answer with one of these
+ * instead and the browser side throws from it.
+ */
+export type Result<T> = { ok: true; value: T } | ({ ok: false } & RpcError);
+
+export const SHARE_ROLE_LABELS: Record<ShareRole, string> = {
+	viewer: "Viewer",
+	editor: "Editor",
+};
+
 export const CARDINALITY_LABELS: Record<Cardinality, string> = {
 	ONE_TO_ONE: "1:1",
 	ONE_TO_MANY: "1:N",
@@ -151,4 +212,5 @@ export const EMPTY_SCHEMA: Schema = {
 	relationships: [],
 	createdAt: "",
 	updatedAt: "",
+	access: "owner",
 };
