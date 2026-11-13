@@ -1,7 +1,7 @@
 import type * as React from "react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { EdgeLabelRenderer, Position, useReactFlow, useStore } from "@xyflow/react";
-import type { EdgeProps } from "@xyflow/react";
+import type { EdgeProps, InternalNode } from "@xyflow/react";
 import { FileTextIcon, Trash2Icon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 import { useHeldSides } from "../hooks/use-held-sides";
 import { EASE_IN_OUT, EASE_OUT_EXPO } from "../lib/eases";
-import { edgeDash, planRoute, END_GAP } from "../lib/edge-lines";
+import { edgeDash, planRoute, runsPast, END_GAP } from "../lib/edge-lines";
 import type { Side } from "../lib/edge-lines";
 import type { ErdEdge, RelationshipType } from "../types/erd";
 import { DescriptionDialog } from "./details-dialogs";
@@ -36,6 +36,16 @@ const FALLBACK_TABLE_WIDTH = 160;
 // crossing is worse than a short run under a table and better than a long
 // one, which this is pitched between.
 const CROSSING = 30;
+
+/** How far down the canvas a row's handle sits, when the table has been measured. */
+function rowOf(node: InternalNode | undefined, handleId: string | null | undefined) {
+	if (!node || !handleId) return undefined;
+
+	const { source = [], target = [] } = node.internals.handleBounds ?? {};
+	const handle = [...(source ?? []), ...(target ?? [])].find((item) => item.id === handleId);
+
+	return handle && node.internals.positionAbsolute.y + handle.y + handle.height / 2;
+}
 
 const RELATIONSHIPS: Record<
 	RelationshipType,
@@ -211,7 +221,8 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 
 	// Which side of each of the two tables the other lines come in on, read
 	// off where their far tables sit. A loop round the left of a table cuts
-	// across every line arriving from the left, so that side costs more.
+	// across the lines arriving from the left at the rows it runs past, so
+	// that side costs more. A line at a row the loop never reaches is free.
 	const arrivals = useStore(
 		useCallback(
 			(state) => {
@@ -231,6 +242,12 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 							edge.source === end ? edge.target : edge.target === end ? edge.source : undefined;
 						if (!far || far === source || far === target) continue;
 
+						const row = rowOf(
+							state.nodeLookup.get(end),
+							edge.source === end ? edge.sourceHandle : edge.targetHandle,
+						);
+						if (row !== undefined && !runsPast(row, sourceY, targetY)) continue;
+
 						const here = centreOf(end);
 						const there = centreOf(far);
 						if (here === undefined || there === undefined) continue;
@@ -241,7 +258,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 
 				return `${counts.left}:${counts.right}`;
 			},
-			[id, source, target],
+			[id, source, target, sourceY, targetY],
 		),
 	);
 
