@@ -1,41 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360">
-  <rect width="1280" height="360" rx="28" fill="#f5f5f7"/>
+  <defs>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="13" cy="13" r="1.6" fill="#c7c7cc"/>
+    </pattern>
+    <linearGradient id="fade" x1="560" y1="0" x2="1280" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="0.75" stop-color="#fff"/>
+    </linearGradient>
+    <mask id="canvas">
+      <rect x="560" y="0" width="720" height="360" fill="url(#fade)"/>
+    </mask>
+    <clipPath id="card">
+      <rect width="1280" height="360" rx="28"/>
+    </clipPath>
+    <filter id="lift" x="-40%" y="-40%" width="180%" height="190%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dy="2.5"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.22"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
 
-  <g font-family="'Adwaita Sans', 'Inter', 'Helvetica Neue', sans-serif">
-    <text x="88" y="168" font-weight="700" font-size="84" letter-spacing="-3.5" fill="#1d1d1f">SchemaForge</text>
-    <text x="92" y="216" font-weight="500" font-size="23" letter-spacing="-0.3" fill="#6e6e73">Draw a database schema, check it, and get the SQL.</text>
-    <text x="92" y="262" font-weight="500" font-size="19" letter-spacing="0" fill="#86868b">The frontend, built with TanStack Start and React Flow.</text>
+  <rect width="1280" height="360" rx="28" fill="#f5f5f7"/>
+  <g clip-path="url(#card)">
+    <rect x="560" y="0" width="720" height="360" fill="url(#dots)" mask="url(#canvas)"/>
   </g>
 
-  <g font-family="'Adwaita Sans', 'Inter', sans-serif">
-    <rect x="744" y="60" width="456" height="240" rx="30" fill="#1d1d1f"/>
+  <g font-family="'Adwaita Sans', 'Inter', 'Helvetica Neue', sans-serif">
+    <text x="92" y="176" font-weight="700" font-size="88" letter-spacing="-3.5" fill="#1d1d1f">schemaforge</text>
+    <text x="96" y="224" font-weight="500" font-size="23" letter-spacing="-0.3" fill="#6e6e73">Draw a database schema and get the SQL.</text>
+    <text x="96" y="258" font-weight="500" font-size="19" letter-spacing="0" fill="#86868b">The canvas, built with TanStack Start and React Flow.</text>
+  </g>
 
-    <path d="M 932 139 C 966 139, 966 201, 1000 201" fill="none" stroke="#009869" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="932" cy="139" r="5" fill="#009869"/>
-    <circle cx="1000" cy="201" r="5" fill="#009869"/>
-
-    <rect x="776" y="92" width="156" height="118" rx="12" fill="#ffffff"/>
-    <path d="M 776 104 a 12 12 0 0 1 12 -12 h 132 a 12 12 0 0 1 12 12 v 18 h -156 z" fill="#009869"/>
-    <text x="790" y="113" font-weight="600" font-size="14" fill="#ffffff">students</text>
-    <text x="790" y="144" font-weight="600" font-size="13" fill="#1d1d1f">id</text>
-    <text x="918" y="144" text-anchor="end" font-weight="500" font-size="12" fill="#86868b">integer</text>
-    <line x1="790" y1="156" x2="918" y2="156" stroke="#e5e5ea" stroke-width="1"/>
-    <text x="790" y="174" font-weight="500" font-size="13" fill="#1d1d1f">name</text>
-    <text x="918" y="174" text-anchor="end" font-weight="500" font-size="12" fill="#86868b">varchar</text>
-    <line x1="790" y1="186" x2="918" y2="186" stroke="#e5e5ea" stroke-width="1"/>
-    <text x="790" y="201" font-weight="500" font-size="13" fill="#1d1d1f">email</text>
-    <text x="918" y="201" text-anchor="end" font-weight="500" font-size="12" fill="#86868b">varchar</text>
-
-    <rect x="1000" y="150" width="168" height="118" rx="12" fill="#ffffff"/>
-    <path d="M 1000 162 a 12 12 0 0 1 12 -12 h 144 a 12 12 0 0 1 12 12 v 18 h -168 z" fill="#009869"/>
-    <text x="1014" y="171" font-weight="600" font-size="14" fill="#ffffff">enrollments</text>
-    <text x="1014" y="205" font-weight="600" font-size="13" fill="#1d1d1f">student_id</text>
-    <text x="1154" y="205" text-anchor="end" font-weight="500" font-size="12" fill="#86868b">integer</text>
-    <line x1="1014" y1="216" x2="1154" y2="216" stroke="#e5e5ea" stroke-width="1"/>
-    <text x="1014" y="234" font-weight="500" font-size="13" fill="#1d1d1f">section_id</text>
-    <text x="1154" y="234" text-anchor="end" font-weight="500" font-size="12" fill="#86868b">integer</text>
-    <line x1="1014" y1="245" x2="1154" y2="245" stroke="#e5e5ea" stroke-width="1"/>
-    <text x="1014" y="260" font-weight="500" font-size="13" fill="#1d1d1f">grade</text>
-    <text x="1154" y="260" text-anchor="end" font-weight="500" font-size="12" fill="#86868b">char</text>
+  <g transform="translate(980 76) scale(3.25)" filter="url(#lift)">
+    <rect width="64" height="64" rx="14" fill="#009869"/>
+    <g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M42 17H29a7.5 7.5 0 0 0 0 15h6a7.5 7.5 0 0 1 0 15H24"/>
+      <path d="M24 47l-9-8M24 47h-10M24 47l-9 8"/>
+    </g>
+    <circle cx="45" cy="17" r="5.5" fill="#fff"/>
   </g>
 </svg>
