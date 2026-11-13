@@ -10,6 +10,10 @@ export const schemaKeys = {
 	details: () => [...schemaKeys.all, "detail"] as const,
 	detail: (id: string) => [...schemaKeys.details(), id] as const,
 	latest: () => [...schemaKeys.all, "latest"] as const,
+	shared: () => [...schemaKeys.all, "shared"] as const,
+	sharedList: (page: number, perPage: number) =>
+		[...schemaKeys.shared(), { page, perPage }] as const,
+	people: (id: string) => [...schemaKeys.all, "people", id] as const,
 };
 
 export const backendKeys = {
