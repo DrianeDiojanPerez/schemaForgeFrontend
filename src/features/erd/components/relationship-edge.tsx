@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { EdgeLabelRenderer, Position, useReactFlow, useStore } from "@xyflow/react";
 import type { EdgeProps, InternalNode } from "@xyflow/react";
 import { FileTextIcon, Trash2Icon } from "lucide-react";
@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { useHeldSides } from "../hooks/use-held-sides";
 import { EASE_IN_OUT, EASE_OUT_EXPO } from "../lib/eases";
 import { edgeDash, planRoute, runsPast, END_GAP } from "../lib/edge-lines";
-import type { Side } from "../lib/edge-lines";
+import type { Side, Sides } from "../lib/edge-lines";
 import type { ErdEdge, RelationshipType } from "../types/erd";
 import { DescriptionDialog } from "./details-dialogs";
 import { useCanvasPreferences } from "../lib/canvas-preferences";
@@ -31,6 +31,10 @@ import { useElementProblems } from "./problems-context";
 import type { Diagnostic } from "@/features/schema/types/schema";
 
 const FALLBACK_TABLE_WIDTH = 160;
+
+type Run = "source" | "first" | "cross" | "second" | "target";
+
+type Pin = Sides & { firstX?: number; secondX?: number; crossY?: number; where: string };
 
 // What a line cut across by a loop costs, as pixels of hidden line. A
 // crossing is worse than a short run under a table and better than a long
@@ -184,7 +188,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	data,
 	selected,
 }: EdgeProps<ErdEdge>) {
-	const { updateEdgeData } = useReactFlow();
+	const { updateEdgeData, screenToFlowPosition } = useReactFlow();
 	const { tableStyle } = useCanvasPreferences();
 	const [editingDetails, setEditingDetails] = useState(false);
 	const [menuOpen, setMenuOpen] = useState(false);
@@ -298,6 +302,16 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 	const targetTop = targetNode?.internals.positionAbsolute.y ?? targetY;
 	const targetBottom = targetTop + (targetNode?.measured.height ?? 0);
 
+	// A line dragged by hand stays put only while both tables sit where they
+	// were when it was dragged. Moving either one hands the route back.
+	const [pin, setPin] = useState<Pin>();
+	const where = `${sourcePosX},${sourceTop},${targetPosX},${targetTop}`;
+	const pinned = pin?.where === where ? pin : undefined;
+	const grabbed = useRef<
+		| { x: number; y: number; run: Run; together: boolean; vertical: number; moving: boolean }
+		| undefined
+	>(undefined);
+
 	const { line, dash, labels } = useEdgeStyle();
 	const labelled = labels || problems.length > 0;
 
@@ -331,7 +345,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 				bottom: targetBottom + 1,
 			},
 		];
-		const plan = (sourceSide: Side, targetSide: Side) => {
+		const plan = (sourceSide: Side, targetSide: Side, dragged?: Pin) => {
 			const fromX = sourceSide === "left" ? sourceLeftX - END_GAP : sourceRightX + END_GAP;
 			const toX = targetSide === "left" ? targetLeftX - END_GAP : targetRightX + END_GAP;
 			const route = planRoute(
@@ -344,6 +358,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 					sourcePosition: sourceSide === "left" ? Position.Left : Position.Right,
 					targetPosition: targetSide === "left" ? Position.Left : Position.Right,
 					clear,
+					pin: dragged,
 				},
 				edgeNumber,
 			);
@@ -356,6 +371,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 			leftToRight: plan("left", "right"),
 			rightToLeft: plan("right", "left"),
 			rightToRight: plan("right", "right"),
+			pinned: pinned && plan(pinned.sourceSide, pinned.targetSide, pinned),
 		};
 	}, [
 		line,
@@ -371,6 +387,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 		targetY,
 		edgeNumber,
 		settled,
+		pinned,
 	]);
 
 	// A loop round one side is charged for every line it would cut across.
@@ -388,9 +405,96 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 		},
 	});
 
-	const classic = plans[`${sourceSide}To${targetSide === "left" ? "Left" : "Right"}`];
+	const classic =
+		plans.pinned ?? plans[`${sourceSide}To${targetSide === "left" ? "Left" : "Right"}`];
 
-	const { path: edgePath, labelX, labelY } = classic;
+	const { path: edgePath, labelX, labelY, firstX, secondX, crossY } = classic;
+
+	// The run of the line under the pointer. The verticals together are one
+	// run. An end pulled off its row leaves a stub there and takes the
+	// crossing with it, so the end itself stays on its column.
+	const together = firstX === secondX;
+	const runAt = (event: React.PointerEvent<SVGElement>): Run => {
+		const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+		const sides = pinned ?? { sourceSide, targetSide };
+		const fromX = sides.sourceSide === "left" ? sourceLeftX : sourceRightX;
+		const toX = sides.targetSide === "left" ? targetLeftX : targetRightX;
+		const gap = (ax: number, ay: number, bx: number, by: number) =>
+			Math.hypot(
+				point.x - Math.min(Math.max(point.x, Math.min(ax, bx)), Math.max(ax, bx)),
+				point.y - Math.min(Math.max(point.y, Math.min(ay, by)), Math.max(ay, by)),
+			);
+		const gaps: [Run, number][] = [
+			["first", gap(firstX, sourceY, firstX, crossY)],
+			["second", gap(secondX, crossY, secondX, targetY)],
+			["cross", gap(firstX, crossY, secondX, crossY)],
+			["source", gap(fromX, sourceY, firstX, sourceY)],
+			["target", gap(secondX, targetY, toX, targetY)],
+		];
+		const [run] = gaps.reduce((a, b) => (b[1] < a[1] ? b : a));
+
+		return together && (run === "second" || run === "cross") ? "first" : run;
+	};
+	const grab = (event: React.PointerEvent<SVGElement>) => {
+		if (event.button !== 0) return;
+
+		grabbed.current = {
+			x: event.clientX,
+			y: event.clientY,
+			run: runAt(event),
+			together,
+			vertical: firstX,
+			moving: false,
+		};
+		event.currentTarget.setPointerCapture(event.pointerId);
+	};
+	const drag = (event: React.PointerEvent<SVGElement>) => {
+		const held = grabbed.current;
+
+		if (!held) {
+			const run = runAt(event);
+			event.currentTarget.style.cursor =
+				run === "first" || run === "second" ? "ew-resize" : "ns-resize";
+			return;
+		}
+
+		// A click that slips a few pixels is still a click.
+		if (!held.moving && Math.hypot(event.clientX - held.x, event.clientY - held.y) < 4) return;
+
+		held.moving = true;
+		const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+		const base = pinned ?? { sourceSide, targetSide, where };
+
+		if (held.run === "source") {
+			setPin({
+				...base,
+				firstX: undefined,
+				crossY: point.y,
+				secondX: held.together ? held.vertical : base.secondX,
+			});
+		} else if (held.run === "target") {
+			setPin({
+				...base,
+				firstX: held.together ? held.vertical : base.firstX,
+				crossY: point.y,
+				secondX: undefined,
+			});
+		} else if (held.run === "cross") {
+			setPin({ ...base, crossY: point.y });
+		} else if (held.together) {
+			setPin({
+				where,
+				firstX: point.x,
+				sourceSide: point.x < (sourceLeftX + sourceRightX) / 2 ? "left" : "right",
+				targetSide: point.x < (targetLeftX + targetRightX) / 2 ? "left" : "right",
+			});
+		} else {
+			setPin({ ...base, [held.run === "first" ? "firstX" : "secondX"]: point.x });
+		}
+	};
+	const release = () => {
+		grabbed.current = undefined;
+	};
 
 	const relationship = RELATIONSHIPS[relationshipType];
 
@@ -517,8 +621,12 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 				fill="none"
 				stroke="transparent"
 				strokeWidth={20}
-				className="react-flow__edge-interaction cursor-pointer"
+				className="react-flow__edge-interaction nopan"
 				onContextMenu={openMenu}
+				onPointerDown={grab}
+				onPointerMove={drag}
+				onPointerUp={release}
+				onPointerCancel={release}
 			/>
 
 			<EdgeLabelRenderer>
