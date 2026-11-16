@@ -441,7 +441,7 @@ export function ShareDialog({ open, onOpenChange, schemaId, schemaName }: ShareD
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="gap-5">
+			<DialogContent className="grid-cols-1 gap-5">
 				<DialogHeader>
 					<DialogTitle>Share &ldquo;{schemaName}&rdquo;</DialogTitle>
 					<DialogDescription>Invite people to view or edit this schema.</DialogDescription>
