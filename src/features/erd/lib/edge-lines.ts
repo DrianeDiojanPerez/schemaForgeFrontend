@@ -124,6 +124,8 @@ type Ends = {
 	targetPosition: Position;
 	/** The tables the line must not run under, the two it joins as a rule. */
 	clear?: Box[];
+	/** Where the user dragged each run to, in place of where it would fall. */
+	pin?: { firstX?: number; secondX?: number; crossY?: number };
 };
 
 // How far apart the lanes sit when several relationships run between the same
@@ -221,6 +223,9 @@ export type Route = {
 	path: string;
 	labelX: number;
 	labelY: number;
+	firstX: number;
+	secondX: number;
+	crossY: number;
 	crossing: Crossing;
 	/** How much of the line is hidden under a table or spent on a detour, in pixels. */
 	cost: number;
@@ -242,7 +247,7 @@ function hiddenRun(a: number, b: number, from: number, to: number): number {
  * that is a tie. Each lane runs a step further out.
  */
 function crossingAt(
-	{ sourceY, targetY, clear = [] }: Ends,
+	{ sourceY, targetY, clear = [], pin }: Ends,
 	firstX: number,
 	secondX: number,
 	lane: number,
@@ -274,6 +279,10 @@ function crossingAt(
 	// crossing anywhere but on it only folds the run back on itself.
 	if (firstX === secondX) return { crossY: middle, crossing: "middle", cost: hidden(middle) };
 
+	if (pin?.crossY !== undefined) {
+		return { crossY: pin.crossY, crossing: "middle", cost: hidden(pin.crossY) };
+	}
+
 	const candidates = [
 		{ crossing: "middle" as Crossing, crossY: middle },
 		...clear.flatMap((box, index) => [
@@ -296,32 +305,73 @@ function crossingAt(
 /** The route to draw, the point the badge sits on, and what the route costs. */
 export function planRoute(line: EdgeLine, ends: Ends, lane: number, radius = RADIUS): Route {
 	if (line === "square") radius = 0;
-	const { sourceX, targetX, sourcePosition, targetPosition } = ends;
+	const { sourceX, targetX, sourcePosition, targetPosition, pin } = ends;
 	const out = sourcePosition === Position.Right ? 1 : -1;
 	const shift = lane * LANE * out;
 	const route = (firstX: number, secondX: number): Route => {
 		const { crossY, crossing, cost } = crossingAt(ends, firstX, secondX, lane);
 		const [path, labelX, labelY] = twoVerticalPath(ends, firstX, secondX, crossY, radius);
 
-		return { path, labelX, labelY, crossing, cost };
+		return { path, labelX, labelY, firstX, secondX, crossY, crossing, cost };
 	};
 
-	if (sourcePosition === targetPosition) {
+	const same = sourcePosition === targetPosition;
+	const nearSource = sourceX + out * ACROSS_REACH;
+	const nearTarget = targetX + (same ? out : -out) * ACROSS_REACH;
+
+	// A dragged crossing or second vertical means the verticals were pulled
+	// apart by hand, and they stay apart whatever room there is.
+	if (pin?.secondX !== undefined || pin?.crossY !== undefined) {
+		const first = past(pin.firstX ?? nearSource, nearSource, out);
+		const second = past(pin.secondX ?? nearTarget, nearTarget, same ? out : -out);
+		const planned = route(first, second);
+		const { sourceY, targetY } = ends;
+
+		// A vertical dragged past the other one makes the line cross its own
+		// end. The two are brought together there, which leaves a plain S.
+		if (inside(second, sourceX, first) && inside(sourceY, planned.crossY, targetY)) {
+			const meet = past(second, nearSource, out);
+			return route(meet, meet);
+		}
+		if (inside(first, second, targetX) && inside(targetY, sourceY, planned.crossY)) {
+			const meet = past(first, nearTarget, same ? out : -out);
+			return route(meet, meet);
+		}
+
+		return planned;
+	}
+
+	if (same) {
 		const edge = out > 0 ? Math.max(sourceX, targetX) : Math.min(sourceX, targetX);
-		const verticalX = edge + out * LOOP_REACH + shift;
+		const verticalX =
+			pin?.firstX === undefined
+				? edge + out * LOOP_REACH + shift
+				: past(pin.firstX, edge + out * ACROSS_REACH, out);
 		return route(verticalX, verticalX);
 	}
 
-	const firstX = sourceX + out * ACROSS_REACH + shift;
-	const secondX = targetX - out * ACROSS_REACH + shift;
+	const firstX = nearSource + shift;
+	const secondX = nearTarget + shift;
 
 	// Room for both reaches between the tables is room for the S.
 	if ((secondX - firstX) * out >= 0) {
-		const middle = (sourceX + targetX) / 2 + shift;
+		const middle =
+			pin?.firstX === undefined
+				? (sourceX + targetX) / 2 + shift
+				: Math.min(Math.max(pin.firstX, Math.min(firstX, secondX)), Math.max(firstX, secondX));
 		return route(middle, middle);
 	}
 
-	return route(firstX, secondX);
+	return route(pin?.firstX === undefined ? firstX : past(pin.firstX, firstX, out), secondX);
+}
+
+function inside(value: number, a: number, b: number): boolean {
+	return value > Math.min(a, b) && value < Math.max(a, b);
+}
+
+/** `value`, or `limit` when it falls short of it in the `out` direction. */
+function past(value: number, limit: number, out: number): number {
+	return out > 0 ? Math.max(value, limit) : Math.min(value, limit);
 }
 
 /** The path to draw, with the point the relationship badge sits on. */

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { Position } from "@xyflow/react";
 
-import { bestSides, linePath, nearestSides, runsPast } from "./lib/edge-lines";
+import { bestSides, linePath, nearestSides, planRoute, runsPast } from "./lib/edge-lines";
 
 // Two tables 160 wide. The source sits at 0; the target is moved about.
 const source = { left: 0, right: 160 };
@@ -149,5 +149,52 @@ describe("runsPast", () => {
 		expect(runsPast(200, 384, 127)).toBe(true);
 		expect(runsPast(80, 127, 384)).toBe(false);
 		expect(runsPast(127, 127, 384)).toBe(false);
+	});
+});
+
+describe("a dragged line", () => {
+	const loop = {
+		sourceX: 100,
+		sourceY: 0,
+		targetX: 100,
+		targetY: 100,
+		sourcePosition: Position.Right,
+		targetPosition: Position.Right,
+	};
+	const facing = { ...loop, targetX: 300, targetPosition: Position.Left };
+	const round = { ...loop, sourceX: 300, targetPosition: Position.Left };
+
+	test("a loop runs where it was dragged to, and no closer than a lane from the table", () => {
+		expect(planRoute("square", { ...loop, pin: { firstX: 180 } }, 0).firstX).toBe(180);
+		expect(planRoute("square", { ...loop, pin: { firstX: 20 } }, 0).firstX).toBe(114);
+	});
+
+	test("the bend between facing tables stays between them", () => {
+		expect(planRoute("square", { ...facing, pin: { firstX: 150 } }, 0).firstX).toBe(150);
+		expect(planRoute("square", { ...facing, pin: { firstX: 900 } }, 0).firstX).toBe(286);
+	});
+
+	test("each run of a line that comes back round moves on its own", () => {
+		const route = planRoute("square", { ...round, pin: { secondX: 40, crossY: 250 } }, 0);
+
+		expect(route).toMatchObject({ firstX: 314, secondX: 40, crossY: 250 });
+		expect(planRoute("square", { ...round, pin: { secondX: 200 } }, 0).secondX).toBe(86);
+	});
+
+	test("an end pulled off its row puts a step in a straight run", () => {
+		const route = planRoute("square", { ...facing, pin: { crossY: 60, secondX: 200 } }, 0);
+
+		expect(route).toMatchObject({ firstX: 114, secondX: 200, crossY: 60 });
+	});
+
+	test("a vertical dragged past the other does not cross the line's own end", () => {
+		const ends = { ...facing, targetX: 1100, sourceY: 267, targetY: 188 };
+		const route = planRoute(
+			"square",
+			{ ...ends, pin: { firstX: 877, secondX: 522, crossY: 520 } },
+			0,
+		);
+
+		expect(route).toMatchObject({ firstX: 522, secondX: 522 });
 	});
 });
